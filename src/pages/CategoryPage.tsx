@@ -151,13 +151,22 @@ const CategoryPage = () => {
             <h2 className="text-lg font-semibold text-foreground mb-4">Browse by Service Type</h2>
             <div className="flex flex-wrap gap-2">
               {category.subCategories.map((sub) => (
-                <div key={sub.name} className="group">
-                  <Button variant="outline" className="border-gold/30 hover:border-gold hover:bg-gold/10 hover:text-gold h-auto py-2 px-4 flex flex-col items-start gap-0.5">
-                    <span className="font-medium text-sm">{sub.name}</span>
-                    <span className="text-xs text-muted-foreground group-hover:text-gold/70">{sub.services.length} services</span>
-                  </Button>
-                </div>
-              ))}
+                      <Link
+                        key={sub.name}
+                        to={`/subcategory/${encodeURIComponent(sub.name)}`}
+                        className="group"
+                      >
+                        <Button
+                          variant="outline"
+                          className="border-gold/30 hover:border-gold hover:bg-gold/10 hover:text-gold h-auto py-2 px-4 flex flex-col items-start gap-0.5"
+                        >
+                          <span className="font-medium text-sm">{sub.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {sub.services.length} services
+                          </span>
+                        </Button>
+                      </Link>
+                    ))}
             </div>
           </div>
 
