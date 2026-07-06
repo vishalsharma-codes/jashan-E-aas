@@ -149,72 +149,46 @@ const CategoryPage = () => {
           {/* Sub-categories */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-foreground mb-4">Browse by Service Type</h2>
-            <div className="flex flex-wrap gap-2">
-              {category.subCategories.map((sub) => (
-                      <Link
-                        key={sub.name}
-                        to={`/subcategory/${encodeURIComponent(sub.name)}`}
-                        className="group"
-                      >
-                        <Button
-                          variant="outline"
-                          className="border-gold/30 hover:border-gold hover:bg-gold/10 hover:text-gold h-auto py-2 px-4 flex flex-col items-start gap-0.5"
-                        >
-                          <span className="font-medium text-sm">{sub.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {sub.services.length} services
-                          </span>
-                        </Button>
-                      </Link>
-                    ))}
-            </div>
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {category.subCategories.map((sub) => (
+                  <Link
+                    key={sub.name}
+                    to={`/subcategory/${encodeURIComponent(sub.name)}`}
+                    className="group"
+                  >
+                    <div className="overflow-hidden rounded-xl border border-gold/30 bg-card hover:border-gold transition-all duration-300 hover:shadow-xl">
 
-          {/* Services chips */}
-          <div className="mb-10">
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">Individual Services</h3>
-            <div className="flex flex-wrap gap-2">
-              {category.subCategories.flatMap(sub => sub.services).map((service) => (
-                <Link
-                  key={service}
-                  to={`/vendors?q=${encodeURIComponent(service)}`}
-                  className="px-3 py-1 bg-secondary border border-border text-foreground/80 text-xs rounded-full hover:border-gold/50 hover:text-gold transition-colors"
-                >
-                  {service}
-                </Link>
-              ))}
-            </div>
-          </div>
+                      {/* Image */}
+                      <div className="h-44 overflow-hidden">
+                        <img
+                          src={sub.image}
+                          alt={sub.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
 
-          {/* Tabs: Vendors / Portfolio */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-8">
-              <TabsTrigger value="vendors">Vendors ({allCategoryVendors.length})</TabsTrigger>
-              <TabsTrigger value="portfolio">Portfolio Gallery</TabsTrigger>
-            </TabsList>
+                      {/* Bottom */}
+                      <div className="p-4">
+                        <h3 className="font-semibold text-lg">
+                          {sub.name}
+                        </h3>
 
-            <TabsContent value="vendors">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {allCategoryVendors.map((vendor, i) => (
-                  <VendorCard key={vendor.id} vendor={vendor} catGradient={category.gradient} index={i} />
+                        <p className="text-sm text-muted-foreground">
+                          {sub.services.length} services
+                        </p>
+                      </div>
+
+                    </div>
+                  </Link>
                 ))}
               </div>
-            </TabsContent>
-
-            <TabsContent value="portfolio">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {allCategoryVendors.map((vendor) => (
-                  <PortfolioGrid key={vendor.id} vendor={vendor} />
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
+          </div>
         </div>
       </div>
       <Footer />
       <EveBuddy />
     </div>
   );
-};
+}; 
 
 export default CategoryPage;
