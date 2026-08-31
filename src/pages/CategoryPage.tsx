@@ -129,21 +129,20 @@ const CategoryPage = () => {
       <DynamicBackground theme={categoryThemeMap[categoryId ?? ""] ?? "default"} />
       <Navbar />
       <div className="pt-20">
-        {/* Category Hero */}
-        <div className={`bg-gradient-to-br ${category.gradient} py-16`}>
-          <div className="container mx-auto px-4">
-            <Link to="/" className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-6 transition-colors text-sm">
-              <ArrowLeft className="w-4 h-4" /> Back to Home
-            </Link>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <span className="text-5xl mb-3 block">{category.icon}</span>
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
-                {serviceLabel || category.name}
-              </h1>
-              <p className="text-white/80 text-lg">{allCategoryVendors.length}+ verified vendors · {category.subCategories.length} service types</p>
-            </motion.div>
+          {/* Category Hero */}
+          <div className="bg-black border-b py-8">
+            <div className="container mx-auto px-4 ">
+              <Link to="/" className="inline-flex items-center gap-2 text-white/70 hover:text-white mb-4 transition-colors text-sm">
+                <ArrowLeft className="w-4 h-4" /> Back to Home
+              </Link>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 flex items-center gap-3">
+                  {serviceLabel || category.name} <span className="text-4xl">{category.icon}</span>
+                </h1>
+                <p className="text-white/70 text-lg">{allCategoryVendors.length}+ verified vendors · {category.subCategories.length} service types</p>
+              </motion.div>
+            </div>
           </div>
-        </div>
 
         <div className="container mx-auto px-4 py-10">
           {/* Sub-categories */}

@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
 import { eventCategories } from "@/lib/categoryData";
 import { subCategorydata, pageColors } from "@/lib/weddingSubCategoryData";
-
+import {corporateSubCategoryData, corporatePageColors} from "@/lib/corporateSubCategoryData";
+import { educationalSubCategoryData, educationalPageColors } from "@/lib/educationalSubCategoryData";
 
 const SubCategoryPage = () => {
   const { subcategoryName } = useParams();
@@ -17,23 +18,45 @@ const SubCategoryPage = () => {
           return <div className="p-10">Subcategory Not Found</div>;
   }
 
-const services =
-  subCategorydata[subCategory.name as keyof typeof subCategorydata] || [];
+// Check whether this is a Corporate Events subcategory
+const isCorporate = Object.prototype.hasOwnProperty.call(
+  corporateSubCategoryData,
+  subCategory.name
+);
 
-  console.log("Services:", services);
+const isEducational = Object.prototype.hasOwnProperty.call(
+  educationalSubCategoryData,
+  subCategory.name
+);
 
-const colors =
-  pageColors[subCategory.name as keyof typeof pageColors] ||
-  pageColors["Theme-Based Weddings"];
- console.log("Colors:", colors);
+// Get services according to category
+const services = isCorporate
+  ? corporateSubCategoryData[subCategory.name as keyof typeof corporateSubCategoryData] || []
+  : isEducational
+  ? educationalSubCategoryData[subCategory.name as keyof typeof educationalSubCategoryData] || []
+  : subCategorydata[subCategory.name as keyof typeof subCategorydata] || [];
 
+console.log("Services:", services);
+
+// Get colors according to category
+const colors = isCorporate
+  ? corporatePageColors[
+      subCategory.name as keyof typeof corporatePageColors
+    ] || corporatePageColors["Corporate Events"]
+     : isEducational
+  ? educationalPageColors[subCategory.name as keyof typeof educationalPageColors] || educationalPageColors["Educational Events"]
+  : pageColors[
+      subCategory.name as keyof typeof pageColors
+    ] || pageColors["Theme-Based Weddings"];
+
+console.log("Colors:", colors);
  return(
 <div
   className="relative min-h-screen text-[#4b3324] py-12 px-8 overflow-hidden"
   // style={{ backgroundColor: colors.background }}
 >
   {/* Background Video */}
-  <div className="absolute inset-0 z-0 overflow-hidden">
+  {/* <div className="absolute inset-0 z-0 overflow-hidden">
     <video
       autoPlay
       muted
@@ -42,10 +65,10 @@ const colors =
       className="w-full h-full object-cover"
     >
       <source src={colors.backgroundVideo} type="video/mp4" />
-    </video>
+    </video> */}
 
-    <div className="absolute inset-0 bg-black/35"></div>
-  </div>
+    {/* <div className="absolute inset-0 bg-black/35"></div>
+  </div> */}
 
   {/* Page Content */}
   <div className="relative z-10">
@@ -123,63 +146,57 @@ const colors =
 
     {/* Card */}
     <div
-      className={`
-        w-[360px]
-        h-[160px]
-        rounded-3xl
-        border-2
-        ${item.border}
-        bg-[#fffdf9]
-        shadow-lg
-        px-5
-        py-5
-        flex items-center
-        transition-all
-        duration-300
-        hover:scale-105
-        hover:-translate-y-2
-        hover:shadow-2xl
-      `}
-    >
-      <div className="flex items-center gap-4 w-full">
+  className={`
+    relative
+    w-[360px]
+    h-[160px]
+    rounded-3xl
+    border-2
+    ${item.border}
+    ${item.image?"bg-cover bg-center":item.bg}
+    shadow-lg
+    overflow-hidden
+    transition-all
+    duration-300
+    hover:scale-105
+    hover:-translate-y-2
+    hover:shadow-2xl
+  `}
+  style={
+  item.image
+    ? { backgroundImage: `url("${item.image}")` }
+    : undefined
+}
+>
+  {/* White transparent overlay */}
+  {item.image&&(
+  <div className="absolute inset-0 bg-white/55"></div>
+)}
+  {/* Card content */}
+ <div className="relative z-10 flex items-center justify-center text-center w-full h-full px-5 py-5">
 
-        {/* Icon */}
-        <div
-          className={`
-            w-20
-            h-20
-            rounded-full
-            ${item.bg}
-            flex
-            items-center
-            justify-center
-            text-4xl
-            flex-shrink-0
-          `}
-        >
-          {item.icon}
-        </div>
+    {/* Icon */}
+  
+    {/* Text */}
+    <div className="w-full">
+      <h2 className="text-[18px] font-serif font-semibold leading-6">
+        {item.title}
+      </h2>
 
-        {/* Text */}
-        <div className="flex-1">
-
-          <h2 className="text-[18px] font-serif font-semibold leading-6">
-            {item.title}
-          </h2>
-
-          <p className="mt-2 text-[14px] text-gray-600 leading-6">
-            {item.description}
-          </p>
-
-        </div>
-
-      </div>
+      <p className="mt-2 text-[14px] text-gray-600 leading-6">
+        {item.description}
+      </p>
     </div>
+
+  </div>
+</div>
   </div>
 ))}
   </div>
 </div>
 </div>
   )};
+
+  
 
 export default SubCategoryPage;

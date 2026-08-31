@@ -1,4 +1,14 @@
-export const subCategorydata={
+type ServiceItem = {
+  title: string;
+  description: string;
+  icon: string;
+  border: string;
+  bg: string;
+  image?: string; // optional
+};
+
+export const subCategorydata:
+Record<string, ServiceItem[]>={
 
 "Theme-Based Weddings":[
   {
@@ -6,7 +16,8 @@ export const subCategorydata={
     description: "Sun, sand and sea breeze for a relaxed tropical celebration.",
     icon: "🏝️",
     border: "border-blue-300",
-    bg: "bg-blue-50",
+    bg:'bg-blue-20',
+    image:'/11-fashion.jpg.jpeg',
   },
   {
     title: "Garden Wedding",
@@ -14,6 +25,7 @@ export const subCategorydata={
     icon: "🌿",
     border: "border-green-300",
     bg: "bg-green-50",
+
   },
   {
     title: "Vintage Wedding",
@@ -131,6 +143,7 @@ export const subCategorydata={
     icon: "💍",
     border: "border-pink-300",
     bg: "bg-pink-50",
+    image:"/wedding/1-1_engagement-ceremony.jpg.jpeg"
   },
   {
     title: "Mehendi Ceremony",
@@ -138,6 +151,7 @@ export const subCategorydata={
     icon: "🌿",
     border: "border-green-300",
     bg: "bg-green-50",
+    image:"/wedding/1-2_mehandi-henna-ceremony.jpg.jpeg"
   },
   {
     title: "Sangeet Night",
@@ -145,6 +159,7 @@ export const subCategorydata={
     icon: "🎶",
     border: "border-purple-300",
     bg: "bg-purple-50",
+    image:"/wedding/1-3_sangeet-musical-night.jpg.jpeg"
   },
   {
     title: "Haldi Ceremony",
@@ -152,6 +167,7 @@ export const subCategorydata={
     icon: "🌼",
     border: "border-yellow-300",
     bg: "bg-yellow-50",
+    image:"/wedding/1-4_haldi-ceremony.jpg.jpeg"
   },
   {
     title: "Bachelor Party",
@@ -159,6 +175,7 @@ export const subCategorydata={
     icon: "🥳",
     border: "border-blue-300",
     bg: "bg-blue-50",
+    image:"/wedding/1-5_bachelor-party.jpg.jpeg",
   },
   {
     title: "Bachelorette Party",
@@ -166,6 +183,7 @@ export const subCategorydata={
     icon: "👑",
     border: "border-rose-300",
     bg: "bg-rose-50",
+    image:"/wedding/1-6_bachelorette-bridal-shower.jpg.jpeg",
   },
   {
     title: "Bridal Shower",
@@ -173,6 +191,7 @@ export const subCategorydata={
     icon: "🎁",
     border: "border-fuchsia-300",
     bg: "bg-fuchsia-50",
+    image:"/wedding/1-11_post-wedding-rituals-griha-pravesh.jpg.jpeg",
   },
   {
     title: "Tilak / Shagun",
@@ -180,6 +199,7 @@ export const subCategorydata={
     icon: "🪔",
     border: "border-orange-300",
     bg: "bg-orange-50",
+    image:"/wedding/1-9_tilak-shagun-ceremony.jpg.jpeg",
   },
   {
     title: "Roka Ceremony",
@@ -187,6 +207,7 @@ export const subCategorydata={
     icon: "🤝",
     border: "border-indigo-300",
     bg: "bg-indigo-50",
+    image:"/wedding/1-13_vow-renewal-ceremonies.jpg.jpeg",
   },
 ],
 "Photography & Video": [
