@@ -3,6 +3,8 @@ import { eventCategories } from "@/lib/categoryData";
 import { subCategorydata, pageColors } from "@/lib/weddingSubCategoryData";
 import {corporateSubCategoryData, corporatePageColors} from "@/lib/corporateSubCategoryData";
 import { educationalSubCategoryData, educationalPageColors } from "@/lib/educationalSubCategoryData";
+import { concertSubCategoryData, concertPageColors } from "@/lib/concertSubCategoryData";
+import { religiousSubCategoryData, religiousPageColors } from "@/lib/religiousSubCategoryData";
 
 const SubCategoryPage = () => {
   const { subcategoryName } = useParams();
@@ -29,12 +31,40 @@ const isEducational = Object.prototype.hasOwnProperty.call(
   subCategory.name
 );
 
+const isConcert = Object.prototype.hasOwnProperty.call(
+  concertSubCategoryData,
+  subCategory.name
+);
+
+const isreligious = Object.prototype.hasOwnProperty.call(
+  religiousSubCategoryData,
+  subCategory.name
+);
+
 // Get services according to category
 const services = isCorporate
-  ? corporateSubCategoryData[subCategory.name as keyof typeof corporateSubCategoryData] || []
+  ? corporateSubCategoryData[
+      subCategory.name as keyof typeof corporateSubCategoryData
+    ] || []
+
   : isEducational
-  ? educationalSubCategoryData[subCategory.name as keyof typeof educationalSubCategoryData] || []
-  : subCategorydata[subCategory.name as keyof typeof subCategorydata] || [];
+  ? educationalSubCategoryData[
+      subCategory.name as keyof typeof educationalSubCategoryData
+    ] || []
+
+  : isConcert
+  ? concertSubCategoryData[
+      subCategory.name as keyof typeof concertSubCategoryData
+    ] || []
+
+  : isreligious
+  ? religiousSubCategoryData[
+      subCategory.name as keyof typeof religiousSubCategoryData
+  ] || []
+
+  : subCategorydata[
+      subCategory.name as keyof typeof subCategorydata
+    ] || [];
 
 console.log("Services:", services);
 
@@ -43,8 +73,22 @@ const colors = isCorporate
   ? corporatePageColors[
       subCategory.name as keyof typeof corporatePageColors
     ] || corporatePageColors["Corporate Events"]
-     : isEducational
-  ? educationalPageColors[subCategory.name as keyof typeof educationalPageColors] || educationalPageColors["Educational Events"]
+
+  : isEducational
+  ? educationalPageColors[
+      subCategory.name as keyof typeof educationalPageColors
+    ] || educationalPageColors["Educational Events"]
+
+  : isConcert
+  ? concertPageColors[
+      subCategory.name as keyof typeof concertPageColors
+    ] || concertPageColors["Concert Types"]
+
+  : isreligious
+  ? religiousPageColors[
+      subCategory.name as keyof typeof religiousPageColors
+    ] || religiousPageColors["Religious Event"]
+
   : pageColors[
       subCategory.name as keyof typeof pageColors
     ] || pageColors["Theme-Based Weddings"];
@@ -91,13 +135,15 @@ console.log("Colors:", colors);
             ></div>
       {/* Left Decoration */}
 
-          <div className="absolute left-12 bottom-12 text-4xl style={{ color: colors.text }}">
+          <div className="absolute left-12 bottom-12 text-4xl "
+          style={{ color: colors.text }}>
             ❦
           </div>
 
           {/* Right Decoration */}
 
-          <div className="absolute right-12 bottom-12 text-4xl style={{ color: colors.text }} rotate-180">
+          <div className="absolute right-12 bottom-12 text-4xl" 
+          style={{ color: colors.text }} rotate-180>
             ❦
           </div>
 
