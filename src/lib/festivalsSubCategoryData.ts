@@ -1,0 +1,357 @@
+export const festivalsSubCategoryData = {
+  "Hindu Festivals": [
+    {
+      title: "Diwali Mela Organizer",
+      description: "Vibrant Diwali melas organized with lights and festivity.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-21_diwali-melas.png",
+    },
+    {
+      title: "Holi Event Planner",
+      description: "Colorful Holi events planned with music and celebration.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-1_hindu-festivals-diwali-holi-durga-puja-navratri.png",
+    },
+    {
+      title: "Durga Puja Pandal Setup",
+      description: "Elaborate pandal setups for community Durga Puja celebrations.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-18_community-durga-puja-pandals.png",
+    },
+    {
+      title: "Navratri Garba / Dandiya",
+      description: "Energetic Navratri garba and dandiya night events.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-19_navratri-garba-events.png",
+    },
+    {
+      title: "Ganesh Chaturthi Setup",
+      description: "Traditional Ganesh Chaturthi setups with festive decor.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-1_hindu-festivals-diwali-holi-durga-puja-navratri.png",
+    },
+    {
+      title: "Janmashtami Event",
+      description: "Devotional Janmashtami events celebrated with tradition.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-1_hindu-festivals-diwali-holi-durga-puja-navratri.png",
+    },
+    {
+      title: "Dussehra Ramlila",
+      description: "Grand Dussehra and Ramlila performances organized for communities.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-1_hindu-festivals-diwali-holi-durga-puja-navratri.png",
+    },
+  ],
+
+  "Multi-Faith Festivals": [
+    {
+      title: "Eid Mela Organizer",
+      description: "Festive Eid melas organized with community spirit.",
+      border: "border-amber-300",
+      bg: "bg-amber-50",
+      image: "/festival/13-2_muslim-festivals-eid-ul-fitr-eid-ul-adha-ramadan-muharram.png",
+    },
+    {
+      title: "Christmas Carnival",
+      description: "Joyful Christmas carnivals with festive attractions.",
+      border: "border-amber-300",
+      bg: "bg-amber-50",
+      image: "/festival/13-22_christmas-carnivals.png",
+    },
+    {
+      title: "Baisakhi Celebration",
+      description: "Vibrant Baisakhi celebrations with music and dance.",
+      border: "border-amber-300",
+      bg: "bg-amber-50",
+      image: "/festival/13-4_sikh-festivals-gurpurab-baisakhi-lohri.png",
+    },
+    {
+      title: "Lohri Event",
+      description: "Warm Lohri events with bonfire and festive traditions.",
+      border: "border-amber-300",
+      bg: "bg-amber-50",
+      image: "/festival/13-4_sikh-festivals-gurpurab-baisakhi-lohri.png",
+    },
+    {
+      title: "Easter Event",
+      description: "Meaningful Easter events organized for communities.",
+      border: "border-amber-300",
+      bg: "bg-amber-50",
+      image: "/festival/13-3_christian-festivals-christmas-easter-good-friday.png",
+    },
+    {
+      title: "Buddha Purnima Event",
+      description: "Peaceful Buddha Purnima observances and celebrations.",
+      border: "border-amber-300",
+      bg: "bg-amber-50",
+      image: "/festival/13-6_buddhist-festivals-buddha-purnima-losar.png",
+    },
+    {
+      title: "Navroze Celebration",
+      description: "Festive Navroze celebrations honoring Parsi traditions.",
+      border: "border-amber-300",
+      bg: "bg-amber-50",
+      image: "/festival/13-7_parsi-festivals-navroze.png",
+    },
+  ],
+
+  "Cultural & Harvest Festivals": [
+    {
+      title: "Pongal Celebration",
+      description: "Traditional Pongal celebrations marking the harvest season.",
+      border: "border-yellow-300",
+      bg: "bg-yellow-50",
+      image: "/festival/13-8_harvest-festivals-pongal-onam-makar-sankranti-bihu.png",
+    },
+    {
+      title: "Onam Onaasadya Setup",
+      description: "Authentic Onam celebrations with traditional Onaasadya feasts.",
+      border: "border-yellow-300",
+      bg: "bg-yellow-50",
+      image: "/festival/13-8_harvest-festivals-pongal-onam-makar-sankranti-bihu.png",
+    },
+    {
+      title: "Makar Sankranti",
+      description: "Festive Makar Sankranti celebrations with kites and traditions.",
+      border: "border-yellow-300",
+      bg: "bg-yellow-50",
+      image: "/festival/13-8_harvest-festivals-pongal-onam-makar-sankranti-bihu.png",
+    },
+    {
+      title: "Bihu Event",
+      description: "Vibrant Bihu festivities celebrating culture and harvest.",
+      border: "border-yellow-300",
+      bg: "bg-yellow-50",
+      image: "/festival/13-8_harvest-festivals-pongal-onam-makar-sankranti-bihu.png",
+    },
+    {
+      title: "Pushkar Mela Support",
+      description: "Complete support for organizing Pushkar Mela events.",
+      border: "border-yellow-300",
+      bg: "bg-yellow-50",
+      image: "/festival/13-25_desert-festivals-pushkar-rann-utsav.png",
+    },
+    {
+      title: "Rann Utsav Setup",
+      description: "Immersive Rann Utsav setups celebrating desert culture.",
+      border: "border-yellow-300",
+      bg: "bg-yellow-50",
+      image: "/festival/13-25_desert-festivals-pushkar-rann-utsav.png",
+    },
+    {
+      title: "Tribal Festival Organizer",
+      description: "Authentic tribal festivals showcasing indigenous culture.",
+      border: "border-yellow-300",
+      bg: "bg-yellow-50",
+      image: "/festival/13-26_tribal-festivals.png",
+    },
+  ],
+
+  "Food & Music Festivals": [
+    {
+      title: "Food Festival Organizer",
+      description: "Complete organization for diverse food festival events.",
+      border: "border-red-300",
+      bg: "bg-red-50",
+      image: "/festival/13-11_food-festivals.png",
+    },
+    {
+      title: "Street Food Stall Setup",
+      description: "Vibrant street food stall setups for festival crowds.",
+      border: "border-red-300",
+      bg: "bg-red-50",
+      image: "/festival/13-11_food-festivals.png",
+    },
+    {
+      title: "Music Festival Planner",
+      description: "Full-scale planning for large music festival events.",
+      border: "border-red-300",
+      bg: "bg-red-50",
+      image: "/festival/13-12_music-festivals.png",
+    },
+    {
+      title: "Beer & Wine Festival",
+      description: "Curated beer and wine festivals for enthusiasts.",
+      border: "border-red-300",
+      bg: "bg-red-50",
+      image: "/festival/13-11_food-festivals.png",
+    },
+    {
+      title: "Food Truck Festival",
+      description: "Lively food truck festivals with diverse cuisine options.",
+      border: "border-red-300",
+      bg: "bg-red-50",
+      image: "/festival/13-11_food-festivals.png",
+    },
+    {
+      title: "Arts & Crafts Festival",
+      description: "Creative arts and crafts festivals showcasing local talent.",
+      border: "border-red-300",
+      bg: "bg-red-50",
+      image: "/festival/13-13_arts-crafts-festivals.png",
+    },
+  ],
+
+  "Pandal & Structure": [
+    {
+      title: "Pandal / Temporary Structure Builder",
+      description: "Skilled builders creating pandals and temporary festival structures.",
+      border: "border-rose-300",
+      bg: "bg-rose-50",
+      image: "/festival/13-18_community-durga-puja-pandals.png",
+    },
+    {
+      title: "Durga / Ganesh Idol Maker",
+      description: "Skilled artisans crafting traditional Durga and Ganesh idols.",
+      border: "border-rose-300",
+      bg: "bg-rose-50",
+      image: "/festival/13-18_community-durga-puja-pandals.png",
+    },
+    {
+      title: "Theme Decorator (Traditional)",
+      description: "Traditional theme decoration services for festival venues.",
+      border: "border-rose-300",
+      bg: "bg-rose-50",
+      image: "/festival/13-16_heritage-festivals.png",
+    },
+    {
+      title: "LED Decoration Setup",
+      description: "Bright LED decoration setups for festive ambiance.",
+      border: "border-rose-300",
+      bg: "bg-rose-50",
+      image: "/festival/13-9_new-year-celebrations.png",
+    },
+    {
+      title: "Rangoli Artist",
+      description: "Skilled rangoli artists creating intricate festival designs.",
+      border: "border-rose-300",
+      bg: "bg-rose-50",
+      image: "/festival/13-1_hindu-festivals-diwali-holi-durga-puja-navratri.png",
+    },
+    {
+      title: "Religious Material Supplier",
+      description: "Reliable suppliers of religious materials for festivals.",
+      border: "border-rose-300",
+      bg: "bg-rose-50",
+      image: "/festival/13-2_muslim-festivals-eid-ul-fitr-eid-ul-adha-ramadan-muharram.png",
+    },
+  ],
+
+  "Operations & Safety": [
+    {
+      title: "Festival Security Services",
+      description: "Professional security services ensuring safe festival gatherings.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-17_regional-celebrations.png",
+    },
+    {
+      title: "Crowd Management",
+      description: "Organized crowd management for large festival gatherings.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-21_diwali-melas.png",
+    },
+    {
+      title: "Waste Management",
+      description: "Efficient waste management solutions for festival venues.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-10_seasonal-fairs-melas.png",
+    },
+    {
+      title: "Sanitation Services",
+      description: "Reliable sanitation services for festival crowds.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-10_seasonal-fairs-melas.png",
+    },
+    {
+      title: "Fireworks (Where Permitted)",
+      description: "Spectacular fireworks displays where locally permitted.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-21_diwali-melas.png",
+    },
+    {
+      title: "Cultural Performers",
+      description: "Talented cultural performers bringing festivals to life.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-16_heritage-festivals.png",
+    },
+    {
+      title: "Folk Artists",
+      description: "Traditional folk artists showcasing regional heritage.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-26_tribal-festivals.png",
+    },
+    {
+      title: "Game Stalls",
+      description: "Fun game stalls and attractions for festival visitors.",
+      border: "border-orange-300",
+      bg: "bg-orange-50",
+      image: "/festival/13-23_beach-festivals.png",
+    },
+  ],
+};
+
+export const festivalsPageColors = {
+  "Festivals & Melas": {
+    border: "#ea580c",
+    innerBorder: "#fdba74",
+    line: "#fb923c",
+    text: "#7c2d12",
+  },
+
+  "Hindu Festivals": {
+    border: "#ea580c",
+    innerBorder: "#fdba74",
+    line: "#fb923c",
+    text: "#7c2d12",
+  },
+
+  "Multi-Faith Festivals": {
+    border: "#d97706",
+    innerBorder: "#fcd34d",
+    line: "#fbbf24",
+    text: "#78350f",
+  },
+
+  "Cultural & Harvest Festivals": {
+    border: "#ca8a04",
+    innerBorder: "#fde047",
+    line: "#facc15",
+    text: "#713f12",
+  },
+
+  "Food & Music Festivals": {
+    border: "#dc2626",
+    innerBorder: "#fca5a5",
+    line: "#f87171",
+    text: "#7f1d1d",
+  },
+
+  "Pandal & Structure": {
+    border: "#e11d48",
+    innerBorder: "#fda4af",
+    line: "#fb7185",
+    text: "#881337",
+  },
+
+  "Operations & Safety": {
+    border: "#c2410c",
+    innerBorder: "#fdba74",
+    line: "#fb923c",
+    text: "#7c2d12",
+  },
+};
