@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Menu, X, Grid3X3 } from "lucide-react";
-import { CategoryMindmap } from "./CategoryMindmap";
+import { CategoryMindmap } from "./outerCategory/CategoryMindmap";
 import { Link, useNavigate } from "react-router-dom";
 
 export const Navbar = () => {
