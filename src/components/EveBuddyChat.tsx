@@ -1,528 +1,1909 @@
-import { useState, useRef } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronRight, ChevronLeft, Sparkles, CheckCircle, Send, MapPin, Calendar, DollarSign, Users, Star, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { eventCategories } from "@/lib/categoryData";
-import { vendors } from "@/lib/vendorData";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  ChevronRight,
+  Clock3,
+  MapPin,
+  Mic,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react";
+
+// ============================================================
+// EVE BUDDY IMAGES
+// ============================================================
+
+import eveAvatar from "@/assets/eveBuddy/eve-avatar.jpg";
+import eveCelebrating from "@/assets/eveBuddy/eve-celebrating.jpg";
+import eveListening from "@/assets/eveBuddy/eve-listening.jpg";
+import evePresenting from "@/assets/eveBuddy/eve-presenting.jpg";
+import eveRecommendation from "@/assets/eveBuddy/eve-recommendation.jpg";
+import eveStanding from "@/assets/eveBuddy/eve-standing.jpg";
+import eveThinking from "@/assets/eveBuddy/eve-thinking.jpg";
+import eveWaving from "@/assets/eveBuddy/eve-waving.jpg";
+import eveWedding from "@/assets/eveBuddy/eve-wedding.jpg";
+
+// ============================================================
+// TYPES
+// ============================================================
 
 interface EveBuddyChatProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type Step = "welcome" | "category" | "subcategory" | "services" | "date" | "city" | "budget" | "guests" | "requirements" | "results";
+type EventType =
+  | "Wedding"
+  | "Birthday Party"
+  | "Corporate Event"
+  | "Concert / Show"
+  | null;
 
-interface EventPlan {
-  category?: string;
-  categoryId?: string;
-  subcategory?: string;
-  services: string[];
-  date?: string;
-  city?: string;
-  budget?: string;
-  guests?: string;
-  requirements?: string;
-}
+type Step =
+  | "event"
+  | "wedding-services"
+  | "details"
+  | "location"
+  | "date"
+  | "budget"
+  | "recommendations"
+  | "complete";
 
-const cities = ["Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Chennai", "Kolkata", "Pune", "Jaipur", "Ahmedabad", "Surat", "Lucknow", "Chandigarh", "Goa", "Kochi", "Indore"];
-const budgetRanges = ["Under ₹50,000", "₹50K – ₹2 Lakh", "₹2L – ₹5 Lakh", "₹5L – ₹15 Lakh", "₹15L – ₹50 Lakh", "₹50 Lakh+"];
-const guestCounts = ["Under 50", "50 – 100", "100 – 300", "300 – 500", "500 – 1000", "1000+"];
+// ============================================================
+// EVENT DATA
+// ============================================================
 
-const STEP_ORDER: Step[] = ["welcome", "category", "subcategory", "services", "date", "city", "budget", "guests", "requirements", "results"];
+const eventTypes = [
+  {
+    name: "Wedding" as const,
+    icon: "💍",
+    image: eveWedding,
+    description: "Find vendors for your big day",
+  },
+  {
+    name: "Corporate Event" as const,
+    icon: "🏢",
+    image: evePresenting,
+    description: "Conferences & product launches",
+  },
+  {
+    name: "Birthday Party" as const,
+    icon: "🎉",
+    image: eveCelebrating,
+    description: "Make your celebration special",
+  },
+  {
+    name: "Concert / Show" as const,
+    icon: "🎤",
+    image: evePresenting,
+    description: "Shows, artists & entertainment",
+  },
+];
 
-const progressPercent = (step: Step) => {
-  const idx = STEP_ORDER.indexOf(step);
-  return Math.round((idx / (STEP_ORDER.length - 1)) * 100);
-};
+const weddingOptions = [
+  "Theme-Based Weddings",
+  "Culture-Based Weddings",
+  "Pre-Wedding Ceremonies",
+  "Photography & Video",
+  "Décor & Florals",
+  "Catering & Food",
+  "Bridal & Grooming",
+  "Entertainment & Artists",
+  "Venue & Logistics",
+  "Priest & Rituals",
+  "Invitations & Stationery",
+  "Special Effects",
+];
 
-export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
-  const [step, setStep] = useState<Step>("welcome");
-  const [plan, setPlan] = useState<EventPlan>({ services: [] });
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [proposalSent, setProposalSent] = useState<string[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const scrollTop = () => {
-    setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, 50);
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
+export const EveBuddyChat = ({
+  isOpen,
+  onClose,
+}: EveBuddyChatProps) => {
+  const [step, setStep] = useState<Step>("event");
+  const [eventType, setEventType] = useState<EventType>(null);
+  const [selectedOption, setSelectedOption] = useState<string | null>(
+    null
+  );
+  const [city, setCity] = useState("");
+  const [date, setDate] = useState("");
+  const [budget, setBudget] = useState("");
+  const [message, setMessage] = useState("");
+  const [showAllEvents, setShowAllEvents] = useState(false);
+
+  // ==========================================================
+  // EVE IMAGE
+  // ==========================================================
+
+  const eveImage = useMemo(() => {
+    switch (step) {
+      case "event":
+        return eveWaving;
+
+      case "details":
+        return eventType === "Wedding"
+          ? eveWedding
+          : eveListening;
+
+      case "location":
+        return eveThinking;
+
+      case "date":
+        return evePresenting;
+
+      case "recommendations":
+        return eveRecommendation;
+
+      case "complete":
+        return eveCelebrating;
+
+      default:
+        return eveStanding;
+    }
+  }, [step, eventType]);
+
+  // ==========================================================
+  // RESET
+  // ==========================================================
+
+  const resetPlanner = () => {
+    setStep("event");
+    setEventType(null);
+    setSelectedOption(null);
+    setCity("");
+    setDate("");
+    setBudget("");
+    setMessage("");
+    setShowAllEvents(false);
   };
 
-  const goTo = (s: Step) => { setStep(s); scrollTop(); };
+  // ==========================================================
+  // EVENT
+  // ==========================================================
 
-  const goBack = () => {
-    const idx = STEP_ORDER.indexOf(step);
-    if (idx > 0) goTo(STEP_ORDER[idx - 1]);
+  const handleEventSelect = (event: EventType) => {
+    setEventType(event);
+    setSelectedOption(null);
+    setStep("details");
   };
 
-  const selectedCategory = eventCategories.find(c => c.id === plan.categoryId);
-  const selectedSubCat = selectedCategory?.subCategories.find(s => s.name === plan.subcategory);
+  // ==========================================================
+  // SERVICE
+  // ==========================================================
 
-  const matchedVendors = vendors.filter(v => {
-    const catMatch = !plan.categoryId || v.category.toLowerCase().includes(plan.categoryId.replace(/-/g, " ")) ||
-      (plan.services.length > 0 && plan.services.some(s =>
-        v.tags.some(t => t.toLowerCase().includes(s.toLowerCase().split(" ")[0]))
-      ));
-    const cityMatch = !plan.city || v.location.toLowerCase().includes(plan.city.toLowerCase());
-    return catMatch || cityMatch;
-  }).slice(0, 6);
+  const handleOptionSelect = (option: string) => {
+    setSelectedOption(option);
 
-  const displayVendors = matchedVendors.length > 0 ? matchedVendors : vendors.slice(0, 5);
-
-  const handleSendProposal = (vendorId: string) => setProposalSent(prev => [...prev, vendorId]);
-
-  const resetChat = () => {
-    setStep("welcome"); setPlan({ services: [] });
-    setSelectedServices([]); setProposalSent([]);
+    setTimeout(() => {
+      setStep("location");
+    }, 180);
   };
 
-  const toggleService = (service: string) =>
-    setSelectedServices(prev => prev.includes(service) ? prev.filter(s => s !== service) : [...prev, service]);
+  // ==========================================================
+  // LOCATION
+  // ==========================================================
+
+  const handleLocationNext = () => {
+    if (!city.trim()) return;
+
+    setStep("date");
+  };
+
+  // ==========================================================
+  // DATE
+  // ==========================================================
+
+  const handleDateNext = () => {
+    if (!date) return;
+
+    setStep("budget");
+  };
+
+  // ==========================================================
+  // BACK
+  // ==========================================================
+
+  const handleBack = () => {
+    if (step === "details") {
+      setEventType(null);
+      setStep("event");
+      return;
+    }
+
+    if (step === "location") {
+      setSelectedOption(null);
+      setStep("details");
+      return;
+    }
+
+    if (step === "date") {
+      setStep("location");
+      return;
+    }
+
+    if (step === "budget") {
+      setStep("date");
+      return;
+    }
+
+    if (step === "recommendations") {
+      setStep("budget");
+      return;
+    }
+  };
+
+  // ==========================================================
+  // SEND MESSAGE
+  // ==========================================================
+
+  const handleSendMessage = () => {
+    if (!message.trim()) return;
+
+    const text = message.trim().toLowerCase();
+
+    if (
+      text.includes("wedding") ||
+      text.includes("marriage")
+    ) {
+      setEventType("Wedding");
+      setStep("details");
+      setMessage("");
+      return;
+    }
+
+    if (text.includes("birthday")) {
+      setEventType("Birthday Party");
+      setStep("details");
+      setMessage("");
+      return;
+    }
+
+    if (
+      text.includes("corporate") ||
+      text.includes("conference")
+    ) {
+      setEventType("Corporate Event");
+      setStep("details");
+      setMessage("");
+      return;
+    }
+
+    setMessage("");
+  };
+
+  // ==========================================================
+  // PANEL
+  // ==========================================================
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 40, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28 }}
-          className="fixed bottom-24 right-4 w-[420px] max-w-[calc(100vw-2rem)] h-[640px] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50 flex flex-col"
-        >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-[hsl(var(--gold))] to-[hsl(var(--gold-dark))] p-4 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-background/20 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-background" />
+        <>
+          {/* ==================================================
+              SOFT PAGE OVERLAY
+              IMPORTANT: NO BACKDROP BLUR
+          ================================================== */}
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            className="
+              fixed
+              inset-0
+              z-[80]
+              bg-black/15
+            "
+          />
+
+          {/* ==================================================
+              EVE BUDDY PANEL
+          ================================================== */}
+
+          <motion.aside
+            initial={{
+              opacity: 0,
+              x: 70,
+            }}
+            animate={{
+              opacity: 1,
+              x: 0,
+            }}
+            exit={{
+              opacity: 0,
+              x: 70,
+            }}
+            transition={{
+              duration: 0.3,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            // size of panel
+            onClick={(e) => e.stopPropagation()}
+            className="
+  fixed
+  right-5
+  top-[92px]
+  bottom-[82px]
+  z-[90]
+
+  w-[25vw]
+  max-w-[600px]
+  min-w-[360px]
+
+  overflow-hidden
+
+  rounded-[26px]
+
+  border
+  border-[#d4af37]/45
+
+  bg-[#0b0d11]/[0.97]
+
+  shadow-[0_20px_80px_rgba(0,0,0,0.65)]
+  shadow-[0_0_45px_rgba(212,175,55,0.08)]
+
+  flex
+  flex-col
+"
+          >
+            {/* ==================================================
+                GOLD TOP GLOW
+            ================================================== */}
+
+            <div
+              className="
+                absolute
+                top-0
+                left-0
+                right-0
+                h-[1px]
+                bg-gradient-to-r
+                from-transparent
+                via-[#d4af37]
+                to-transparent
+                opacity-90
+              "
+            />
+
+            {/* ==================================================
+                HEADER
+            ================================================== */}
+
+            <header
+              className="
+                relative
+                shrink-0
+                h-[70px]
+
+                px-5
+
+                flex
+                items-center
+                justify-between
+
+                border-b
+                border-white/[0.07]
+
+                bg-gradient-to-r
+                from-[#17130a]
+                via-[#241d0c]
+                to-[#111318]
+              "
+            >
+              {/* LEFT */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="
+                    relative
+                    w-10
+                    h-10
+                    rounded-full
+                    overflow-hidden
+
+                    border
+                    border-[#d4af37]/60
+
+                    bg-[#090a0c]
+
+                    shadow-[0_0_20px_rgba(212,175,55,0.18)]
+                  "
+                >
+                  <img
+                    src={eveAvatar}
+                    alt="Eve Buddy"
+                    className="
+                      w-full
+                      h-full
+                      object-cover
+                    "
+                  />
+
+                  <span
+                    className="
+                      absolute
+                      right-0
+                      bottom-0
+                      w-2.5
+                      h-2.5
+                      rounded-full
+                      bg-emerald-400
+                      border-2
+                      border-[#15120c]
+                    "
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h2
+                      className="
+                        font-display
+                        text-[17px]
+                        font-bold
+                        text-white
+                      "
+                    >
+                      EveBuddy AI
+                    </h2>
+
+                    <Sparkles
+                      className="
+                        w-3.5
+                        h-3.5
+                        text-[#d4af37]
+                      "
+                    />
+                  </div>
+
+                  <p
+                    className="
+                      text-[10px]
+                      text-[#d4af37]
+                      tracking-wide
+                    "
+                  >
+                    Your Personal Event Planner
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-serif font-bold text-background text-sm">Eve Buddy AI ✨</h3>
-                <p className="text-xs text-background/80">Your Personal Event Planner</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {step !== "welcome" && (
-                <button onClick={resetChat} className="text-background/70 hover:text-background text-xs underline">
-                  Restart
+
+              {/* RIGHT */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={resetPlanner}
+                  title="Restart"
+                  className="
+                    hidden
+                    sm:flex
+                    items-center
+                    justify-center
+                    w-8
+                    h-8
+                    rounded-full
+                    text-white/50
+                    hover:text-[#d4af37]
+                    hover:bg-white/[0.05]
+                    transition
+                  "
+                >
+                  ↻
                 </button>
-              )}
-              <button onClick={onClose} className="text-background hover:bg-background/20 rounded-lg p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
 
-          {/* Progress Bar */}
-          {step !== "welcome" && step !== "results" && (
-            <div className="h-1 bg-muted flex-shrink-0">
-              <motion.div
-                className="h-full bg-gradient-to-r from-[hsl(var(--gold))] to-[hsl(var(--crimson))]"
-                animate={{ width: `${progressPercent(step)}%` }}
-                transition={{ duration: 0.4 }}
-              />
-            </div>
-          )}
+                <button
+                  onClick={onClose}
+                  className="
+                    w-8
+                    h-8
+                    rounded-full
+                    flex
+                    items-center
+                    justify-center
+                    text-white/60
+                    hover:text-white
+                    hover:bg-white/[0.06]
+                    transition
+                  "
+                >
+                  <X className="w-[18px] h-[18px]" />
+                </button>
+              </div>
+            </header>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto" ref={scrollRef}>
-            <div className="p-5">
+            {/* ==================================================
+                BODY
+            ================================================== */}
+
+            <main
+              className="
+                relative
+                flex-1
+                min-h-0
+                overflow-y-auto
+                overflow-x-hidden
+
+                scrollbar-thin
+                scrollbar-thumb-[#d4af37]/20
+                scrollbar-track-transparent
+              "
+            >
               <AnimatePresence mode="wait">
 
-                {/* ─── WELCOME ─── */}
-                {step === "welcome" && (
-                  <motion.div key="welcome" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                    <div className="text-center mb-6">
-                      <div className="text-6xl mb-3">🎪</div>
-                      <h2 className="text-2xl font-serif font-bold mb-2">Namaste! I'm Eve Buddy</h2>
-                      <p className="text-muted-foreground text-sm leading-relaxed">
-                        Tell me about your event and I'll find the{" "}
-                        <span className="text-[hsl(var(--gold))] font-semibold">perfect vendors</span> from our verified network — personalised just for you.
+                {/* =================================================
+                    EVENT SCREEN
+                ================================================= */}
+
+                {step === "event" && (
+                  <motion.div
+                    key="event"
+                    initial={{
+                      opacity: 0,
+                      y: 12,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      y: -12,
+                    }}
+                    transition={{
+                      duration: 0.2,
+                    }}
+                    className="p-5"
+                  >
+                    {/* Eve introduction */}
+                    <div className="relative min-h-[150px]">
+
+  {/* ==================================================
+      EVE AVATAR
+  ================================================== */}
+
+  <motion.div
+    initial={{
+      opacity: 0,
+      scale: 0.9,
+      x: -10,
+    }}
+    animate={{
+      opacity: 1,
+      scale: 1,
+      x: 0,
+    }}
+    transition={{
+      duration: 0.35,
+    }}
+    className="
+      absolute
+      left-0
+      top-0
+
+      w-[88px]
+      h-[100px]
+
+      flex
+      items-end
+      justify-center
+    "
+  >
+    <div
+      className="
+        w-[82px]
+        h-[82px]
+
+        rounded-full
+        overflow-hidden
+
+        border
+        border-[#d4af37]/45
+
+        bg-[#111318]
+
+        shadow-[0_0_30px_rgba(212,175,55,0.18)]
+      "
+    >
+      <img
+        src={eveAvatar}
+        alt="Eve Buddy"
+        className="
+          w-full
+          h-full
+          object-cover
+        "
+      />
+    </div>
+
+    {/* online indicator */}
+    {/* <span
+      className="
+        absolute
+        right-[1px]
+        bottom-[15px]
+
+        w-3
+        h-3
+
+        rounded-full
+
+        bg-emerald-400
+
+        border-2
+        border-[#0d0f13]
+
+        shadow-[0_0_8px_rgba(52,211,153,0.5)]
+      "
+    /> */}
+  </motion.div>
+
+  {/* ==================================================
+      GREETING
+  ================================================== */}
+
+  <motion.div
+    initial={{
+      opacity: 0,
+      y: 8,
+    }}
+    animate={{
+      opacity: 1,
+      y: 0,
+    }}
+    transition={{
+      delay: 0.12,
+      duration: 0.3,
+    }}
+    className="
+      ml-[82px]
+      pt-1
+    "
+  >
+    <div
+      className="
+        relative
+
+        rounded-[18px]
+        rounded-bl-[5px]
+
+        bg-gradient-to-br
+        from-[#1d2026]
+        to-[#15181d]
+
+        border-b
+        border-[#d4af37]/15
+
+        px-4
+        py-3
+
+        shadow-[0_8px_25px_rgba(0,0,0,0.25)]
+      "
+    >
+      <div className="flex items-center gap-1.5 mb-1">
+        <span
+          className="
+            text-[10px]
+            uppercase
+            tracking-[0.16em]
+            text-[#d4af37]
+            font-semibold
+          "
+        >
+          EveBuddy AI
+        </span>
+
+        <Sparkles className="w-3 h-3 text-[#d4af37]" />
+      </div>
+
+      <p
+        className="
+          text-[12px]
+          leading-[1.5]
+          text-white/85
+        "
+      >
+        Hi there! 👋
+        <br />
+        I'm your personal event planner.
+      </p>
+    </div>
+  </motion.div>
+
+</div>
+
+                    {/* heading */}
+                    <div className="mt-1 mb-4">
+                      <h3
+                        className="
+                          font-display
+                          text-[19px]
+                          font-bold
+                          text-white
+                          tracking-[-0.01em]
+                        "
+                      >
+                        How can I help you today?
+                      </h3>
+
+                      <p
+                        className="
+                          text-[10px]
+                          text-white/45
+                          mt-1
+                        "
+                      >
+                        Choose an event and I'll help you plan it.
                       </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      {[
-                        { emoji: "💍", label: "Plan a Wedding", id: "wedding", cat: "Weddings" },
-                        { emoji: "🎂", label: "Birthday Party", id: "social-party", cat: "Social Parties" },
-                        { emoji: "🏢", label: "Corporate Event", id: "corporate", cat: "Corporate Events" },
-                        { emoji: "🎤", label: "Concert / Show", id: "concert", cat: "Concerts & Shows" },
-                      ].map(({ emoji, label, id, cat }) => (
+
+                    {/* event cards */}
+                    <div className="space-y-2.5">
+                      {(showAllEvents
+                        ? eventTypes
+                        : eventTypes.slice(0, 4)
+                      ).map((event, index) => (
                         <motion.button
-                          key={id}
-                          whileHover={{ scale: 1.03, y: -2 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => { setPlan({ ...plan, category: cat, categoryId: id }); goTo("subcategory"); }}
-                          className="bg-muted hover:bg-muted/70 border border-border hover:border-[hsl(var(--gold))]/50 rounded-xl p-3 text-left transition-all"
+                          key={event.name}
+                          initial={{
+                            opacity: 0,
+                            y: 8,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                          }}
+                          transition={{
+                            delay: 0.08 + index * 0.04,
+                          }}
+                          whileHover={{
+                            x: 3,
+                          }}
+                          whileTap={{
+                            scale: 0.985,
+                          }}
+                          onClick={() =>
+                            handleEventSelect(event.name)
+                          }
+                          className="
+                            group
+                            relative
+                            w-full
+
+                            min-h-[62px]
+
+                            overflow-hidden
+
+                            rounded-[14px]
+
+                            border
+                            border-white/[0.08]
+                            hover:border-[#d4af37]/45
+
+                            bg-gradient-to-r
+                            from-[#17191e]
+                            to-[#111318]
+
+                            hover:border-[#d4af37]/65
+
+                            hover:bg-[#1c1a14]
+
+                            transition-all
+                          "
                         >
-                          <div className="text-2xl mb-1">{emoji}</div>
-                          <div className="text-sm font-medium">{label}</div>
-                        </motion.button>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={() => goTo("category")}
-                      className="w-full bg-gradient-to-r from-[hsl(var(--gold))] to-[hsl(var(--gold-dark))] text-background font-semibold"
-                    >
-                      Browse All 20 Event Types <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </motion.div>
-                )}
+                          {/* gold hover line */}
+                          <span
+                            className="
+                              absolute
+                              left-0
+                              top-0
+                              bottom-0
+                              w-[2px]
 
-                {/* ─── CATEGORY ─── */}
-                {step === "category" && (
-                  <motion.div key="category" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button onClick={goBack} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                      <div>
-                        <h3 className="font-bold text-lg">What type of event?</h3>
-                        <p className="text-xs text-muted-foreground">Select one to continue</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {eventCategories.map((cat) => (
-                        <motion.button
-                          key={cat.id}
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => { setPlan({ ...plan, category: cat.name, categoryId: cat.id }); goTo("subcategory"); }}
-                          className="flex items-center gap-2 bg-muted hover:bg-muted/70 border border-border hover:border-[hsl(var(--gold))]/50 rounded-xl p-3 text-left transition-all"
-                        >
-                          <span className="text-xl">{cat.icon}</span>
-                          <span className="text-xs font-medium leading-tight">{cat.name}</span>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
+                              bg-[#d4af37]
 
-                {/* ─── SUBCATEGORY ─── */}
-                {step === "subcategory" && selectedCategory && (
-                  <motion.div key="subcategory" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <button onClick={goBack} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                      <div>
-                        <h3 className="font-bold text-lg">{selectedCategory.icon} {selectedCategory.name}</h3>
-                        <p className="text-xs text-muted-foreground">What kind specifically?</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {selectedCategory.subCategories.map((sub) => (
-                        <motion.button
-                          key={sub.name}
-                          whileTap={{ scale: 0.96 }}
-                          onClick={() => { setPlan({ ...plan, subcategory: sub.name }); setSelectedServices([]); goTo("services"); }}
-                          className={`px-4 py-2 rounded-full text-sm border transition-all ${
-                            plan.subcategory === sub.name
-                              ? "bg-[hsl(var(--gold))] text-background border-[hsl(var(--gold))]"
-                              : "bg-muted border-border hover:border-[hsl(var(--gold))]/60 hover:text-[hsl(var(--gold))]"
-                          }`}
-                        >
-                          {sub.name}
-                        </motion.button>
-                      ))}
-                    </div>
-                    <Button variant="outline" onClick={() => { setPlan({ ...plan, subcategory: "General" }); goTo("date"); }} className="w-full text-sm border-dashed">
-                      Skip — I'll specify later
-                    </Button>
-                  </motion.div>
-                )}
+                              scale-y-0
+                              group-hover:scale-y-100
 
-                {/* ─── SERVICES ─── */}
-                {step === "services" && selectedSubCat && (
-                  <motion.div key="services" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <button onClick={goBack} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                      <div>
-                        <h3 className="font-bold text-lg">Services needed</h3>
-                        <p className="text-xs text-muted-foreground">Pick all that apply for {selectedSubCat.name}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {selectedSubCat.services.map((service) => (
-                        <motion.button
-                          key={service}
-                          whileTap={{ scale: 0.94 }}
-                          onClick={() => toggleService(service)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all ${
-                            selectedServices.includes(service)
-                              ? "bg-[hsl(var(--gold))] text-background border-[hsl(var(--gold))]"
-                              : "bg-muted border-border hover:border-[hsl(var(--gold))]/60"
-                          }`}
-                        >
-                          {selectedServices.includes(service) && <CheckCircle className="w-3 h-3" />}
-                          {service}
-                        </motion.button>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={() => { setPlan({ ...plan, services: selectedServices }); goTo("date"); }}
-                      disabled={selectedServices.length === 0}
-                      className="w-full bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dark))] text-background"
-                    >
-                      Continue ({selectedServices.length} selected) <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                    <button onClick={() => { setPlan({ ...plan, services: [] }); goTo("date"); }} className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground py-1">
-                      Skip this step
-                    </button>
-                  </motion.div>
-                )}
+                              transition-transform
+                              origin-center
+                            "
+                          />
 
-                {/* ─── DATE ─── */}
-                {step === "date" && (
-                  <motion.div key="date" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button onClick={goBack} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                      <div>
-                        <h3 className="font-bold text-lg flex items-center gap-2"><Calendar className="w-5 h-5 text-[hsl(var(--gold))]" /> When is your event?</h3>
-                        <p className="text-xs text-muted-foreground">Helps vendors check availability</p>
-                      </div>
-                    </div>
-                    <input
-                      type="date"
-                      min={new Date().toISOString().split("T")[0]}
-                      value={typeof plan.date === "string" && plan.date.match(/^\d{4}/) ? plan.date : ""}
-                      onChange={(e) => setPlan({ ...plan, date: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-foreground focus:outline-none focus:border-[hsl(var(--gold))] text-sm mb-3"
-                    />
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {["Next Weekend", "This Month", "Next Month", "3 Months Away", "6 Months Away", "1 Year Away"].map(label => (
-                        <button
-                          key={label}
-                          onClick={() => setPlan({ ...plan, date: label })}
-                          className={`px-3 py-1.5 rounded-full text-xs border transition-all ${
-                            plan.date === label ? "bg-[hsl(var(--gold))] text-background border-[hsl(var(--gold))]" : "bg-muted border-border hover:border-[hsl(var(--gold))]/60"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    <Button onClick={() => goTo("city")} disabled={!plan.date} className="w-full bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dark))] text-background">
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                    <button onClick={() => goTo("city")} className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground py-1">Skip</button>
-                  </motion.div>
-                )}
+                          <div
+                            className="
+                              relative
+                              flex
+                              items-center
+                              gap-3
+                              px-4
+                              py-3
+                            "
+                          >
+                            {/* icon */}
+                            <div
+                              className="
+                                w-10
+                                h-10
+                                shrink-0
 
-                {/* ─── CITY ─── */}
-                {step === "city" && (
-                  <motion.div key="city" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button onClick={goBack} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                      <div>
-                        <h3 className="font-bold text-lg flex items-center gap-2"><MapPin className="w-5 h-5 text-[hsl(var(--gold))]" /> Event location?</h3>
-                        <p className="text-xs text-muted-foreground">Helps us find nearby vendors</p>
-                      </div>
-                    </div>
-                    <Input placeholder="Type your city..." value={plan.city || ""} onChange={(e) => setPlan({ ...plan, city: e.target.value })} className="mb-3" />
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {cities.map(city => (
-                        <button
-                          key={city}
-                          onClick={() => setPlan({ ...plan, city })}
-                          className={`px-3 py-1.5 rounded-full text-xs border transition-all ${
-                            plan.city === city ? "bg-[hsl(var(--gold))] text-background border-[hsl(var(--gold))]" : "bg-muted border-border hover:border-[hsl(var(--gold))]/60"
-                          }`}
-                        >
-                          {city}
-                        </button>
-                      ))}
-                    </div>
-                    <Button onClick={() => goTo("budget")} disabled={!plan.city} className="w-full bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dark))] text-background">
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                    <button onClick={() => goTo("budget")} className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground py-1">Skip</button>
-                  </motion.div>
-                )}
+                                rounded-xl
 
-                {/* ─── BUDGET ─── */}
-                {step === "budget" && (
-                  <motion.div key="budget" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button onClick={goBack} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                      <div>
-                        <h3 className="font-bold text-lg flex items-center gap-2"><DollarSign className="w-5 h-5 text-[hsl(var(--gold))]" /> Your budget range?</h3>
-                        <p className="text-xs text-muted-foreground">Helps vendors send the right proposals</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      {budgetRanges.map(range => (
-                        <motion.button
-                          key={range}
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => setPlan({ ...plan, budget: range })}
-                          className={`p-3 rounded-xl text-sm border font-medium text-left transition-all ${
-                            plan.budget === range ? "bg-[hsl(var(--gold))] text-background border-[hsl(var(--gold))]" : "bg-muted border-border hover:border-[hsl(var(--gold))]/60"
-                          }`}
-                        >
-                          {range}
-                        </motion.button>
-                      ))}
-                    </div>
-                    <Button onClick={() => goTo("guests")} disabled={!plan.budget} className="w-full bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dark))] text-background">
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </motion.div>
-                )}
+                                bg-[#d4af37]/[0.08]
 
-                {/* ─── GUESTS ─── */}
-                {step === "guests" && (
-                  <motion.div key="guests" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button onClick={goBack} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                      <div>
-                        <h3 className="font-bold text-lg flex items-center gap-2"><Users className="w-5 h-5 text-[hsl(var(--gold))]" /> Expected guests?</h3>
-                        <p className="text-xs text-muted-foreground">For venue & catering estimates</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      {guestCounts.map(count => (
-                        <motion.button
-                          key={count}
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => setPlan({ ...plan, guests: count })}
-                          className={`p-3 rounded-xl text-sm border font-medium transition-all ${
-                            plan.guests === count ? "bg-[hsl(var(--gold))] text-background border-[hsl(var(--gold))]" : "bg-muted border-border hover:border-[hsl(var(--gold))]/60"
-                          }`}
-                        >
-                          {count} guests
-                        </motion.button>
-                      ))}
-                    </div>
-                    <Button onClick={() => goTo("requirements")} disabled={!plan.guests} className="w-full bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dark))] text-background">
-                      Next <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </motion.div>
-                )}
+                                border
+                                border-[#d4af37]/20
 
-                {/* ─── REQUIREMENTS ─── */}
-                {step === "requirements" && (
-                  <motion.div key="requirements" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button onClick={goBack} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="w-5 h-5" /></button>
-                      <div>
-                        <h3 className="font-bold text-lg">Anything special? ✨</h3>
-                        <p className="text-xs text-muted-foreground">Theme, requests, or paste a reference link</p>
-                      </div>
-                    </div>
-                    <textarea
-                      className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-foreground focus:outline-none focus:border-[hsl(var(--gold))] text-sm resize-none h-28 mb-3"
-                      placeholder="E.g. Royal Rajasthani theme, halal catering, outdoor stage, drone shots required..."
-                      value={plan.requirements || ""}
-                      onChange={(e) => setPlan({ ...plan, requirements: e.target.value })}
-                    />
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {["Drone Photography", "Outdoor Setup", "Live Streaming", "Halal Catering", "Vegetarian Only", "Celebrity Performance", "Budget-Friendly", "Luxury Setup"].map(req => (
-                        <button
-                          key={req}
-                          onClick={() => setPlan({ ...plan, requirements: (plan.requirements ? plan.requirements + ", " : "") + req })}
-                          className="px-3 py-1 rounded-full text-xs bg-muted border border-border hover:border-[hsl(var(--gold))]/60 transition-all"
-                        >
-                          + {req}
-                        </button>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={() => goTo("results")}
-                      className="w-full bg-gradient-to-r from-[hsl(var(--gold))] to-[hsl(var(--crimson))] text-background font-semibold"
-                    >
-                      <Zap className="w-4 h-4 mr-2" /> Find My Perfect Vendors!
-                    </Button>
-                    <button onClick={() => goTo("results")} className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground py-1">
-                      Skip & find vendors now
-                    </button>
-                  </motion.div>
-                )}
+                                flex
+                                items-center
+                                justify-center
 
-                {/* ─── RESULTS ─── */}
-                {step === "results" && (
-                  <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                    {/* Summary Card */}
-                    <div className="bg-gradient-to-r from-[hsl(var(--gold))]/10 to-[hsl(var(--crimson))]/10 border border-[hsl(var(--gold))]/30 rounded-xl p-4 mb-5">
-                      <h3 className="font-bold text-sm mb-2 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-[hsl(var(--gold))]" /> Your Event Brief
-                      </h3>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        {plan.category && <span>🎪 <b className="text-foreground">{plan.category}</b></span>}
-                        {plan.subcategory && <span>📌 {plan.subcategory}</span>}
-                        {plan.date && <span>📅 {plan.date}</span>}
-                        {plan.city && <span>📍 {plan.city}</span>}
-                        {plan.budget && <span>💰 {plan.budget}</span>}
-                        {plan.guests && <span>👥 {plan.guests}</span>}
-                        {plan.services.length > 0 && (
-                          <span className="col-span-2">🎯 {plan.services.slice(0, 3).join(", ")}{plan.services.length > 3 ? ` +${plan.services.length - 3}` : ""}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <h3 className="font-bold text-base mb-3">
-                      ✅ {displayVendors.length} vendors matched for you
-                    </h3>
-
-                    <div className="space-y-3">
-                      {displayVendors.map((vendor, i) => (
-                        <motion.div
-                          key={vendor.id}
-                          initial={{ opacity: 0, y: 16 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.07 }}
-                          className="bg-muted border border-border rounded-xl p-3"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${vendor.gradient} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                              {vendor.initials}
+                                text-xl
+                              "
+                            >
+                              {event.icon}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1 mb-0.5">
-                                <span className="font-semibold text-sm truncate">{vendor.name}</span>
-                                {vendor.isVerified && <CheckCircle className="w-3 h-3 text-[hsl(var(--gold))] flex-shrink-0" />}
-                              </div>
-                              <p className="text-xs text-muted-foreground">{vendor.category} · {vendor.location}</p>
-                              <div className="flex items-center gap-2 text-xs mt-1">
-                                <span className="flex items-center gap-0.5 text-[hsl(var(--gold))]">
-                                  <Star className="w-3 h-3 fill-[hsl(var(--gold))]" />{vendor.rating}
-                                </span>
-                                <span className="text-muted-foreground">({vendor.reviews} reviews)</span>
-                                <span className="font-semibold text-[hsl(var(--gold))]">{vendor.price}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            {proposalSent.includes(vendor.id) ? (
-                              <div className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-medium">
-                                <CheckCircle className="w-3.5 h-3.5" /> Proposal Sent!
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleSendProposal(vendor.id)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dark))] text-background text-xs font-semibold transition-all"
+
+                            {/* text */}
+                            <div className="flex-1 text-left">
+                              <p
+                                className="
+                                  text-[13px]
+                                  font-semibold
+                                  text-white
+                                "
                               >
-                                <Send className="w-3 h-3" /> Send Proposal
-                              </button>
-                            )}
-                            <button className="px-3 py-1.5 rounded-lg border border-border hover:border-[hsl(var(--gold))]/50 text-xs text-muted-foreground hover:text-foreground transition-all">
-                              View
-                            </button>
+                                {event.name}
+                              </p>
+
+                              <p
+                                className="
+                                  text-[10px]
+                                  text-white/40
+                                  mt-0.5
+                                "
+                              >
+                                {event.description}
+                              </p>
+                            </div>
+
+                            <ChevronRight
+                              className="
+                                w-4
+                                h-4
+
+                                text-[#d4af37]/70
+
+                                group-hover:text-[#d4af37]
+                                group-hover:translate-x-1
+
+                                transition
+                              "
+                            />
                           </div>
-                        </motion.div>
+                        </motion.button>
                       ))}
+                    </div>
+
+                    {/* Browse all */}
+                    <button
+                      onClick={() =>
+                        setShowAllEvents(!showAllEvents)
+                      }
+                      className="
+                        w-full
+                        mt-3
+                        h-10
+
+                        rounded-xl
+
+                        bg-gradient-to-r
+                        from-[#d4af37]
+                        to-[#e5c45a]
+
+                        text-[#111]
+
+                        text-[11px]
+                        font-bold
+
+                        hover:brightness-110
+
+                        transition
+
+                        flex
+                        items-center
+                        justify-center
+                        gap-2
+                      "
+                    >
+                      {showAllEvents
+                        ? "Show Featured Events"
+                        : "Browse All 20 Event Types"}
+
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* =================================================
+                    DETAILS
+                ================================================= */}
+
+                {step === "details" && (
+                  <motion.div
+                    key="details"
+                    initial={{
+                      opacity: 0,
+                      x: 20,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      x: 0,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      x: -20,
+                    }}
+                    className="p-5"
+                  >
+                    <BackButton onClick={handleBack} />
+
+                    <CompactEveHeader
+                      image={eveImage}
+                      title={
+                        eventType === "Wedding"
+                          ? "Let's plan your wedding ✨"
+                          : `Let's plan your ${eventType}`
+                      }
+                      subtitle={
+                        eventType === "Wedding"
+                          ? "What kind of wedding service are you looking for?"
+                          : "Tell me what you need and I'll help you find the right vendors."
+                      }
+                    />
+
+                    {eventType === "Wedding" ? (
+                      <div className="mt-5 space-y-2">
+                        {weddingOptions.map((option) => (
+                          <motion.button
+                            key={option}
+                            whileHover={{
+                              x: 2,
+                            }}
+                            whileTap={{
+                              scale: 0.99,
+                            }}
+                            onClick={() =>
+                              handleOptionSelect(option)
+                            }
+                            className="
+                              group
+                              w-full
+                              min-h-[43px]
+                              px-4
+
+                              rounded-xl
+
+                              border
+                              border-white/[0.07]
+
+                              bg-[#181b20]
+
+                              hover:border-[#d4af37]/45
+                              hover:bg-[#d4af37]/[0.05]
+
+                              transition
+
+                              flex
+                              items-center
+                              justify-between
+
+                              text-left
+                            "
+                          >
+                            <span
+                              className="
+                                text-[11px]
+                                font-medium
+                                text-white/85
+                              "
+                            >
+                              {option}
+                            </span>
+
+                            <ChevronRight
+                              className="
+                                w-3.5
+                                h-3.5
+                                text-[#d4af37]/60
+                                group-hover:text-[#d4af37]
+                                transition
+                              "
+                            />
+                          </motion.button>
+                        ))}
+
+                        <button
+                          onClick={() => setStep("location")}
+                          className="
+                            w-full
+                            mt-3
+                            h-10
+
+                            rounded-xl
+
+                            border
+                            border-dashed
+                            border-white/20
+
+                            text-[11px]
+                            text-white/40
+
+                            hover:border-[#d4af37]/40
+                            hover:text-[#d4af37]
+
+                            transition
+                          "
+                        >
+                          Skip — I'll specify later
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-5">
+                        <button
+                          onClick={() =>
+                            handleOptionSelect(
+                              "General Event Planning"
+                            )
+                          }
+                          className="
+                            w-full
+                            p-4
+                            rounded-xl
+                            border
+                            border-white/[0.07]
+                            bg-[#181b20]
+                            hover:border-[#d4af37]/50
+                            transition
+                            text-left
+                          "
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">
+                              General Event Planning
+                            </span>
+
+                            <ArrowRight className="w-4 h-4 text-[#d4af37]" />
+                          </div>
+
+                          <p className="text-[11px] text-white/40 mt-1">
+                            Help me find vendors for my event
+                          </p>
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* =================================================
+                    LOCATION
+                ================================================= */}
+
+                {step === "location" && (
+                  <motion.div
+                    key="location"
+                    initial={{
+                      opacity: 0,
+                      x: 20,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      x: 0,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      x: -20,
+                    }}
+                    className="p-5"
+                  >
+                    <BackButton onClick={handleBack} />
+
+                    <CompactEveHeader
+                      image={eveThinking}
+                      title="Where is your event?"
+                      subtitle="I'll use your city to find relevant verified vendors near you."
+                    />
+
+                    <div className="mt-7">
+                      <label
+                        className="
+                          text-[10px]
+                          uppercase
+                          tracking-[0.18em]
+                          text-white/40
+                        "
+                      >
+                        Event City
+                      </label>
+
+                      <div
+                        className="
+                          mt-2
+                          flex
+                          items-center
+                          gap-2
+
+                          h-12
+                          px-4
+
+                          rounded-xl
+
+                          border
+                          border-white/10
+
+                          bg-[#181b20]
+
+                          focus-within:border-[#d4af37]/60
+                        "
+                      >
+                        <MapPin className="w-4 h-4 text-[#d4af37]" />
+
+                        <input
+                          value={city}
+                          onChange={(e) =>
+                            setCity(e.target.value)
+                          }
+                          placeholder="Delhi, Mumbai, Jaipur..."
+                          className="
+                            flex-1
+                            bg-transparent
+                            outline-none
+                            text-xs
+                            text-white
+                            placeholder:text-white/25
+                          "
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleLocationNext}
+                        disabled={!city.trim()}
+                        className="
+                          w-full
+                          mt-4
+                          h-11
+                          rounded-xl
+
+                          bg-gradient-to-r
+                          from-[#d4af37]
+                          to-[#e5c45a]
+
+                          text-[#111]
+                          font-bold
+                          text-xs
+
+                          disabled:opacity-30
+
+                          transition
+
+                          flex
+                          items-center
+                          justify-center
+                          gap-2
+                        "
+                      >
+                        Continue
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* =================================================
+                    DATE
+                ================================================= */}
+
+                {step === "date" && (
+                  <motion.div
+                    key="date"
+                    initial={{
+                      opacity: 0,
+                      x: 20,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      x: 0,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      x: -20,
+                    }}
+                    className="p-5"
+                  >
+                    <BackButton onClick={handleBack} />
+
+                    <CompactEveHeader
+                      image={evePresenting}
+                      title="When is your event?"
+                      subtitle="Knowing the date helps me find vendors who are available around your event."
+                    />
+
+                    <div className="mt-7">
+                      <label
+                        className="
+                          text-[10px]
+                          uppercase
+                          tracking-[0.18em]
+                          text-white/40
+                        "
+                      >
+                        Event Date
+                      </label>
+
+                      <div
+                        className="
+                          mt-2
+                          flex
+                          items-center
+                          gap-2
+
+                          h-12
+                          px-4
+
+                          rounded-xl
+
+                          border
+                          border-white/10
+
+                          bg-[#181b20]
+
+                          focus-within:border-[#d4af37]/60
+                        "
+                      >
+                        <CalendarDays className="w-4 h-4 text-[#d4af37]" />
+
+                        <input
+                          type="date"
+                          value={date}
+                          onChange={(e) =>
+                            setDate(e.target.value)
+                          }
+                          className="
+                            flex-1
+                            bg-transparent
+                            outline-none
+                            text-xs
+                            text-white
+                          "
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-3">
+                        <Clock3 className="w-3.5 h-3.5 text-[#d4af37]" />
+
+                        <span className="text-[10px] text-white/35">
+                          You can change this later.
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={handleDateNext}
+                        disabled={!date}
+                        className="
+                          w-full
+                          mt-5
+                          h-11
+                          rounded-xl
+
+                          bg-gradient-to-r
+                          from-[#d4af37]
+                          to-[#e5c45a]
+
+                          text-[#111]
+                          font-bold
+                          text-xs
+
+                          disabled:opacity-30
+
+                          transition
+
+                          flex
+                          items-center
+                          justify-center
+                          gap-2
+                        "
+                      >
+                        Find My Vendors
+                        <Sparkles className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* =================================================
+                    BUDGET
+                ================================================= */}
+
+                {step === "budget" && (
+                  <motion.div
+                    key="budget"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="p-5"
+                  >
+                    <BackButton onClick={handleBack} />
+
+                    <CompactEveHeader
+                      image={eveThinking}
+                      title="What's your budget?"
+                      subtitle="This helps me personalise the vendors and options I show you."
+                    />
+
+                    <div className="mt-7">
+                      <label
+                        className="
+                          text-[10px]
+                          uppercase
+                          tracking-[0.18em]
+                          text-white/40
+                        "
+                      >
+                        Select your budget
+                      </label>
+
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        {[
+                          "₹1–5 Lakh",
+                          "₹5–10 Lakh",
+                          "₹10–25 Lakh",
+                          "₹25 Lakh+",
+                        ].map((amount) => (
+                          <button
+                            key={amount}
+                            onClick={() => {
+                              setBudget(amount);
+                              setStep("recommendations");
+                            }}
+                            className="
+                              rounded-xl
+                              border
+                              border-white/[0.08]
+                              bg-[#181b20]
+                              px-3
+                              py-4
+                              text-xs
+                              font-medium
+                              text-white
+                              transition
+                              hover:border-[#d4af37]/50
+                              hover:bg-[#d4af37]/[0.06]
+                            "
+                          >
+                            {amount}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setBudget("Flexible");
+                          setStep("recommendations");
+                        }}
+                        className="
+                          w-full
+                          mt-3
+                          h-10
+                          rounded-xl
+                          border
+                          border-dashed
+                          border-white/20
+                          text-[11px]
+                          text-white/40
+                          hover:border-[#d4af37]/40
+                          hover:text-[#d4af37]
+                          transition
+                        "
+                      >
+                        My budget is flexible
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* =================================================
+                    RECOMMENDATIONS
+                ================================================= */}
+
+                {step === "recommendations" && (
+                  <motion.div
+                    key="recommendations"
+                    initial={{
+                      opacity: 0,
+                      y: 15,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="p-5"
+                  >
+                    <CompactEveHeader
+                      image={eveRecommendation}
+                      title="I've got your plan ✨"
+                      subtitle="Here's what I'll use to personalise your vendor recommendations."
+                    />
+
+                    <div className="mt-5 space-y-2">
+                      <SummaryRow
+                        label="Event"
+                        value={eventType ?? "Event"}
+                      />
+
+                      <SummaryRow
+                        label="Service"
+                        value={
+                          selectedOption ??
+                          "General Event Planning"
+                        }
+                      />
+
+                      <SummaryRow
+                        label="City"
+                        value={city || "Not specified"}
+                      />
+
+                      <SummaryRow
+                        label="Date"
+                        value={date || "Flexible"}
+                      />
+
+                      <SummaryRow
+                        label="Budget"
+                        value={budget || "Flexible"}
+                      />
                     </div>
 
                     <button
-                      onClick={resetChat}
-                      className="w-full mt-4 py-2 text-sm text-muted-foreground hover:text-foreground border border-dashed border-border rounded-xl transition-all hover:border-[hsl(var(--gold))]/40"
+                      onClick={() => setStep("complete")}
+                      className="
+                        w-full
+                        mt-5
+                        h-11
+                        rounded-xl
+
+                        bg-gradient-to-r
+                        from-[#d4af37]
+                        to-[#e5c45a]
+
+                        text-[#111]
+                        font-bold
+                        text-xs
+
+                        hover:brightness-110
+                        transition
+
+                        flex
+                        items-center
+                        justify-center
+                        gap-2
+                      "
                     >
-                      Start a new search
+                      Show My Recommendations
+                      <ArrowRight className="w-4 h-4" />
                     </button>
                   </motion.div>
                 )}
 
+                {/* =================================================
+                    COMPLETE
+                ================================================= */}
+
+                {step === "complete" && (
+                  <motion.div
+                    key="complete"
+                    initial={{
+                      opacity: 0,
+                      scale: 0.97,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                    }}
+                    className="p-5"
+                  >
+                    <CompactEveHeader
+                      image={eveCelebrating}
+                      title="Let's make it happen 🎉"
+                      subtitle="Your event profile is ready. Eve can now help you discover the right vendors."
+                    />
+
+                    <div
+                      className="
+                        mt-6
+                        p-4
+                        rounded-2xl
+
+                        border
+                        border-[#d4af37]/20
+
+                        bg-[#d4af37]/[0.04]
+                      "
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="
+                            w-10
+                            h-10
+                            rounded-full
+
+                            bg-[#d4af37]/10
+
+                            flex
+                            items-center
+                            justify-center
+                          "
+                        >
+                          <Sparkles className="w-5 h-5 text-[#d4af37]" />
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold text-white">
+                            Personalised vendor discovery
+                          </p>
+
+                          <p className="text-[10px] text-white/40 mt-1">
+                            Based on your event preferences
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={resetPlanner}
+                      className="
+                        w-full
+                        mt-4
+                        h-10
+                        rounded-xl
+
+                        border
+                        border-[#d4af37]/35
+
+                        text-[#d4af37]
+                        text-xs
+                        font-semibold
+
+                        hover:bg-[#d4af37]/10
+
+                        transition
+                      "
+                    >
+                      Start Another Plan
+                    </button>
+                  </motion.div>
+                )}
               </AnimatePresence>
+            </main>
+
+            {/* ==================================================
+                MESSAGE BAR
+            ================================================== */}
+
+            <div
+              className="
+                shrink-0
+
+                px-4
+                py-3
+
+               border-t
+              border-[#d4af37]/10
+
+                bg-gradient-to-t
+                from-[#08090b]
+                to-[#0d0f13]
+              "
+            >
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-2
+
+                  h-[46px]
+                  px-2
+
+                  rounded-xl
+
+                  border
+                  border-white/[0.08]
+
+                  bg-[#171a1f]
+
+                  focus-within:border-[#d4af37]/40
+
+                  transition
+                "
+              >
+                <button
+                  className="
+                    w-8
+                    h-8
+                    rounded-full
+                    flex
+                    items-center
+                    justify-center
+                    text-white/35
+                    hover:text-[#d4af37]
+                    transition
+                  "
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+
+                <input
+                  value={message}
+                  onChange={(e) =>
+                    setMessage(e.target.value)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSendMessage();
+                    }
+                  }}
+                  placeholder="Type your message..."
+                  className="
+                    flex-1
+                    min-w-0
+
+                    bg-transparent
+                    outline-none
+
+                    text-[11px]
+                    text-white
+
+                    placeholder:text-white/25
+                  "
+                />
+
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!message.trim()}
+                  className="
+                    w-9
+                    h-9
+                    rounded-lg
+
+                    bg-gradient-to-br
+                    from-[#d4af37]
+                    to-[#e5c45a]
+
+                    text-[#111]
+
+                    flex
+                    items-center
+                    justify-center
+
+                    disabled:opacity-25
+
+                    transition
+                  "
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        </motion.div>
+
+            {/* ==================================================
+                FOOTER
+            ================================================== */}
+
+            <div
+              className="
+                shrink-0
+
+                h-[25px]
+
+                flex
+                items-center
+                justify-center
+
+                bg-[#090a0c]
+
+                border-t
+                border-white/[0.04]
+              "
+            >
+              <p
+                className="
+                  text-[8px]
+                  tracking-[0.18em]
+                  text-white/20
+                "
+              >
+                EVE BUDDY AI • PERSONAL EVENT PLANNER
+              </p>
+            </div>
+          </motion.aside>
+        </>
       )}
     </AnimatePresence>
+  );
+};
+
+// ============================================================
+// COMPACT EVE HEADER
+// ============================================================
+
+interface CompactEveHeaderProps {
+  image: string;
+  title: string;
+  subtitle: string;
+}
+
+const CompactEveHeader = ({
+  image,
+  title,
+  subtitle,
+}: CompactEveHeaderProps) => {
+  return (
+    <div className="flex items-start gap-3">
+      <div
+        className="
+          relative
+          shrink-0
+
+          w-[82px]
+          h-[100px]
+
+          overflow-hidden
+
+          rounded-2xl
+
+          bg-gradient-to-b
+          from-[#17191e]
+          to-[#0b0d10]
+
+          border
+          border-[#d4af37]/20
+        "
+      >
+        <motion.img
+          key={image}
+          initial={{
+            opacity: 0,
+            scale: 1.05,
+          }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+          }}
+          transition={{
+            duration: 0.25,
+          }}
+          src={image}
+          alt="Eve Buddy"
+          className="
+            w-full
+            h-full
+            object-contain
+          "
+        />
+      </div>
+
+      <div className="pt-1">
+        <h3
+          className="
+            font-display
+            text-[18px]
+            font-bold
+            leading-tight
+            text-white
+          "
+        >
+          {title}
+        </h3>
+
+        <p
+          className="
+            mt-2
+            text-[10px]
+            leading-relaxed
+            text-white/45
+          "
+        >
+          {subtitle}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// BACK BUTTON
+// ============================================================
+
+const BackButton = ({
+  onClick,
+}: {
+  onClick: () => void;
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      className="
+        mb-4
+
+        flex
+        items-center
+        gap-1.5
+
+        text-[10px]
+        text-white/40
+
+        hover:text-[#d4af37]
+
+        transition
+      "
+    >
+      <ArrowLeft className="w-3.5 h-3.5" />
+      Back
+    </button>
+  );
+};
+
+// ============================================================
+// SUMMARY ROW
+// ============================================================
+
+const SummaryRow = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) => {
+  return (
+    <div
+      className="
+        flex
+        items-center
+        justify-between
+        gap-4
+
+        px-4
+        py-3
+
+        rounded-xl
+
+        bg-[#181b20]
+
+        border
+        border-white/[0.06]
+      "
+    >
+      <span className="text-[10px] text-white/40">
+        {label}
+      </span>
+
+      <span
+        className="
+          text-[10px]
+          font-semibold
+          text-white
+          text-right
+        "
+      >
+        {value}
+      </span>
+    </div>
   );
 };
