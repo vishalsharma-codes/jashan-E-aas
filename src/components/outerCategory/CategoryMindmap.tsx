@@ -7,27 +7,8 @@ import { useNavigate } from "react-router-dom";
 import NetworkBackground from "./NetworkBackground";
 import WeddingSubcategoryCards,{ WeddingHeader }  from "./subCategory";
 import WeddingStyleCards from "./subCategory/wedding";
-import CorporateSubcategoryCards from "./subCategory/CorporateSubcategoryCards";
 import DynamicSubcategoryCards from "./subCategory/DynamicSubcategoryCards";
-import SocialSubcategoryCards from "./subCategory/SocialSubcategoryCards";
-import EducationalSubcategoryCards from "./subCategory/EducationalSubcategoryCards";
-import ConcertsSubcategoryCards from "./subCategory/ConcertsSubcategoryCards";
-import ReligiousSubcategoryCards from "./subCategory/ReligiousSubcategoryCards";
-import ExhibitionsSubcategoryCards from "./subCategory/ExhibitionsSubcategoryCards";
-import SportsSubcategoryCards from "./subCategory/SportsSubcategoryCards";
-import GovernmentSubcategoryCards from "./subCategory/GovernmentSubcategoryCards";
-import CharitySubcategoryCards from "./subCategory/CharitySubcategoryCards";
-import FashionSubcategoryCards from "./subCategory/FashionSubcategoryCards";
-import VirtualSubcategoryCards from "./subCategory/VirtualSubcategoryCards";
-import FestivalsSubcategoryCards from "./subCategory/FestivalsSubcategoryCards";
-import HospitalitySubcategoryCards from "./subCategory/HospitalitySubcategoryCards";
-import FilmSubcategoryCards from "./subCategory/FilmSubcategoryCards";
-import TechSubcategoryCards from "./subCategory/TechSubcategoryCards";
-import WellnessSubcategoryCards from "./subCategory/WellnessSubcategoryCards";
-import CommunitySubcategoryCards from "./subCategory/CommunitySubcategoryCards";
-import AgriculturalSubcategoryCards from "./subCategory/AgriculturalSubcategoryCards";
-import AutomotiveSubcategoryCards from "./subCategory/AutomotiveSubcategoryCards";
-
+import CategorySubcategoryCards from "./categoryDesign/CategorySubcategoryCards";
 
 import weddingImage from "./categoryImages/weddings.jpg";
 import corporateImage from "./categoryImages/corporate-events.jpg";
@@ -538,81 +519,13 @@ const handleSubCategoryClick = (sub: SubCategory) => {
     onSelect={handleSubCategoryClick}
   />
 
-) : selectedCategory.name === "Corporate Events" ? (
+) : (
 
-  <CorporateSubcategoryCards
+  <CategorySubcategoryCards
+    categoryName={selectedCategory.name}
     subcategories={selectedCategory.subCategories}
     onSelect={handleSubCategoryClick}
   />
-
-) : (
-
-  <div
-        className={`grid gap-x-4 gap-y-4 w-full mt-0 ${
-          selectedCategory.subCategories.length <= 3
-            ? "grid-cols-3"
-            : selectedCategory.subCategories.length <= 4
-              ? "grid-cols-2 sm:grid-cols-4"
-              : "grid-cols-2 sm:grid-cols-3"
-        }`}
-      >
-        {selectedCategory.subCategories.map((sub, index) => (
-          <div
-            key={sub.name}
-            className="flex flex-col items-center"
-          >
-            <motion.button
-              initial={{ opacity: 0, y: 16, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{
-                delay: 0.55 + index * 0.07,
-                type: "spring",
-                stiffness: 200,
-                damping: 18,
-              }}
-              onHoverStart={() => setHoveredSub(sub.name)}
-              onHoverEnd={() => setHoveredSub(null)}
-              onClick={() => handleSubCategoryClick(sub)}
-              className="w-full group focus:outline-none focus:ring-2 focus:ring-gold rounded-xl mb-4"
-            >
-              <motion.div
-                animate={{
-                  filter:
-                    hoveredSub && hoveredSub !== sub.name
-                      ? "brightness(0.4) blur(1px)"
-                      : "brightness(1)",
-
-                  borderColor:
-                    hoveredSub === sub.name
-                      ? "rgba(212,175,55,0.85)"
-                      : "rgba(255,255,255,0.07)",
-
-                  boxShadow:
-                    hoveredSub === sub.name
-                      ? "0 0 28px rgba(212,175,55,0.28)"
-                      : "none",
-
-                  scale: hoveredSub === sub.name ? 1.04 : 1,
-                }}
-                transition={{ duration: 0.18 }}
-                className="bg-card border rounded-xl p-4 text-left relative overflow-hidden"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-sm leading-tight">
-                    {sub.name}
-                  </h3>
-
-                  <ChevronRight className="w-4 h-4 text-gold group-hover:translate-x-1 transition-transform" />
-                </div>
-
-                <p className="text-xs text-muted-foreground">
-                  {sub.services.length} services
-                </p>
-              </motion.div>
-            </motion.button>
-          </div>
-        ))}
-      </div>
     )}
   </motion.div>
 )}
