@@ -17,7 +17,7 @@ import {
 // EVE BUDDY IMAGES
 // ============================================================
 
-import eveAvatar from "@/assets/eveBuddy/eve-avatar.jpg";
+import eveAvatar from "@/assets/eveBuddy/eve-avatar-new.png";
 import eveCelebrating from "@/assets/eveBuddy/eve-celebrating.jpg";
 import eveListening from "@/assets/eveBuddy/eve-listening.jpg";
 import evePresenting from "@/assets/eveBuddy/eve-presenting.jpg";
@@ -117,6 +117,9 @@ export const EveBuddyChat = ({
   const [date, setDate] = useState("");
   const [budget, setBudget] = useState("");
   const [message, setMessage] = useState("");
+  const [aiReply, setAiReply] = useState("");
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
   const [showAllEvents, setShowAllEvents] = useState(false);
 
   // ==========================================================
@@ -244,40 +247,77 @@ export const EveBuddyChat = ({
   // SEND MESSAGE
   // ==========================================================
 
-  const handleSendMessage = () => {
-    if (!message.trim()) return;
+  
+    const handleSendMessage = async () => {
+      const userMessage = message.trim();
 
-    const text = message.trim().toLowerCase();
+      if (!userMessage || isAiLoading) return;
 
-    if (
-      text.includes("wedding") ||
-      text.includes("marriage")
-    ) {
-      setEventType("Wedding");
-      setStep("details");
+      const text = userMessage.toLowerCase();
+
+      // Preserve the existing event-selection shortcuts.
+      if (
+        text.includes("wedding") ||
+        text.includes("marriage")
+      ) {
+        setEventType("Wedding");
+        setStep("details");
+        setMessage("");
+        return;
+      }
+
+      if (text.includes("birthday")) {
+        setEventType("Birthday Party");
+        setStep("details");
+        setMessage("");
+        return;
+      }
+
+      if (
+        text.includes("corporate") ||
+        text.includes("conference")
+      ) {
+        setEventType("Corporate Event");
+        setStep("details");
+        setMessage("");
+        return;
+      }
+
       setMessage("");
-      return;
-    }
+      setAiError("");
+      setAiReply("");
+      setIsAiLoading(true);
 
-    if (text.includes("birthday")) {
-      setEventType("Birthday Party");
-      setStep("details");
-      setMessage("");
-      return;
-    }
+      try {
+        const response = await fetch("http://localhost:3001/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: userMessage,
+          }),
+        });
 
-    if (
-      text.includes("corporate") ||
-      text.includes("conference")
-    ) {
-      setEventType("Corporate Event");
-      setStep("details");
-      setMessage("");
-      return;
-    }
+        const data = await response.json();
 
-    setMessage("");
-  };
+        if (!response.ok) {
+          throw new Error(data.error || "Eve couldn't respond.");
+        }
+
+        setAiReply(data.reply || "Please try asking me again.");
+      } catch (error) {
+        console.error("EveBuddy chat error:", error);
+
+        setAiError(
+          error instanceof Error
+            ? error.message
+            : "Unable to connect to EveBuddy."
+        );
+      } finally {
+        setIsAiLoading(false);
+      }
+    };
 
   // ==========================================================
   // PANEL
@@ -332,13 +372,13 @@ export const EveBuddyChat = ({
             className="
   fixed
   right-5
-  top-[92px]
-  bottom-[82px]
+  top-[400px]
+  bottom-[40px]
   z-[90]
 
   w-[25vw]
   max-w-[600px]
-  min-w-[360px]
+  min-w-[800px]
 
   overflow-hidden
 
@@ -383,7 +423,7 @@ export const EveBuddyChat = ({
               className="
                 relative
                 shrink-0
-                h-[70px]
+                h-[120px]
 
                 px-5
 
@@ -400,82 +440,64 @@ export const EveBuddyChat = ({
                 to-[#111318]
               "
             >
-              {/* LEFT */}
-              <div className="flex items-center gap-3">
-                <div
-                  className="
-                    relative
-                    w-10
-                    h-10
-                    rounded-full
-                    overflow-hidden
-
-                    border
-                    border-[#d4af37]/60
-
-                    bg-[#090a0c]
-
-                    shadow-[0_0_20px_rgba(212,175,55,0.18)]
-                  "
-                >
-                  <img
-                    src={eveAvatar}
-                    alt="Eve Buddy"
-                    className="
-                      w-full
-                      h-full
-                      object-cover
-                    "
-                  />
-
-                  <span
-                    className="
-                      absolute
-                      right-0
-                      bottom-0
-                      w-2.5
-                      h-2.5
-                      rounded-full
-                      bg-emerald-400
-                      border-2
-                      border-[#15120c]
-                    "
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h2
+                              
+                <div className="flex items-center gap-3">
+                  {/* Avatar with floating online indicator */}
+                  <div className="relative w-22 h-22 shrink-0">
+                    <div
                       className="
-                        font-display
-                        text-[17px]
-                        font-bold
-                        text-white
+                        relative
+                        w-full
+                        h-full
+                        rounded-full
+                        overflow-hidden
+                        border
+                        border-[#d4af37]/70
+                        bg-[#090a0c]
+                        shadow-[0_0_20px_rgba(212,175,55,0.18)]
                       "
                     >
-                      EveBuddy AI
-                    </h2>
+                      <img
+                        src={eveAvatar}
+                        alt="EveBuddy AI"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
 
-                    <Sparkles
+                    {/* Green dot floating above the gold border */}
+                    <span
                       className="
-                        w-3.5
-                        h-3.5
-                        text-[#d4af37]
+                        absolute
+                        -top-1
+                        -right-1.5
+                        z-[100]
+                        w-3
+                        h-3
+                        rounded-full
+                        bg-emerald-400
+                        border-2
+                        border-[#15120c]
+                        shadow-[0_0_10px_rgba(52,211,153,0.75)]
                       "
                     />
                   </div>
 
-                  <p
-                    className="
-                      text-[10px]
-                      text-[#d4af37]
-                      tracking-wide
-                    "
-                  >
-                    Your Personal Event Planner
-                  </p>
+                  {/* Assistant title */}
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="font-display text-[17px] font-bold text-white">
+                        EveBuddy AI
+                      </h2>
+
+                      <Sparkles className="w-3.5 h-3.5 text-[#d4af37]" />
+                    </div>
+
+                    <p className="text-[10px] text-[#d4af37] tracking-wide">
+                      Your Personal Event Planner
+                    </p>
+                  </div>
                 </div>
-              </div>
+              
 
               {/* RIGHT */}
               <div className="flex items-center gap-1">
@@ -588,8 +610,8 @@ export const EveBuddyChat = ({
       left-0
       top-0
 
-      w-[88px]
-      h-[100px]
+      w-[64px]
+      h-[76px]
 
       flex
       items-end
@@ -598,8 +620,8 @@ export const EveBuddyChat = ({
   >
     <div
       className="
-        w-[82px]
-        h-[82px]
+        w-[60px]
+        h-[60px]
 
         rounded-full
         overflow-hidden
@@ -663,7 +685,7 @@ export const EveBuddyChat = ({
       duration: 0.3,
     }}
     className="
-      ml-[82px]
+      ml-[68px]
       pt-1
     "
   >
@@ -1591,11 +1613,64 @@ export const EveBuddyChat = ({
                   </motion.div>
                 )}
               </AnimatePresence>
+              
+              {/* GEMINI RESPONSE */}
+              {isAiLoading && (
+                <div className="mx-5 mb-3 rounded-xl bg-[#171a1f] p-3 text-sm text-[#d4af37]">
+                  Eve is thinking...
+                </div>
+              )}
+
+              {aiReply && (
+                <div className="mx-5 mb-3 rounded-xl border border-[#d4af37]/30 bg-[#171a1f] p-4">
+                  <p className="mb-2 text-xs font-bold text-[#d4af37]">
+                    ✨ EveBuddy AI
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-white">
+                    {aiReply}
+                  </p>
+                </div>
+              )}
+
+              {aiError && (
+                <div className="mx-5 mb-3 rounded-xl border border-red-500/30 bg-red-950/30 p-3 text-sm text-red-300">
+                  Error: {aiError}
+                </div>
+              )}
+
             </main>
 
             {/* ==================================================
                 MESSAGE BAR
             ================================================== */}
+            
+            {/* GEMINI AI CHAT RESPONSE */}
+            {(aiReply || aiError || isAiLoading) && (
+              <div className="shrink-0 px-4 pt-3">
+                {aiReply && (
+                  <div className="rounded-xl border border-[#d4af37]/20 bg-[#171a1f] p-3">
+                    <p className="mb-1 text-[10px] font-semibold text-[#d4af37]">
+                      EveBuddy AI
+                    </p>
+                    <p className="whitespace-pre-wrap text-xs leading-relaxed text-white/85">
+                      {aiReply}
+                    </p>
+                  </div>
+                )}
+
+                {isAiLoading && (
+                  <div className="rounded-xl border border-[#d4af37]/20 bg-[#171a1f] p-3 text-xs text-white/60">
+                    Eve is thinking...
+                  </div>
+                )}
+
+                {aiError && (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-xs text-red-300">
+                    {aiError}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div
               className="
