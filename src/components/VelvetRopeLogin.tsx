@@ -186,6 +186,9 @@ export const VelvetRopeLogin = ({ onClose }: VelvetRopeLoginProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [selectedRole, setSelectedRole] = useState<"customer" | "vendor">(
+  "customer"
+);
 
   useEffect(() => {
     const t = setTimeout(() => setPhase("opening"), 60);
@@ -205,8 +208,18 @@ export const VelvetRopeLogin = ({ onClose }: VelvetRopeLoginProps) => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        toast({ title: "Welcome back!", description: "You've entered Jashan-E-Aas." });
-        handleClose();
+        toast({
+        title: "Welcome back!",
+        description: "You've entered Jashan-E-Aas.",
+      });
+
+      handleClose();
+
+if (selectedRole === "vendor") {
+  navigate("/vendor/dashboard");
+} else {
+  navigate("/");
+}
       } else {
         const { error } = await supabase.auth.signUp({
           email, password,
@@ -329,6 +342,34 @@ export const VelvetRopeLogin = ({ onClose }: VelvetRopeLoginProps) => {
                     </p>
                   </div>
 
+                  {isLogin && (
+                    <div className="mb-4 grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRole("customer")}
+                        className={`rounded-xl border p-3 text-sm transition ${
+                          selectedRole === "customer"
+                            ? "border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37]"
+                            : "border-white/10 bg-white/5 text-white/60"
+                        }`}
+                      >
+                        👤 Customer
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRole("vendor")}
+                        className={`rounded-xl border p-3 text-sm transition ${
+                          selectedRole === "vendor"
+                            ? "border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37]"
+                            : "border-white/10 bg-white/5 text-white/60"
+                        }`}
+                      >
+                        🏪 Vendor
+                      </button>
+                    </div>
+                  )}
+                  
                   <form onSubmit={handleAuth} className="space-y-3">
                     {!isLogin && (
                       <div className="relative">

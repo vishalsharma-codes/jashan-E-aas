@@ -335,10 +335,10 @@ export const concertPageColors = {
   },
 
   "Concert Types": {
-    border: "#7e22ce",
+    border: "#d1c7da",
     innerBorder: "#d8b4fe",
-    line: "#c084fc",
-    text: "#581c87",
+    line: "#645c6b",
+    text: "#19141d",
   },
 
   "Comedy & Theatre": {
@@ -362,7 +362,7 @@ export const concertPageColors = {
     text: "#312e81",
   },
 
-  "Artist & Talent Management": {
+  " & Talent Management": {
     border: "#7c3aed",
     innerBorder: "#c4b5fd",
     line: "#a78bfa",

@@ -2,15 +2,35 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { eventCategories } from "@/lib/categoryData";
+import weddingsImg from "./outerCategory/categoryImages/weddings.jpg";
+import corporateImg from "./outerCategory/categoryImages/corporate-events.jpg";
+import socialImg from "./outerCategory/categoryImages/social-parties.jpg";
+import educationalImg from "./outerCategory/categoryImages/educational-events.jpg"; 
+import concertsImg from "./outerCategory/categoryImages/concerts-shows.jpg";
+import religiousImg from "./outerCategory/categoryImages/religious-spiritual.jpg"; 
+import { CategoryMindmap } from "./outerCategory/CategoryMindmap";
+import { useState } from "react";
 
 const ALL_QUICK_TYPES = [
   "Weddings", "Corporate", "Birthdays", "Concerts", "Religious", "College Fests",
   "Sports Events", "Fashion Shows", "Tech Events", "Charity Events",
 ];
 
+const categoryImageMap: Record<string, string> = {
+  "Weddings": weddingsImg,
+  "Corporate Events": corporateImg,
+  "Social Parties": socialImg,
+  "Educational Events": educationalImg,
+  "Concerts & Shows": concertsImg,
+  "Religious & Spiritual": religiousImg,
+};
+
 export const EventCategories = () => {
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+
   return (
-    <section className="py-20 bg-charcoal-light/50" id="categories">
+    <>
+      <section className="py-20 bg-charcoal-light/50" id="categories">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -31,44 +51,60 @@ export const EventCategories = () => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-          {eventCategories.map((category, index) => (
-            <motion.div
-              key={category.id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.03 }}
-              whileHover={{ y: -5, transition: { duration: 0.18 } }}
-            >
-              <Link
-                to={`/category/${category.id}`}
-                className="group relative flex flex-col items-center p-4 rounded-2xl bg-card border border-border hover:border-gold/50 transition-all duration-300 h-full"
-              >
-                <div className="absolute inset-0 rounded-2xl bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+<div className="w-full">
+  {/* Explore All at the top-right */}
+{/* Section heading and View All link */}
+<div className="mb-4 flex items-center justify-between">
+  <h3 className="text-sm md:text-base font-semibold uppercase tracking-[0.2em] text-gold">
+    EVENT CATEGORIES
+  </h3>
 
-                {/* Gradient icon tile */}
-                <div className={`relative w-14 h-14 mb-3 rounded-xl bg-gradient-to-br ${category.gradient} flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg`}>
-                  <span className="text-2xl">{category.icon}</span>
-                </div>
+  <button
+  onClick={() => setIsCategoryOpen(true)}
+  className="text-sm md:text-base font-semibold uppercase tracking-[0.2em] text-gold transition-colors duration-300 hover:text-gold/60"
+>
+  View all Event Categories →
+</button>
+</div>
 
-                <h3 className="font-semibold text-xs text-center text-foreground group-hover:text-gold transition-colors leading-tight">
-                  {category.name}
-                </h3>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {category.subCategories.length} sub-types
-                </p>
+{/* First 4 categories in 2 columns */}
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {eventCategories.slice(0, 4).map((category, index) => (
+      <motion.div
+        key={category.id}
+        initial={{ opacity: 0, y: 15 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: index * 0.08 }}
+      >
+        <Link
+  to={`/category/${category.id}`}
+  className="group relative flex min-h-48 w-full items-end overflow-hidden rounded-xl border border-border p-5 transition-all duration-300 hover:border-gold/60"
+  style={{
+   backgroundImage: `linear-gradient(to top, rgba(15,15,18,0.95), rgba(15,15,18,0.15)), url("${categoryImageMap[category.name]}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center 25%",
+  }}
+>
+  <div className="relative z-10 text-left">
+    <h3 className="font-semibold text-base md:text-lg text-white transition-colors group-hover:text-gold">
+      {category.name}
+    </h3>
 
-                {/* Arrow on hover */}
-                <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-secondary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg className="w-2.5 h-2.5 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
+    <p className="mt-2 text-xs leading-6 text-white/80">
+      {category.subCategories
+        .slice(0, 3)
+        .map((subCategory) => subCategory.name)
+        .join(" · ")}
+    </p>
+  </div>
+</Link>
+      </motion.div>
+    ))}
+  </div>
+</div>
+
+
 
         {/* Quick-filter tags */}
         <motion.div
@@ -89,6 +125,12 @@ export const EventCategories = () => {
           ))}
         </motion.div>
       </div>
-    </section>
+      </section>
+
+      <CategoryMindmap
+        isOpen={isCategoryOpen}
+        onClose={() => setIsCategoryOpen(false)}
+      />
+    </>
   );
 };

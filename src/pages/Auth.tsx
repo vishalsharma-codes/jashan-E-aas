@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DynamicBackground } from "@/components/DynamicBackground";
 import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
-import { Sparkles, Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { Sparkles, Eye, EyeOff, Mail, Lock, User, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ const Auth = () => {
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<"customer" | "vendor">("customer");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -26,8 +27,16 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        toast({ title: "Welcome back!", description: "You've been signed in." });
-        navigate("/");
+        toast({
+  title: "Welcome back!",
+  description: "You've been signed in.",
+});
+
+if (selectedRole === "vendor") {
+  navigate("/vendor/signin");
+} else {
+  navigate("/");
+}
       } else {
         const { error } = await supabase.auth.signUp({
           email,
@@ -75,6 +84,43 @@ const Auth = () => {
           <p className="text-muted-foreground">
             {isLogin ? "Sign in to your account" : "Create your free account"}
           </p>
+          
+{isLogin && (
+  <div className="mt-6 grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={() => setSelectedRole("customer")}
+      className={`rounded-xl border p-4 text-left transition ${
+        selectedRole === "customer"
+          ? "border-gold bg-gold/10 text-gold"
+          : "border-border bg-card text-muted-foreground hover:border-gold/50"
+      }`}
+    >
+      <User className="mb-3 h-6 w-6" />
+      <span className="block font-semibold">Customer</span>
+      <span className="mt-1 block text-xs">
+        Explore services and plan events
+      </span>
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setSelectedRole("vendor")}
+      className={`rounded-xl border p-4 text-left transition ${
+        selectedRole === "vendor"
+          ? "border-gold bg-gold/10 text-gold"
+          : "border-border bg-card text-muted-foreground hover:border-gold/50"
+      }`}
+    >
+      <Store className="mb-3 h-6 w-6" />
+      <span className="block font-semibold">Vendor</span>
+      <span className="mt-1 block text-xs">
+        List services and manage events
+      </span>
+    </button>
+  </div>
+)}
+
         </div>
 
         {/* Card */}

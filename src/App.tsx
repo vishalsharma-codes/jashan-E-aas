@@ -20,6 +20,7 @@ import GamificationPage from "./pages/GamificationPage";
 import VendorComparison from "./pages/VendorComparison";
 import TrustSafety from "./pages/TrustSafety";
 import NotFound from "./pages/NotFound";
+import ChooseRole from "./pages/ChooseRole";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/compare" element={<VendorComparison />} />
             <Route path="/trust-safety" element={<TrustSafety />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/choose-role" element={<ChooseRole />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

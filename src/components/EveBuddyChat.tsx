@@ -2067,7 +2067,7 @@ overflow-hidden
 
                               className="
 
-                                text-[11px]
+                                text-[16px]
 
                                 font-medium
 
