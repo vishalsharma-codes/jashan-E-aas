@@ -6,7 +6,10 @@ import { Footer } from "@/components/Footer";
 import { EveBuddy } from "@/components/EveBuddy";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Shield, Star, Zap, Globe, Target, Clock, AlertTriangle, DollarSign } from "lucide-react";
+import { Shield, Star, Zap, Globe, Target, Clock, AlertTriangle, DollarSign,  ClipboardPenLine,
+  Search,
+  MessagesSquare,
+  ShieldCheck, } from "lucide-react";
 
 const steps = [
   {

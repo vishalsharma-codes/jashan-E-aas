@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Star, MapPin, CheckCircle, ArrowRight, Quote, TrendingUp, Zap, Shield, Clock, CreditCard } from "lucide-react";
+import { Star, MapPin, CheckCircle, ArrowRight, Quote, TrendingUp, Zap, Shield, Clock, CreditCard,ClipboardPenLine,
+  Search,
+  MessagesSquare,
+  ShieldCheck, } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
 import { EventCategories } from "@/components/EventCategories";
@@ -49,10 +52,30 @@ const platformStats = [
 ];
 
 const howItWorks = [
-  { step: "01", title: "Tell Us Your Vision", desc: "Share your event type, date, location & budget. Our smart matching does the rest.", emoji: "✍️" },
-  { step: "02", title: "Browse Curated Vendors", desc: "Get a personalised list of verified vendors with portfolios, reviews & pricing.", emoji: "🔍" },
-  { step: "03", title: "Compare & Connect", desc: "Chat directly, request quotes, and compare side-by-side on every metric.", emoji: "💬" },
-  { step: "04", title: "Book With Confidence", desc: "Secure your vendor with our protected booking system & event guarantee.", emoji: "✅" },
+  {
+    step: "01",
+    title: "Tell Us Your Vision",
+    desc: "Share your event type, date, location & budget. Our smart matching does the rest.",
+    icon: ClipboardPenLine,
+  },
+  {
+    step: "02",
+    title: "Browse Curated Vendors",
+    desc: "Get a personalised list of verified vendors with portfolios, reviews & pricing.",
+    icon: Search,
+  },
+  {
+    step: "03",
+    title: "Compare & Connect",
+    desc: "Chat directly, request quotes, and compare side-by-side on every metric.",
+    icon: MessagesSquare,
+  },
+  {
+    step: "04",
+    title: "Book With Confidence",
+    desc: "Secure your vendor with our protected booking system & event guarantee.",
+    icon: ShieldCheck,
+  },
 ];
 
 const testimonials = [
@@ -251,7 +274,9 @@ export default function Index() {
                 transition={{ delay: i * 0.1 }}
                 className="relative bg-card border border-border rounded-2xl p-6 text-center"
               >
-                <div className="text-4xl mb-4">{step.emoji}</div>
+                <div className="mb-4 flex justify-center">
+  <step.icon className="h-8 w-8 text-gold" strokeWidth={1.8} />
+</div>
                 <div className="text-gold/30 font-bold text-5xl absolute top-4 right-4 font-display leading-none">
                   {step.step}
                 </div>

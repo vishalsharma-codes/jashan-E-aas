@@ -9,7 +9,8 @@ import educationalImg from "./outerCategory/categoryImages/educational-events.jp
 import concertsImg from "./outerCategory/categoryImages/concerts-shows.jpg";
 import religiousImg from "./outerCategory/categoryImages/religious-spiritual.jpg"; 
 import { CategoryMindmap } from "./outerCategory/CategoryMindmap";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const ALL_QUICK_TYPES = [
   "Weddings", "Corporate", "Birthdays", "Concerts", "Religious", "College Fests",
@@ -27,6 +28,20 @@ const categoryImageMap: Record<string, string> = {
 
 export const EventCategories = () => {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+
+  const sliderRef = useRef<HTMLDivElement>(null);
+
+const slideCategories = (direction: "left" | "right") => {
+  if (!sliderRef.current) return;
+
+  sliderRef.current.scrollBy({
+    left:
+      direction === "right"
+        ? sliderRef.current.clientWidth / 2
+        : -sliderRef.current.clientWidth / 2,
+    behavior: "smooth",
+  });
+};
 
   return (
     <>
@@ -51,79 +66,100 @@ export const EventCategories = () => {
           </p>
         </motion.div>
 
+
+{/* Event Categories Slider */}
 <div className="w-full">
-  {/* Explore All at the top-right */}
-{/* Section heading and View All link */}
-<div className="mb-4 flex items-center justify-between">
-  <h3 className="text-sm md:text-base font-semibold uppercase tracking-[0.2em] text-gold">
-    EVENT CATEGORIES
-  </h3>
+  {/* Heading and slider controls */}
+  <div className="mb-6 flex items-center justify-between gap-3">
+    <h3 className="text-sm md:text-base font-semibold uppercase tracking-[0.2em] text-gold">
+      Event Categories
+    </h3>
 
-  <button
-  onClick={() => setIsCategoryOpen(true)}
-  className="text-sm md:text-base font-semibold uppercase tracking-[0.2em] text-gold transition-colors duration-300 hover:text-gold/60"
->
-  View all Event Categories →
-</button>
-</div>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => slideCategories("left")}
+        aria-label="Previous categories"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-gold hover:text-gold"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
 
-{/* First 4 categories in 2 columns */}
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    {eventCategories.slice(0, 4).map((category, index) => (
+      <button
+        onClick={() => slideCategories("right")}
+        aria-label="Next categories"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-gold hover:text-gold"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </div>
+  </div>
+
+  {/* Horizontal slider */}
+  <div
+    ref={sliderRef}
+    className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+  >
+    {eventCategories.slice(0, 6).map((category, index) => (
       <motion.div
         key={category.id}
         initial={{ opacity: 0, y: 15 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ delay: index * 0.08 }}
+        transition={{ delay: index * 0.06 }}
+        className="flex w-[calc((100%-4.5rem)/4)] min-w-[220px] shrink-0 snap-start justify-center"
       >
         <Link
-  to={`/category/${category.id}`}
-  className="group relative flex min-h-48 w-full items-end overflow-hidden rounded-xl border border-border p-5 transition-all duration-300 hover:border-gold/60"
-  style={{
-   backgroundImage: `linear-gradient(to top, rgba(15,15,18,0.95), rgba(15,15,18,0.15)), url("${categoryImageMap[category.name]}")`,
-    backgroundSize: "cover",
-    backgroundPosition: "center 25%",
-  }}
->
-  <div className="relative z-10 text-left">
-    <h3 className="font-semibold text-base md:text-lg text-white transition-colors group-hover:text-gold">
-      {category.name}
-    </h3>
+          to={`/category/${category.id}`}
+          className="group flex w-full flex-col items-center text-center"
+        >
+          {/* Circular image */}
+          <div
+            className="relative mb-4 aspect-square w-36 sm:w-40 lg:w-44 overflow-hidden rounded-full border border-white/10 transition-all duration-500 group-hover:scale-105 group-hover:border-gold group-hover:shadow-[0_0_28px_rgba(212,175,55,0.22)]"
+            style={{
+              backgroundImage: `linear-gradient(to top, rgba(15,15,18,0.25), transparent 45%), url("${categoryImageMap[category.name]}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center center",
+            }}
+          >
+            <div className="absolute inset-2 rounded-full border border-white/15 transition-colors duration-300 group-hover:border-gold/50" />
+          </div>
 
-    <p className="mt-2 text-xs leading-6 text-white/80">
-      {category.subCategories
-        .slice(0, 3)
-        .map((subCategory) => subCategory.name)
-        .join(" · ")}
-    </p>
-  </div>
-</Link>
+          <h3 className="font-display text-base sm:text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-gold">
+            {category.name}
+          </h3>
+
+          <p className="mt-2 max-w-[200px] text-xs leading-5 text-muted-foreground">
+            {category.subCategories
+              .slice(0, 2)
+              .map((subCategory) => subCategory.name)
+              .join(" · ")}
+          </p>
+        </Link>
       </motion.div>
     ))}
+
+    {/* View Other Categories — after the first six */}
+   
+<div className="flex w-[220px] shrink-0 snap-start items-center justify-center px-4">
+  <button
+    onClick={() => setIsCategoryOpen(true)}
+    className="group inline-flex items-center gap-2 whitespace-nowrap font-display text-lg font-semibold text-gold transition-colors duration-300 hover:text-gold/60"
+  >
+    View Other Categories
+    <span className="transition-transform duration-300 group-hover:translate-x-1">
+      →
+    </span>
+  </button>
+</div>
+
   </div>
 </div>
 
+<CategoryMindmap
+  isOpen={isCategoryOpen}
+  onClose={() => setIsCategoryOpen(false)}
+/>
 
-
-        {/* Quick-filter tags */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="flex flex-wrap items-center justify-center gap-2 mt-12"
-        >
-          <span className="text-muted-foreground text-sm mr-1">Popular searches:</span>
-          {ALL_QUICK_TYPES.map((type) => (
-            <Link
-              key={type}
-              to={`/vendors?type=${encodeURIComponent(type)}`}
-              className="px-4 py-1.5 rounded-full bg-secondary text-foreground/80 text-sm font-medium border border-border hover:border-gold/50 hover:text-gold transition-colors"
-            >
-              {type}
-            </Link>
-          ))}
-        </motion.div>
       </div>
       </section>
 
