@@ -131,7 +131,7 @@ export default function Index() {
       {/* Hero with integrated search */}
       <Hero />
 
-      {/* ── TRUST STATS BAR ───────────────────────────────── */}
+      {/* ── TRUST STATS BAR ─────────────────────────────────
       <section className="py-4 bg-charcoal border-y border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm">
@@ -150,7 +150,7 @@ export default function Index() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Categories */}
       <EventCategories />
@@ -370,7 +370,7 @@ export default function Index() {
         </div>
       </section>
 
-      {/* ── TRENDING SEARCHES ────────────────────────────── */}
+      {/* ── TRENDING SEARCHES ──────────────────────────────
       <section className="py-12 bg-charcoal-light/20">
         <div className="container mx-auto px-4">
           <motion.div
@@ -402,7 +402,7 @@ export default function Index() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ── TESTIMONIALS ─────────────────────────────────── */}
       <section className="py-20 bg-charcoal-light/40">
@@ -535,7 +535,7 @@ export default function Index() {
         </div>
       </section>
 
-      {/* ── PLATFORM STATS ───────────────────────────────── */}
+      {/* ── PLATFORM STATS ─────────────────────────────────
       <section className="py-16 bg-gradient-to-br from-gold/8 via-charcoal to-crimson/5 border-y border-gold/15">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 text-center">
@@ -555,7 +555,7 @@ export default function Index() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ── UPI SECURE PAYMENT CTA ───────────────────────── */}
       <section className="py-16">

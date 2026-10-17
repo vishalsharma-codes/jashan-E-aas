@@ -67,9 +67,9 @@ export const Hero = () => {
             Your Event. Your Vendors. <span className="text-gradient-gold">Zero Compromise.</span>
           </h2>
 
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-10">
+          {/* <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-10">
             12,000+ verified vendors. AI-powered EveBuddy. Escrow-protected payments. India's most trusted event marketplace.
-          </p>
+          </p> */}
 
           {/* ── SEARCH BAR ─────────────────────────────────── */}
           <motion.div
@@ -231,8 +231,8 @@ export const Hero = () => {
             transition={{ repeat: Infinity, duration: 1.5 }}
             className="flex flex-col items-center gap-2 text-muted-foreground"
           >
-            <span className="text-sm">Scroll to explore</span>
-            <ArrowDown className="w-5 h-5" />
+            {/* <span className="text-sm">Scroll to explore</span> */}
+            {/* <ArrowDown className="w-5 h-5" /> */}
           </motion.div>
         </motion.div>
       </div>
