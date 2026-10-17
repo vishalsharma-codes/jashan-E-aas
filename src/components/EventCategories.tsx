@@ -45,7 +45,7 @@ const slideCategories = (direction: "left" | "right") => {
 
   return (
     <>
-      <section className="py-20 bg-charcoal-light/50" id="categories">
+      <section className="py-10 bg-charcoal-light/50" id="categories">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 30 }}

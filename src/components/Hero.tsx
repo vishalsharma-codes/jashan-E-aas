@@ -28,11 +28,11 @@ export const Hero = () => {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+    <section className="relative min-h-[680px] h-[85vh] max-h-[820px] flex items-center justify-center overflow-hidden pt-16">
 
     {/* Cinematic event video background */}
     <video
-      className="absolute inset-0 h-full w-full object-cover"
+     className="absolute inset-0 w-full h-full object-cover object-top"
       autoPlay
       muted
       loop

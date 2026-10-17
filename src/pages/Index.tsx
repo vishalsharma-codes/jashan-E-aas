@@ -156,7 +156,7 @@ export default function Index() {
       <EventCategories />
 
       {/* ── FEATURED VENDORS ─────────────────────────────── */}
-      <section className="py-20">
+      <section className="py-10">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -250,7 +250,7 @@ export default function Index() {
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────── */}
-      <section className="py-20 bg-charcoal-light/40" id="how">
+      <section className="py-10 bg-charcoal-light/40" id="how">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -405,7 +405,7 @@ export default function Index() {
       </section> */}
 
       {/* ── TESTIMONIALS ─────────────────────────────────── */}
-      <section className="py-20 bg-charcoal-light/40">
+      <section className="py-10 bg-charcoal-light/40">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -496,7 +496,7 @@ export default function Index() {
       </section>
 
       {/* ── CITY EXPLORER ────────────────────────────────── */}
-      <section className="py-20">
+      <section className="py-10">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -615,7 +615,7 @@ export default function Index() {
       </section>
 
       {/* ── CTA BANNER ───────────────────────────────────── */}
-      <section className="py-20">
+      <section className="py-10">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
