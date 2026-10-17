@@ -28,11 +28,11 @@ export const Hero = () => {
   };
 
   return (
-    <section className="relative min-h-[680px] h-[85vh] max-h-[820px] flex items-center justify-center overflow-hidden pt-16">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
 
     {/* Cinematic event video background */}
     <video
-     className="absolute inset-0 w-full h-full object-cover object-top"
+      className="absolute inset-0 h-full w-full object-cover"
       autoPlay
       muted
       loop
@@ -56,7 +56,7 @@ export const Hero = () => {
             className="absolute w-1 h-1 rounded-full bg-gold/40"
             initial={{
               x: Math.random() * (typeof window !== "undefined" ? window.innerWidth : 1000),
-              y: Math.random() * (typeof window !== "undefined" ? window.innerHeight : 800),
+              y: Math.random() * (typeof window !== "undefined" ? window.innerHeight : 80),
             }}
             animate={{ y: [null, -20, 0], opacity: [0.2, 0.8, 0.2] }}
             transition={{ duration: 3 + Math.random() * 2, repeat: Infinity, delay: Math.random() * 2 }}

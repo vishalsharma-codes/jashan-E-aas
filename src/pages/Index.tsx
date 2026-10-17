@@ -1,13 +1,25 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Star, MapPin, CheckCircle, ArrowRight, Quote, TrendingUp, Zap, Shield, Clock, CreditCard,ClipboardPenLine,
+import {
+  ArrowRight,
+  CheckCircle,
+  Star,
+  MapPin,
+  Quote,
+  Zap,
+  Shield,
+  Clock,
+  CreditCard,
+  ClipboardPenLine,
   Search,
   MessagesSquare,
-  ShieldCheck, } from "lucide-react";
+  ShieldCheck,
+} from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
 import { EventCategories } from "@/components/EventCategories";
+import { AutoScrollMarquee } from "@/components/AutoScrollMarquee";
 import { Footer } from "@/components/Footer";
 import { EveBuddy } from "@/components/EveBuddy";
 import { RopePull } from "@/components/RopePull";
@@ -155,97 +167,117 @@ export default function Index() {
       {/* Categories */}
       <EventCategories />
 
-      {/* ── FEATURED VENDORS ─────────────────────────────── */}
+      {/* ── FEATURED VENDORS (auto-scrolling single row) ─── */}
       <section className="py-10">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="flex items-end justify-between mb-12"
+            className="mb-10 flex items-end justify-between"
           >
             <div>
-              <p className="text-gold text-sm font-medium uppercase tracking-wider mb-2">Hand-picked for you</p>
-              <h2 className="font-display text-3xl md:text-4xl text-foreground">
+              <p className="mb-2 text-sm font-medium uppercase tracking-wider text-gold">
+                Hand-picked for you
+              </p>
+              <h2 className="font-display text-3xl text-foreground md:text-4xl">
                 Featured <span className="text-gradient-gold">Vendors</span>
               </h2>
             </div>
-            <Button asChild variant="outline" className="border-gold/40 text-gold hover:bg-gold/10 hidden sm:flex">
-              <Link to="/vendors">View All <ArrowRight className="ml-2 w-4 h-4" /></Link>
+
+            <Button
+              asChild
+              variant="outline"
+              className="border-gold/40 text-gold hover:bg-gold/10"
+            >
+              <Link to="/vendors">
+                View All <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredVendors.map((vendor, i) => (
-              <motion.div
-                key={vendor.id}
-                initial={{ opacity: 0, y: 32 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.07 }}
-                className="bg-card border border-border rounded-2xl overflow-hidden hover:border-gold/50 transition-all group"
-              >
-                {/* Portfolio strip */}
-                <div className="flex gap-1 h-28 overflow-hidden">
-                  {vendor.portfolio.slice(0, 3).map((p) => (
-                    <div
-                      key={p.id}
-                      className={`flex-1 bg-gradient-to-br ${p.gradient} flex items-center justify-center text-3xl opacity-80 group-hover:opacity-100 transition-opacity`}
-                    >
-                      {p.emoji}
-                    </div>
-                  ))}
-                </div>
+          <AutoScrollMarquee speed={40} gap={20} className="py-1">
+            {featuredVendors.map((vendor) => {
+              const cover = vendor.portfolio[0];
 
-                <div className="p-5">
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${vendor.gradient} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                      {vendor.initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <h3 className="font-bold text-foreground group-hover:text-gold transition-colors truncate">
-                          {vendor.name}
-                        </h3>
-                        {vendor.isVerified && <CheckCircle className="w-3.5 h-3.5 text-gold flex-shrink-0" />}
+              return (
+                <div
+                  key={vendor.id}
+                  className="group w-[270px] shrink-0 overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-gold/50 sm:w-[285px]"
+                >
+                  {/* Single cover image */}
+                  <div
+                    className={`flex h-24 items-center justify-center bg-gradient-to-br ${
+                      cover?.gradient ?? vendor.gradient
+                    } text-4xl opacity-80 transition-opacity group-hover:opacity-100`}
+                  >
+                    {cover?.emoji}
+                  </div>
+
+                  <div className="p-4">
+                    <div className="mb-3 flex items-start gap-3">
+                      <div
+                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${vendor.gradient} text-xs font-bold text-white`}
+                      >
+                        {vendor.initials}
                       </div>
-                      <p className="text-sm text-muted-foreground">{vendor.category}</p>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-0.5 flex items-center gap-1.5">
+                          <h3 className="truncate text-sm font-bold text-foreground transition-colors group-hover:text-gold">
+                            {vendor.name}
+                          </h3>
+                          {vendor.isVerified && (
+                            <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-gold" />
+                          )}
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {vendor.category}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mb-3 flex items-center gap-3 text-xs">
+                      <span className="flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 fill-gold text-gold" />
+                        <span className="font-semibold">{vendor.rating}</span>
+                        <span className="text-muted-foreground">
+                          ({vendor.reviews})
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        {vendor.location}
+                      </span>
+                    </div>
+
+                    <div className="mb-3 flex flex-wrap gap-1.5">
+                      {vendor.tags.slice(0, 3).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-[11px]">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-gold">
+                        {vendor.price}
+                      </span>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="h-8 bg-gold text-xs text-background hover:bg-gold-dark"
+                      >
+                        <Link to={`/vendors?vendor=${vendor.id}`} draggable={false}>
+                          View Profile
+                        </Link>
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-3 text-sm mb-3">
-                    <span className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 text-gold fill-gold" />
-                      <span className="font-semibold">{vendor.rating}</span>
-                      <span className="text-muted-foreground">({vendor.reviews})</span>
-                    </span>
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <MapPin className="w-3 h-3" />{vendor.location}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {vendor.tags.slice(0, 3).map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-gold">{vendor.price}</span>
-                    <Button asChild size="sm" className="bg-gold hover:bg-gold-dark text-background">
-                      <Link to={`/vendors?vendor=${vendor.id}`}>View Profile</Link>
-                    </Button>
-                  </div>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="mt-6 text-center sm:hidden">
-            <Button asChild variant="outline" className="border-gold/40 text-gold hover:bg-gold/10">
-              <Link to="/vendors">View All Vendors <ArrowRight className="ml-2 w-4 h-4" /></Link>
-            </Button>
-          </div>
+              );
+            })}
+          </AutoScrollMarquee>
         </div>
       </section>
 
@@ -275,8 +307,8 @@ export default function Index() {
                 className="relative bg-card border border-border rounded-2xl p-6 text-center"
               >
                 <div className="mb-4 flex justify-center">
-  <step.icon className="h-8 w-8 text-gold" strokeWidth={1.8} />
-</div>
+                  <step.icon className="h-8 w-8 text-gold" strokeWidth={1.8} />
+                </div>
                 <div className="text-gold/30 font-bold text-5xl absolute top-4 right-4 font-display leading-none">
                   {step.step}
                 </div>
@@ -309,7 +341,7 @@ export default function Index() {
         </div>
       </section>
 
-      {/* ── TOP RATED VENDORS STRIP ──────────────────────── */}
+      {/* ── TOP RATED VENDORS (auto-scrolling single row) ── */}
       <section className="py-16">
         <div className="container mx-auto px-4">
           <motion.div
@@ -318,55 +350,59 @@ export default function Index() {
             viewport={{ once: true }}
             className="flex items-end justify-between mb-10"
           >
-            <div>
+                        <div>
               <p className="text-gold text-sm font-medium uppercase tracking-wider mb-2">Highest rated</p>
               <h2 className="font-display text-3xl text-foreground">
                 Top Rated <span className="text-gradient-gold">This Month</span>
               </h2>
             </div>
+
+            <Button
+              asChild
+              variant="outline"
+              className="border-gold/40 text-gold hover:bg-gold/10"
+            >
+              <Link to="/vendors">
+                View All <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </motion.div>
 
-          <div className="overflow-x-auto pb-4">
-            <div className="flex gap-4" style={{ minWidth: "max-content" }}>
-              {topVendors.map((vendor, i) => (
-                <motion.div
-                  key={vendor.id}
-                  initial={{ opacity: 0, x: 30 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.06 }}
-                  className="bg-card border border-border rounded-2xl p-4 w-64 flex-shrink-0 hover:border-gold/50 transition-all group"
-                >
-                  {/* Mini portfolio */}
-                  <div className="flex gap-1 h-20 rounded-xl overflow-hidden mb-4">
-                    {vendor.portfolio.slice(0, 2).map((p) => (
-                      <div key={p.id} className={`flex-1 bg-gradient-to-br ${p.gradient} flex items-center justify-center text-2xl opacity-80`}>
-                        {p.emoji}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${vendor.gradient} flex items-center justify-center text-white font-bold text-xs`}>
-                      {vendor.initials}
+          <AutoScrollMarquee speed={40} gap={16} className="py-1">
+            {topVendors.map((vendor) => (
+              <div
+                key={vendor.id}
+                className="bg-card border border-border rounded-2xl p-4 w-64 flex-shrink-0 hover:border-gold/50 transition-all group"
+              >
+                {/* Mini portfolio */}
+                <div className="flex gap-1 h-20 rounded-xl overflow-hidden mb-4">
+                  {vendor.portfolio.slice(0, 2).map((p) => (
+                    <div key={p.id} className={`flex-1 bg-gradient-to-br ${p.gradient} flex items-center justify-center text-2xl opacity-80`}>
+                      {p.emoji}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-foreground group-hover:text-gold transition-colors truncate">{vendor.name}</p>
-                      <p className="text-xs text-muted-foreground">{vendor.location}</p>
-                    </div>
-                  </div>
+                  ))}
+                </div>
 
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1">
-                      <Star className="w-3 h-3 text-gold fill-gold" />
-                      <span className="font-bold">{vendor.rating}</span>
-                    </span>
-                    <span className="text-gold font-semibold text-xs">{vendor.price.split("–")[0].trim()}</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${vendor.gradient} flex items-center justify-center text-white font-bold text-xs`}>
+                    {vendor.initials}
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-foreground group-hover:text-gold transition-colors truncate">{vendor.name}</p>
+                    <p className="text-xs text-muted-foreground">{vendor.location}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1">
+                    <Star className="w-3 h-3 text-gold fill-gold" />
+                    <span className="font-bold">{vendor.rating}</span>
+                  </span>
+                  <span className="text-gold font-semibold text-xs">{vendor.price.split("–")[0].trim()}</span>
+                </div>
+              </div>
+            ))}
+          </AutoScrollMarquee>
         </div>
       </section>
 
