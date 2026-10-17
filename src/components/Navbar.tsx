@@ -9,13 +9,15 @@ export const Navbar = () => {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const navigate = useNavigate();
 
-  const navLinks = [
-    { label: "Vendors", href: "/vendors" },
-    { label: "For Partners", href: "/for-partners" },
-    { label: "How It Works", href: "/how-it-works" },
-    { label: "Ultra Gold", href: "/ultra-gold" },
-    { label: "Community", href: "/community" },
-  ];
+const navLinks = [
+  { label: "Vendors", href: "/vendors" },
+  { label: "For Partners", href: "/for-partners" },
+  { label: "How It Works", href: "/how-it-works" },
+  { label: "Ultra Gold", href: "/ultra-gold" },
+  { label: "Community", href: "/community" },
+  { label: "Reels", href: "/reels" },
+  { label: "Sign In", href: "/auth" },
+];
 
   return (
     <>
