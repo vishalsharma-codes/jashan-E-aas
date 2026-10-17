@@ -73,8 +73,18 @@ const PHOTO_POOL = [
 ];
 
 const priceNumber = (price: string) => {
-  const match = price.match(/[\d,]+/);
-  return match ? Number(match[0].replace(/,/g, "")) : 0;
+  // Understand Indian price labels such as ₹25K, ₹1.5L and ₹600–₹2,200/plate.
+  // Sort by the first amount shown in a price range.
+  const match = price.replace(/,/g, "").match(/(\\d+(?:\\.\\d+)?)\\s*(crore|cr|lakh|lac|l|k)?/i);
+  if (!match) return 0;
+
+  const amount = Number(match[1]);
+  const unit = (match[2] || "").toLowerCase();
+
+  if (unit === "k") return amount * 1_000;
+  if (["l", "lakh", "lac"].includes(unit)) return amount * 100_000;
+  if (["cr", "crore"].includes(unit)) return amount * 10_000_000;
+  return amount;
 };
 
 function getVendorImage(vendor: Vendor, index: number) {
@@ -208,16 +218,20 @@ function CarouselSection({
           <p className="mt-1 text-xs text-zinc-400 sm:text-sm">{subtitle}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button type="button" onClick={onViewAll} className="hidden text-xs font-semibold text-amber-300 transition hover:text-amber-200 sm:block">View All <ArrowUpRight className="ml-1 inline h-3.5 w-3.5" /></button>
+          <button type="button" onClick={onViewAll} className="inline-flex items-center whitespace-nowrap text-xs font-semibold text-amber-300 transition hover:text-amber-200">View All <ArrowUpRight className="ml-1 inline h-3.5 w-3.5" /></button>
           <button type="button" aria-label={`Previous ${title}`} onClick={() => shift(-1)} className="grid h-8 w-8 place-items-center rounded-full border border-amber-400/50 text-amber-300 transition hover:bg-amber-300 hover:text-black"><ChevronLeft className="h-4 w-4" /></button>
           <button type="button" aria-label={`Next ${title}`} onClick={() => shift(1)} className="grid h-8 w-8 place-items-center rounded-full border border-amber-400/50 text-amber-300 transition hover:bg-amber-300 hover:text-black"><ChevronRight className="h-4 w-4" /></button>
         </div>
       </div>
       {items.length ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {visible.slice(0, 6).map((vendor, index) => (
-            <VendorCard key={`${title}-${vendor.id}`} vendor={vendor} index={index} compact onBook={onBook} onProfile={onProfile} saved={savedIds.has(vendor.id)} onToggleSaved={onToggleSaved} />
-          ))}
+        <div className="-mx-1 overflow-x-auto px-1 pb-3 [scrollbar-width:thin] [scrollbar-color:#d4a72c_#11181c]">
+          <div className="flex snap-x snap-mandatory gap-3">
+            {items.slice(0, 10).map((vendor, index) => (
+              <div key={`${title}-${vendor.id}`} className="w-[245px] shrink-0 snap-start sm:w-[265px]">
+                <VendorCard vendor={vendor} index={index} compact onBook={onBook} onProfile={onProfile} saved={savedIds.has(vendor.id)} onToggleSaved={onToggleSaved} />
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-white/10 bg-white/[.02] p-6 text-sm text-zinc-400">No vendors to show in this section yet.</div>
@@ -297,7 +311,7 @@ const Vendors = () => {
     return result;
   }, [searchQuery, activeCategory, activeEvent, city, minRating, verifiedOnly, sortBy]);
 
-  const topRated = useMemo(() => [...vendors].sort((a, b) => b.rating - a.rating || b.reviews - a.reviews).slice(0, 12), []);
+  const topRated = useMemo(() => [...vendors].sort((a, b) => b.rating - a.rating || b.reviews - a.reviews).slice(0, 10), []);
   const featured = vendors.find((vendor) => vendor.isVerified) ?? vendors[0];
   const activeFilterCount = Number(city !== "All Cities") + Number(minRating !== "0") + Number(verifiedOnly);
 
@@ -381,7 +395,7 @@ const Vendors = () => {
           <CarouselSection
             title="All Vendors"
             subtitle="Explore our verified vendors across different event types"
-            items={filtered.slice(0, 18)}
+            items={filtered.slice(0, 10)}
             onBook={handleBook}
             onProfile={setProfileVendor}
             savedIds={savedIds}
