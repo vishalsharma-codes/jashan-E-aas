@@ -4,6 +4,9 @@ import { ArrowDown, Star, Users, Calendar, Search, MapPin, ChevronDown } from "l
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
+import weddingVideo from "@/assets/homepage/Palace_wedding.mp4";
+import corporateVideo from "@/assets/homepage/Corporate_conference.mp4";
+import concertVideo from "@/assets/homepage/Musicians_performing.mp4";
 
 const eventTypes = ["Wedding", "Corporate", "College Fest", "Birthday", "Concert", "Religious", "Sangeet", "Conference"];
 const cities = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Pune", "Chennai", "Jaipur", "Kolkata", "Goa", "Ahmedabad"];
@@ -26,8 +29,26 @@ export const Hero = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-charcoal to-background" />
+
+    {/* Cinematic event video background */}
+    <video
+      className="absolute inset-0 h-full w-full object-cover"
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      aria-hidden="true"
+    >
+      <source src={weddingVideo} type="video/mp4" />
+    </video>
+
+    {/* Dark overlay */}
+    <div className="absolute inset-0 bg-[#101114]/65 pointer-events-none" />
+
+    {/* Cinematic gradient */}
+    <div className="absolute inset-0 bg-gradient-to-b from-[#101114]/45 via-[#101114]/30 to-[#101114]/90 pointer-events-none" />
+
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <motion.div
@@ -45,7 +66,7 @@ export const Hero = () => {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-crimson/5 blur-3xl" />
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 text-center">
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center px-4 text-center">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
           {/* Badge */}
           <motion.div
