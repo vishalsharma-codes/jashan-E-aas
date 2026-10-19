@@ -21,6 +21,8 @@ import VendorComparison from "./pages/VendorComparison";
 import TrustSafety from "./pages/TrustSafety";
 import NotFound from "./pages/NotFound";
 import ChooseRole from "./pages/ChooseRole";
+import Reels from "./pages/Reels";
+import { SmoothScroll } from "@/components/SmoothScroll";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+                    <SmoothScroll />
           <Routes>
             <Route path="/category/:categoryId" element={<CategoryPage />} />
             <Route path="/subcategory/:subcategoryName" element={<SubCategoryPage />} />
@@ -50,6 +53,7 @@ const App = () => (
             <Route path="/trust-safety" element={<TrustSafety />} />
             <Route path="*" element={<NotFound />} />
             <Route path="/choose-role" element={<ChooseRole />} />
+            <Route path="/reels" element={<Reels />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
