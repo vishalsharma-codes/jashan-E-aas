@@ -224,7 +224,7 @@ export const Hero = () => {
             transition={{ delay: 0.65 }}
             className="flex flex-wrap items-center justify-center gap-8 md:gap-16"
           >
-            {[
+            {/* {[
               { icon: Users, value: "15K+", label: "Verified Vendors" },
               { icon: Calendar, value: "50K+", label: "Events Planned" },
               { icon: Star, value: "4.9", label: "Average Rating" },
@@ -236,7 +236,7 @@ export const Hero = () => {
                 </div>
                 <p className="text-muted-foreground text-sm">{label}</p>
               </div>
-            ))}
+            ))} */}
           </motion.div>
         </motion.div>
 

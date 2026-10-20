@@ -122,7 +122,7 @@ const eventTypes = eventCategories.map((category) => ({
 
   icon: category.icon,
 
-  description: `Explore services for ${category.name.toLowerCase()}`,
+  // description: `Explore services for ${category.name.toLowerCase()}`,
 
   categoryId: category.id,
 
@@ -1081,33 +1081,20 @@ overflow-hidden
 
 
 
-            <main
-
-              className="
-
-                relative
-
-                flex-1
-
-                min-h-0
-
-                overflow-y-auto
-
-                overflow-x-hidden
-
-                overscroll-contain
-
-
-
-                scrollbar-thin
-
-                scrollbar-thumb-[#d4af37]/20
-
-                scrollbar-track-transparent
-
-              "
-
-            >
+           <main
+  data-lenis-prevent
+  className="
+    relative
+    flex-1
+    min-h-0
+    overflow-y-auto
+    overflow-x-hidden
+    overscroll-contain
+    scrollbar-thin
+    scrollbar-thumb-[#d4af37]/20
+    scrollbar-track-transparent
+  "
+>
 
               
 
@@ -1772,8 +1759,8 @@ overflow-hidden
                                 "
 
                               >
-
-                                {event.description}
+{/* 
+                                {event.description} */}
 
                               </p>
 
