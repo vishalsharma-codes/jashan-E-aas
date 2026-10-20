@@ -1,43 +1,55 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Bookmark,
-  Camera,
+  Clapperboard,
   EyeOff,
   Flag,
-  Heart,
   Link2,
-  MessageCircle,
+  Loader2,
+  MessageCircleHeart,
   MoreHorizontal,
   Music2,
+  PartyPopper,
   Play,
   Send,
   Share2,
-  Verified,
+  Trash2,
   Volume2,
   VolumeX,
   X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { dummyReels, type DummyReel } from "@/lib/vendorData";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { UploadReelModal } from "@/components/UploadReelModal";
 
 // ============================================================
 // TYPES & CONSTANTS
 // ============================================================
 
-// If a reel has a `videoUrl`, a real <video> plays. Otherwise the
-// gradient + emoji "video" is shown with a simulated timeline.
-type ReelItem = DummyReel & { videoUrl?: string };
+interface ReelItem {
+  id: string;
+  userId: string;
+  videoUrl: string;
+  caption: string;
+  authorName: string;
+  authorInitials: string;
+  isVendor: boolean;
+  isMine: boolean;
+  approved: boolean;
+}
 
 interface ReelComment {
   id: string;
+  userId: string;
   user: string;
   text: string;
   time: string;
-  likes: number;
   gradient: string;
-  mine?: boolean;
+  mine: boolean;
 }
 
 interface SpotlightReelsProps {
@@ -48,17 +60,44 @@ interface SpotlightReelsProps {
 
 type SheetType = "comments" | "share" | "more" | null;
 
-const FAKE_DURATION_MS = 15000; // simulated reel length when there is no video file
 const FRAME_WIDTH = "min(100vw, calc(100dvh * 9 / 16))"; // 9:16 frame, like Instagram
 
-const SEED_COMMENTS: ReelComment[] = [
-  { id: "c1", user: "priya_s", text: "This is absolutely stunning! 😍 Bookmarking for my wedding!", time: "2h", likes: 48, gradient: "from-rose-600 to-pink-700" },
-  { id: "c2", user: "rahul.m", text: "Wow the décor is unreal. How much did this cost roughly?", time: "5h", likes: 12, gradient: "from-blue-600 to-indigo-700" },
-  { id: "c3", user: "ananya_k", text: "Attended this event! Every detail was perfect 🙌", time: "1d", likes: 31, gradient: "from-emerald-600 to-teal-700" },
-  { id: "c4", user: "vikram.events", text: "Goals 🔥🔥", time: "2d", likes: 7, gradient: "from-amber-600 to-orange-700" },
+const QUICK_EMOJIS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"];
+
+const GRADIENTS = [
+  "from-rose-600 to-pink-700",
+  "from-blue-600 to-indigo-700",
+  "from-emerald-600 to-teal-700",
+  "from-amber-600 to-orange-700",
+  "from-purple-600 to-fuchsia-700",
 ];
 
-const QUICK_EMOJIS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"];
+const gradientFor = (seed: string) => {
+  let h = 0;
+  for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return GRADIENTS[h % GRADIENTS.length];
+};
+
+const initialsOf = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "J";
+
+const timeAgo = (iso: string) => {
+  const s = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return "now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return `${Math.floor(d / 7)}w`;
+};
 
 const formatCount = (n: number) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
@@ -112,16 +151,18 @@ const Sheet = ({
 const CommentsSheetContent = ({
   reel,
   comments,
-  likedComments,
-  onToggleCommentLike,
+  loading,
+  userInitial,
   onPost,
+  onDelete,
   onClose,
 }: {
   reel: ReelItem;
   comments: ReelComment[];
-  likedComments: Set<string>;
-  onToggleCommentLike: (id: string) => void;
+  loading: boolean;
+  userInitial: string;
   onPost: (text: string) => void;
+  onDelete: (id: string) => void;
   onClose: () => void;
 }) => {
   const [text, setText] = useState("");
@@ -144,55 +185,59 @@ const CommentsSheetContent = ({
         </button>
       </div>
 
-      <div data-lenis-prevent className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
-        {comments.map((c) => {
-          const liked = likedComments.has(c.id);
-          return (
-            <div key={c.id} className="flex gap-3">
-              <div
-                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${c.gradient} text-xs font-bold text-white`}
-              >
-                {c.user[0].toUpperCase()}
+      <div data-lenis-prevent className="min-h-[120px] flex-1 space-y-5 overflow-y-auto px-4 py-4">
+        {loading && (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {!loading && comments.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No comments yet. Start the conversation.
+          </p>
+        )}
+
+        {comments.map((c) => (
+          <div key={c.id} className="flex gap-3">
+            <div
+              className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${c.gradient} text-xs font-bold text-white`}
+            >
+              {c.user[0]?.toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">
+                <span className="font-semibold">{c.user}</span>{" "}
+                <span className="text-xs text-muted-foreground">{c.time}</span>
+              </p>
+              <p className="break-words text-sm text-foreground/90">{c.text}</p>
+              <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setText(`@${c.user} `);
+                    inputRef.current?.focus();
+                  }}
+                  className="font-medium hover:text-foreground"
+                >
+                  Reply
+                </button>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm">
-                  <span className="font-semibold">{c.user}</span>{" "}
-                  <span className="text-xs text-muted-foreground">{c.time}</span>
-                </p>
-                <p className="break-words text-sm text-foreground/90">{c.text}</p>
-                <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setText(`@${c.user} `);
-                      inputRef.current?.focus();
-                    }}
-                    className="font-medium hover:text-foreground"
-                  >
-                    Reply
-                  </button>
-                  {c.likes + (liked ? 1 : 0) > 0 && (
-                    <span>{c.likes + (liked ? 1 : 0)} likes</span>
-                  )}
-                </div>
-              </div>
+            </div>
+            {c.mine && (
               <button
                 type="button"
-                onClick={() => onToggleCommentLike(c.id)}
-                aria-label="Like comment"
-                className="mt-1 flex-shrink-0"
+                onClick={() => onDelete(c.id)}
+                aria-label="Delete comment"
+                className="mt-1 flex-shrink-0 text-muted-foreground hover:text-[#ff3040]"
               >
-                <Heart
-                  className={`h-4 w-4 ${
-                    liked ? "fill-[#ff3040] text-[#ff3040]" : "text-muted-foreground"
-                  }`}
-                />
+                <Trash2 className="h-4 w-4" />
               </button>
-            </div>
-          );
-        })}
+            )}
+          </div>
+        ))}
       </div>
-
+      
       <div className="border-t border-border">
         <div className="flex justify-between px-4 pt-3 text-xl">
           {QUICK_EMOJIS.map((emoji) => (
@@ -211,14 +256,15 @@ const CommentsSheetContent = ({
         </div>
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold to-gold-dark text-xs font-bold text-background">
-            Y
+            {userInitial}
           </div>
           <input
             ref={inputRef}
             value={text}
+            maxLength={500}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder={`Add a comment for ${reel.vendorName}...`}
+            placeholder={`Add a comment for ${reel.authorName}...`}
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
           <button
@@ -236,7 +282,7 @@ const CommentsSheetContent = ({
 };
 
 // ============================================================
-// ONE REEL
+// ONE JHALAK
 // ============================================================
 
 interface ReelSlideProps {
@@ -280,6 +326,29 @@ const RailButton = ({
   </button>
 );
 
+// Little gold sparkles that fly out when a jhalak is liked
+const LikeBurst = () => (
+  <>
+    {Array.from({ length: 8 }).map((_, i) => {
+      const angle = (i / 8) * Math.PI * 2;
+      return (
+        <motion.span
+          key={i}
+          className="pointer-events-none absolute left-1/2 top-[11px] -ml-[3px] h-1.5 w-1.5 rounded-full bg-gold"
+          initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+          animate={{
+            opacity: 0,
+            x: Math.cos(angle) * 28,
+            y: Math.sin(angle) * 28,
+            scale: 0.3,
+          }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        />
+      );
+    })}
+  </>
+);
+
 const ReelSlide = ({
   reel,
   isActive,
@@ -304,7 +373,6 @@ const ReelSlide = ({
   const frameRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
-  const elapsedRef = useRef(0);
 
   const tapTimer = useRef<number | null>(null);
   const holdTimer = useRef<number | null>(null);
@@ -318,7 +386,7 @@ const ReelSlide = ({
 
   const playing = isActive && !paused && !holding;
 
-  // Real video: play / pause / reset
+  // play / pause
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -326,40 +394,16 @@ const ReelSlide = ({
     else video.pause();
   }, [playing]);
 
-  // Leaving a reel: rewind and reset
+  // leaving a jhalak: rewind and reset
   useEffect(() => {
     if (isActive) return;
     const video = videoRef.current;
     if (video) video.currentTime = 0;
-    elapsedRef.current = 0;
     if (barRef.current) barRef.current.style.width = "0%";
     setExpanded(false);
   }, [isActive]);
 
-  // Simulated timeline when there is no video file
-  useEffect(() => {
-    if (reel.videoUrl || !playing) return;
-
-    let frame = 0;
-    let last = 0;
-
-    const tick = (time: number) => {
-      if (last) {
-        elapsedRef.current =
-          (elapsedRef.current + (time - last)) % FAKE_DURATION_MS;
-      }
-      last = time;
-      if (barRef.current) {
-        barRef.current.style.width = `${(elapsedRef.current / FAKE_DURATION_MS) * 100}%`;
-      }
-      frame = requestAnimationFrame(tick);
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [playing, reel.videoUrl]);
-
-  // Clear timers on unmount
+  // clear timers on unmount
   useEffect(
     () => () => {
       if (tapTimer.current) clearTimeout(tapTimer.current);
@@ -374,7 +418,7 @@ const ReelSlide = ({
     window.setTimeout(() => setHearts((h) => h.filter((i) => i.id !== id)), 900);
   };
 
-  // Press and hold = pause while held
+  // press and hold = pause while held
   const handlePointerDown = () => {
     heldRef.current = false;
     holdTimer.current = window.setTimeout(() => {
@@ -391,7 +435,7 @@ const ReelSlide = ({
     if (heldRef.current) setHolding(false);
   };
 
-  // Single tap = play/pause, double tap = like
+  // single tap = play/pause, double tap = like
   const handleClick = (e: React.MouseEvent) => {
     if (heldRef.current) {
       heldRef.current = false;
@@ -424,36 +468,22 @@ const ReelSlide = ({
         className="relative h-full select-none overflow-hidden bg-black sm:rounded-2xl"
         style={{ width: FRAME_WIDTH }}
       >
-        {/* MEDIA */}
-        {reel.videoUrl ? (
-          <video
-            ref={videoRef}
-            src={reel.videoUrl}
-            loop
-            playsInline
-            muted={muted}
-            preload="metadata"
-            onTimeUpdate={(e) => {
-              const v = e.currentTarget;
-              if (barRef.current && v.duration) {
-                barRef.current.style.width = `${(v.currentTime / v.duration) * 100}%`;
-              }
-            }}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          <div
-            className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${reel.gradient}`}
-          >
-            <motion.div
-              animate={playing ? { scale: [1, 1.1, 1], rotate: [0, 3, -3, 0] } : { scale: 1, rotate: 0 }}
-              transition={playing ? { duration: 4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
-              className="text-[8rem] leading-none drop-shadow-2xl"
-            >
-              {reel.emoji}
-            </motion.div>
-          </div>
-        )}
+        {/* VIDEO */}
+        <video
+          ref={videoRef}
+          src={reel.videoUrl}
+          loop
+          playsInline
+          muted={muted}
+          preload="metadata"
+          onTimeUpdate={(e) => {
+            const v = e.currentTarget;
+            if (barRef.current && v.duration) {
+              barRef.current.style.width = `${(v.currentTime / v.duration) * 100}%`;
+            }
+          }}
+          className="absolute inset-0 h-full w-full object-contain"
+        />
 
         {/* READABILITY GRADIENTS */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/50 to-transparent" />
@@ -468,6 +498,13 @@ const ReelSlide = ({
           onPointerCancel={endHold}
           onClick={handleClick}
         />
+
+        {/* PENDING NOTICE (only the uploader sees their own pending jhalak) */}
+        {!reel.approved && (
+          <div className="pointer-events-none absolute left-3 top-16 z-20 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
+            Waiting for approval. Only you can see this.
+          </div>
+        )}
 
         {/* PAUSED ICON */}
         <AnimatePresence>
@@ -485,7 +522,7 @@ const ReelSlide = ({
           )}
         </AnimatePresence>
 
-        {/* DOUBLE-TAP HEARTS */}
+        {/* DOUBLE-TAP CELEBRATION */}
         {hearts.map((h) => (
           <motion.div
             key={h.id}
@@ -495,7 +532,7 @@ const ReelSlide = ({
             style={{ left: h.x - 48, top: h.y - 48 }}
             className="pointer-events-none absolute z-20"
           >
-            <Heart className="h-24 w-24 fill-white text-white drop-shadow-xl" />
+            <PartyPopper className="h-24 w-24 text-gold drop-shadow-xl" />
           </motion.div>
         ))}
 
@@ -511,45 +548,63 @@ const ReelSlide = ({
 
         {/* RIGHT ACTION RAIL */}
         <div className="absolute bottom-20 right-3 z-20 flex flex-col items-center gap-5">
-          <RailButton onClick={() => onLike()} label="Like">
+          {/* Like */}
+          <RailButton onClick={() => onLike()} label={liked ? "Unlike" : "Like"}>
             <motion.div
               key={liked ? "liked" : "not-liked"}
-              initial={{ scale: liked ? 0.6 : 1 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 400, damping: 12 }}
+              className="relative"
+              initial={liked ? { scale: 0.6, rotate: -15 } : false}
+              animate={
+                liked
+                  ? { scale: [0.6, 1.4, 1], rotate: [-15, 10, 0] }
+                  : { scale: 1, rotate: 0 }
+              }
+              transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <Heart
-                className={`h-7 w-7 ${
-                  liked ? "fill-[#ff3040] text-[#ff3040]" : "text-white"
-                }`}
+              <PartyPopper
+                className={`h-7 w-7 ${liked ? "text-gold" : "text-white"}`}
               />
+              {liked && <LikeBurst />}
             </motion.div>
-            <span className="text-xs font-medium">{formatCount(likeCount)}</span>
+            <span className={`text-xs font-medium ${liked ? "text-gold" : ""}`}>
+              {formatCount(likeCount)}
+            </span>
           </RailButton>
 
+          {/* Comment */}
           <RailButton onClick={onOpenComments} label="Comments">
-            <MessageCircle className="h-7 w-7 -scale-x-100" />
+            <motion.div whileTap={{ rotate: -14, scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 12 }}>
+              <MessageCircleHeart className="h-7 w-7" />
+            </motion.div>
             <span className="text-xs font-medium">{formatCount(commentCount)}</span>
           </RailButton>
 
+          {/* Share */}
           <RailButton onClick={onOpenShare} label="Share">
-            <Send className="h-7 w-7" />
+            <motion.div whileTap={{ x: 5, y: -5 }} transition={{ type: "spring", stiffness: 500, damping: 14 }}>
+              <Send className="h-7 w-7" />
+            </motion.div>
           </RailButton>
 
+          {/* Save */}
           <RailButton onClick={onSave} label={saved ? "Unsave" : "Save"}>
-            <Bookmark className={`h-7 w-7 ${saved ? "fill-white" : ""}`} />
+            <motion.div
+              key={saved ? "saved" : "not-saved"}
+              animate={saved ? { y: [0, -9, 3, 0] } : { y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            >
+              <Bookmark
+                className={`h-7 w-7 ${saved ? "fill-gold text-gold" : "text-white"}`}
+              />
+            </motion.div>
+            <span className={`text-xs font-medium ${saved ? "text-gold" : ""}`}>
+              {saved ? "Saved" : "Save"}
+            </span>
           </RailButton>
 
           <RailButton onClick={onOpenMore} label="More options">
             <MoreHorizontal className="h-7 w-7" />
           </RailButton>
-
-          {/* Audio disc */}
-          <div
-            className={`mt-1 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-white bg-gradient-to-br ${reel.gradient} text-base`}
-          >
-            {reel.emoji}
-          </div>
         </div>
 
         {/* BOTTOM INFO */}
@@ -557,47 +612,47 @@ const ReelSlide = ({
           <div className="mb-3 flex items-center gap-2.5">
             <div className="rounded-full bg-gradient-to-tr from-gold via-pink-500 to-purple-500 p-[2px]">
               <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-black bg-gradient-to-br from-gold to-gold-dark text-xs font-bold text-background">
-                {reel.vendorInitials}
+                {reel.authorInitials}
               </div>
             </div>
 
-            <span className="flex items-center gap-1 text-sm font-semibold">
-              {reel.vendorName}
-              {reel.isVerified && (
-                <Verified className="h-3.5 w-3.5 text-sky-400" fill="currentColor" />
+            <span className="flex items-center gap-1.5 text-sm font-semibold">
+              {reel.authorName}
+              {reel.isVendor && (
+                <span className="rounded-md bg-white/20 px-1.5 py-0.5 text-[10px] font-medium">
+                  Vendor
+                </span>
               )}
             </span>
 
-            <button
-              type="button"
-              onClick={onFollow}
-              className={`rounded-lg border px-3 py-1 text-xs font-semibold transition-colors ${
-                followed
-                  ? "border-transparent bg-white/20"
-                  : "border-white/80 hover:bg-white/10"
-              }`}
-            >
-              {followed ? "Following" : "Follow"}
-            </button>
+            {!reel.isMine && (
+              <button
+                type="button"
+                onClick={onFollow}
+                className={`rounded-lg border px-3 py-1 text-xs font-semibold transition-colors ${
+                  followed
+                    ? "border-transparent bg-white/20"
+                    : "border-white/80 hover:bg-white/10"
+                }`}
+              >
+                {followed ? "Following" : "Follow"}
+              </button>
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="block w-full text-left"
-          >
-            <p className={`text-sm ${expanded ? "" : "line-clamp-1"}`}>
-              <span className="font-semibold">{reel.title}</span>{" "}
-              <span className="text-white/90">{reel.description}</span>{" "}
-              <span className="text-white/70">
-                #{reel.eventType.replace(/\s+/g, "")}
-              </span>
-            </p>
-          </button>
+          {reel.caption && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="block w-full text-left"
+            >
+              <p className={`text-sm ${expanded ? "" : "line-clamp-2"}`}>{reel.caption}</p>
+            </button>
+          )}
 
           <div className="mt-2 flex items-center gap-1.5 text-xs text-white/90">
             <Music2 className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">{reel.vendorName} · Original audio</span>
+            <span className="truncate">{reel.authorName} · Original audio</span>
           </div>
         </div>
 
@@ -611,7 +666,7 @@ const ReelSlide = ({
 };
 
 // ============================================================
-// REELS PAGE
+// JHALAK PAGE
 // ============================================================
 
 export const SpotlightReels = ({
@@ -619,32 +674,123 @@ export const SpotlightReels = ({
   onClose,
   initialIndex = 0,
 }: SpotlightReelsProps) => {
-  const reels = dummyReels as ReelItem[];
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scrolledRef = useRef(false);
 
+  const [reels, setReels] = useState<ReelItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(true); // starts muted, like Instagram
   const [sheet, setSheet] = useState<SheetType>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const [liked, setLiked] = useState<Set<string>>(new Set());
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  // saved and followed are kept on this device only for now
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [followed, setFollowed] = useState<Set<string>>(new Set());
-  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
-  const [likeCounts, setLikeCounts] = useState<Record<string, number>>(
-    Object.fromEntries(reels.map((r) => [r.id, r.likes]))
-  );
-  const [extraComments, setExtraComments] = useState<Record<string, ReelComment[]>>({});
 
-  const currentReel = reels[activeIndex];
+  const [comments, setComments] = useState<ReelComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+
+  const currentReel: ReelItem | undefined = reels[activeIndex];
+  const currentId = currentReel?.id;
+
+  const myName =
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.display_name as string | undefined) ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    user?.email?.split("@")[0] ||
+    "you";
+
+  const requireLogin = useCallback((): boolean => {
+    if (user) return true;
+    toast({ title: "Please sign in", description: "Log in to like, comment or upload." });
+    navigate("/auth");
+    return false;
+  }, [user, toast, navigate]);
+
+  // ---- load reels, like counts and comment counts ----
+  const loadReels = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("reels")
+      .select("id, user_id, video_path, caption, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      toast({ title: "Could not load jhalaks", description: error.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    // fetch author names separately
+    const userIds = Array.from(new Set((data ?? []).map((r: any) => r.user_id)));
+    const { data: profileRows } = userIds.length
+      ? await supabase.from("profiles").select("id, display_name, role").in("id", userIds)
+      : { data: [] as any[] };
+    const profileMap = new Map<string, any>((profileRows ?? []).map((p: any) => [p.id, p]));
+
+    const items: ReelItem[] = (data ?? []).map((r: any) => {
+      const profile = profileMap.get(r.user_id);
+      const name: string = profile?.display_name || "Jashan-E-Aas user";
+      return {
+        id: r.id,
+        userId: r.user_id,
+        videoUrl: supabase.storage.from("reels").getPublicUrl(r.video_path).data.publicUrl,
+        caption: r.caption ?? "",
+        authorName: name,
+        authorInitials: initialsOf(name),
+        isVendor: profile?.role === "vendor",
+        isMine: !!user && r.user_id === user.id,
+        approved: r.status === "approved",
+      };
+    });
+    setReels(items);
+
+    const ids = items.map((i) => i.id);
+    if (ids.length) {
+      const [likesRes, commentsRes] = await Promise.all([
+        supabase.from("likes").select("reel_id, user_id").in("reel_id", ids),
+        supabase.from("comments").select("reel_id").in("reel_id", ids),
+      ]);
+
+      const counts: Record<string, number> = {};
+      const mine = new Set<string>();
+      (likesRes.data ?? []).forEach((l: any) => {
+        counts[l.reel_id] = (counts[l.reel_id] ?? 0) + 1;
+        if (user && l.user_id === user.id) mine.add(l.reel_id);
+      });
+      setLikeCounts(counts);
+      setLiked(mine);
+
+      const cCounts: Record<string, number> = {};
+      (commentsRes.data ?? []).forEach((c: any) => {
+        cCounts[c.reel_id] = (cCounts[c.reel_id] ?? 0) + 1;
+      });
+      setCommentCounts(cCounts);
+    }
+
+    setLoading(false);
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (isOpen) loadReels();
+  }, [isOpen, loadReels]);
 
   // ---- open / close housekeeping ----
   useEffect(() => {
-    if (!isOpen) return;
-
+    if (!isOpen) {
+      scrolledRef.current = false;
+      return;
+    }
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -652,17 +798,23 @@ export const SpotlightReels = ({
     setSheet(null);
     setActiveIndex(initialIndex);
 
-    const frame = requestAnimationFrame(() => {
-      slideRefs.current[initialIndex]?.scrollIntoView({ block: "start" });
-    });
-
     return () => {
       document.body.style.overflow = previousOverflow;
-      cancelAnimationFrame(frame);
     };
   }, [isOpen, initialIndex]);
 
-  // ---- which reel is on screen decides which one plays ----
+  // scroll to the requested jhalak once the list has loaded
+  useEffect(() => {
+    if (!isOpen || !reels.length || scrolledRef.current) return;
+    scrolledRef.current = true;
+    const target = Math.min(initialIndex, reels.length - 1);
+    const frame = requestAnimationFrame(() => {
+      slideRefs.current[target]?.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, reels.length, initialIndex]);
+
+  // ---- which jhalak is on screen decides which one plays ----
   useEffect(() => {
     if (!isOpen) return;
     const root = scrollerRef.current;
@@ -683,10 +835,59 @@ export const SpotlightReels = ({
     return () => observer.disconnect();
   }, [isOpen, reels.length]);
 
-  // a new reel always starts playing
+  // a new jhalak always starts playing
   useEffect(() => {
     setPaused(false);
   }, [activeIndex]);
+
+  // ---- load comments when the sheet opens ----
+  useEffect(() => {
+    if (sheet !== "comments" || !currentId) return;
+    let cancelled = false;
+    setCommentsLoading(true);
+    setComments([]);
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("comments")
+        .select("id, body, created_at, user_id")
+        .eq("reel_id", currentId)
+        .order("created_at", { ascending: false });
+
+      if (cancelled) return;
+      if (error) {
+        toast({ title: "Could not load comments", description: error.message, variant: "destructive" });
+        setCommentsLoading(false);
+        return;
+      }
+
+      const userIds = Array.from(new Set((data ?? []).map((c: any) => c.user_id)));
+      const { data: profileRows } = userIds.length
+        ? await supabase.from("profiles").select("id, display_name").in("id", userIds)
+        : { data: [] as any[] };
+      const names = new Map<string, string>(
+        (profileRows ?? []).map((p: any) => [p.id, p.display_name])
+      );
+      if (cancelled) return;
+
+      setComments(
+        (data ?? []).map((c: any) => ({
+          id: c.id,
+          userId: c.user_id,
+          user: names.get(c.user_id) || "Jashan-E-Aas user",
+          text: c.body,
+          time: timeAgo(c.created_at),
+          gradient: gradientFor(c.user_id),
+          mine: !!user && c.user_id === user.id,
+        }))
+      );
+      setCommentsLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sheet, currentId, user, toast]);
 
   // ---- actions ----
   const goTo = useCallback(
@@ -697,19 +898,34 @@ export const SpotlightReels = ({
     [activeIndex, reels.length]
   );
 
+  const setLikeState = (id: string, on: boolean) => {
+    setLiked((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+    setLikeCounts((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + (on ? 1 : -1)) }));
+  };
+
   const toggleLike = useCallback(
-    (id: string, forceOn = false) => {
+    async (id: string, forceOn = false) => {
+      if (!requireLogin() || !user) return;
       const isLiked = liked.has(id);
       if (forceOn && isLiked) return; // double-tap never un-likes
-      setLiked((prev) => {
-        const next = new Set(prev);
-        if (isLiked) next.delete(id);
-        else next.add(id);
-        return next;
-      });
-      setLikeCounts((c) => ({ ...c, [id]: (c[id] ?? 0) + (isLiked ? -1 : 1) }));
+
+      setLikeState(id, !isLiked); // update the screen right away
+
+      const { error } = isLiked
+        ? await supabase.from("likes").delete().eq("reel_id", id).eq("user_id", user.id)
+        : await supabase.from("likes").insert({ reel_id: id, user_id: user.id });
+
+      if (error) {
+        setLikeState(id, isLiked); // put it back
+        toast({ title: "Could not update your like", description: error.message, variant: "destructive" });
+      }
     },
-    [liked]
+    [liked, user, requireLogin, toast]
   );
 
   const toggleInSet = (
@@ -735,7 +951,10 @@ export const SpotlightReels = ({
 
   const nativeShare = async () => {
     try {
-      await navigator.share({ title: currentReel.title, url: window.location.href });
+      await navigator.share({
+        title: currentReel?.caption || "Jhalak on Jashan-E-Aas",
+        url: window.location.href,
+      });
     } catch {
       /* cancelled or unsupported */
     }
@@ -743,25 +962,56 @@ export const SpotlightReels = ({
   };
 
   const shareWhatsApp = () => {
-    const text = encodeURIComponent(`${currentReel.title} ${window.location.href}`);
+    const text = encodeURIComponent(
+      `${currentReel?.caption || "Jhalak on Jashan-E-Aas"} ${window.location.href}`
+    );
     window.open(`https://wa.me/?text=${text}`, "_blank", "noopener");
     setSheet(null);
   };
 
-  const postComment = (text: string) => {
-    const comment: ReelComment = {
-      id: `me-${Date.now()}`,
-      user: "you",
-      text,
-      time: "now",
-      likes: 0,
-      gradient: "from-gold to-gold-dark",
-      mine: true,
-    };
-    setExtraComments((prev) => ({
+  const postComment = async (text: string) => {
+    if (!currentReel || !requireLogin() || !user) return;
+
+    const { data, error } = await supabase
+      .from("comments")
+      .insert({ reel_id: currentReel.id, user_id: user.id, body: text })
+      .select("id, body, created_at")
+      .single();
+
+    if (error || !data) {
+      toast({ title: "Could not post your comment", description: error?.message, variant: "destructive" });
+      return;
+    }
+
+    setComments((prev) => [
+      {
+        id: data.id,
+        userId: user.id,
+        user: myName,
+        text: data.body,
+        time: "now",
+        gradient: gradientFor(user.id),
+        mine: true,
+      },
       ...prev,
-      [currentReel.id]: [comment, ...(prev[currentReel.id] ?? [])],
-    }));
+    ]);
+    setCommentCounts((c) => ({ ...c, [currentReel.id]: (c[currentReel.id] ?? 0) + 1 }));
+  };
+
+  const deleteComment = async (id: string) => {
+    if (!currentReel) return;
+    const { error } = await supabase.from("comments").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Could not delete the comment", description: error.message, variant: "destructive" });
+      return;
+    }
+    setComments((prev) => prev.filter((c) => c.id !== id));
+    setCommentCounts((c) => ({ ...c, [currentReel.id]: Math.max(0, (c[currentReel.id] ?? 1) - 1) }));
+  };
+
+  const handleUploaded = async () => {
+    await loadReels();
+    scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // ---- keyboard ----
@@ -769,14 +1019,15 @@ export const SpotlightReels = ({
     if (!isOpen) return;
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       if (e.key === "Escape") {
-        if (sheet) setSheet(null);
+        if (uploadOpen) setUploadOpen(false);
+        else if (sheet) setSheet(null);
         else onClose();
         return;
       }
-      if (sheet) return;
+      if (sheet || uploadOpen || !currentId) return;
 
       if (e.key === "ArrowDown" || e.key === "j") goTo(1);
       else if (e.key === "ArrowUp" || e.key === "k") goTo(-1);
@@ -784,14 +1035,12 @@ export const SpotlightReels = ({
         e.preventDefault();
         setPaused((p) => !p);
       } else if (e.key === "m") setMuted((m) => !m);
-      else if (e.key === "l") toggleLike(currentReel.id);
+      else if (e.key === "l") toggleLike(currentId);
     };
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, sheet, goTo, onClose, toggleLike, currentReel]);
-
-  const commentsFor = (id: string) => [...(extraComments[id] ?? []), ...SEED_COMMENTS];
+  }, [isOpen, sheet, uploadOpen, goTo, onClose, toggleLike, currentId]);
 
   return (
     <AnimatePresence>
@@ -802,7 +1051,7 @@ export const SpotlightReels = ({
           exit={{ opacity: 0 }}
           data-lenis-prevent
           role="dialog"
-          aria-label="Reels"
+          aria-label="Jhalak"
           className="fixed inset-0 z-50 bg-black"
         >
           {/* FEED */}
@@ -824,9 +1073,9 @@ export const SpotlightReels = ({
                 muted={muted}
                 liked={liked.has(reel.id)}
                 saved={saved.has(reel.id)}
-                followed={followed.has(reel.vendorName)}
+                followed={followed.has(reel.userId)}
                 likeCount={likeCounts[reel.id] ?? 0}
-                commentCount={reel.comments + (extraComments[reel.id]?.length ?? 0)}
+                commentCount={commentCounts[reel.id] ?? 0}
                 onTogglePause={() => setPaused((p) => !p)}
                 onToggleMute={() => setMuted((m) => !m)}
                 onLike={(forceOn) => toggleLike(reel.id, forceOn)}
@@ -834,7 +1083,7 @@ export const SpotlightReels = ({
                   toggleInSet(setSaved, reel.id);
                   toast({ title: saved.has(reel.id) ? "Removed from saved" : "Saved" });
                 }}
-                onFollow={() => toggleInSet(setFollowed, reel.vendorName)}
+                onFollow={() => toggleInSet(setFollowed, reel.userId)}
                 onOpenComments={() => setSheet("comments")}
                 onOpenShare={() => setSheet("share")}
                 onOpenMore={() => setSheet("more")}
@@ -842,30 +1091,63 @@ export const SpotlightReels = ({
             ))}
           </div>
 
+          {/* LOADING / EMPTY STATES */}
+          {loading && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-white/80" />
+            </div>
+          )}
+
+          {!loading && reels.length === 0 && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-8 text-center text-white">
+              <Clapperboard className="h-12 w-12 text-gold" />
+              <h3 className="text-lg font-semibold">No jhalaks yet</h3>
+              <p className="max-w-xs text-sm text-white/70">
+                Share a short video of your event or work. It shows up here once it is approved.
+              </p>
+              <button
+                type="button"
+                onClick={() => (user ? setUploadOpen(true) : requireLogin())}
+                className="rounded-xl bg-gold px-5 py-2.5 text-sm font-semibold text-background"
+              >
+                Upload the first jhalak
+              </button>
+            </div>
+          )}
+
           {/* TOP BAR */}
           <div
             className="pointer-events-none absolute left-1/2 top-0 z-30 flex -translate-x-1/2 items-center justify-between px-4 py-4"
             style={{ width: FRAME_WIDTH }}
           >
-            <h2 className="text-xl font-bold text-white drop-shadow">Reels</h2>
+            <h2 className="text-xl font-bold text-white drop-shadow">Jhalak</h2>
             <div className="pointer-events-auto flex items-center gap-4 text-white">
-              <Camera className="h-6 w-6 drop-shadow" />
-              <button type="button" onClick={onClose} aria-label="Close reels">
+              <button
+                type="button"
+                aria-label="Upload a jhalak"
+                onClick={() => (user ? setUploadOpen(true) : requireLogin())}
+              >
+                <Clapperboard className="h-6 w-6 drop-shadow" />
+              </button>
+              <button type="button" onClick={onClose} aria-label="Close Jhalak">
                 <X className="h-6 w-6 drop-shadow" />
               </button>
             </div>
           </div>
 
           {/* COMMENTS */}
-          <Sheet open={sheet === "comments"} onClose={() => setSheet(null)}>
-            <CommentsSheetContent
-              reel={currentReel}
-              comments={commentsFor(currentReel.id)}
-              likedComments={likedComments}
-              onToggleCommentLike={(id) => toggleInSet(setLikedComments, id)}
-              onPost={postComment}
-              onClose={() => setSheet(null)}
-            />
+          <Sheet open={sheet === "comments" && !!currentReel} onClose={() => setSheet(null)}>
+            {currentReel && (
+              <CommentsSheetContent
+                reel={currentReel}
+                comments={comments}
+                loading={commentsLoading}
+                userInitial={initialsOf(myName)[0]}
+                onPost={postComment}
+                onDelete={deleteComment}
+                onClose={() => setSheet(null)}
+              />
+            )}
           </Sheet>
 
           {/* SHARE */}
@@ -898,7 +1180,7 @@ export const SpotlightReels = ({
               <button
                 type="button"
                 onClick={() => {
-                  toast({ title: "Thanks for letting us know", description: "We'll review this reel." });
+                  toast({ title: "Thanks for letting us know", description: "We'll review this jhalak." });
                   setSheet(null);
                 }}
                 className="flex w-full items-center justify-center gap-2 py-4 font-semibold text-[#ff3040]"
@@ -908,7 +1190,7 @@ export const SpotlightReels = ({
               <button
                 type="button"
                 onClick={() => {
-                  toast({ title: "We'll show fewer reels like this" });
+                  toast({ title: "We'll show fewer jhalaks like this" });
                   setSheet(null);
                 }}
                 className="flex w-full items-center justify-center gap-2 py-4"
@@ -927,6 +1209,13 @@ export const SpotlightReels = ({
               </button>
             </div>
           </Sheet>
+
+          {/* UPLOAD */}
+          <UploadReelModal
+            open={uploadOpen}
+            onClose={() => setUploadOpen(false)}
+            onUploaded={handleUploaded}
+          />
         </motion.div>
       )}
     </AnimatePresence>

@@ -15,7 +15,7 @@ const navLinks = [
   { label: "How It Works", href: "/how-it-works" },
   { label: "Ultra Gold", href: "/ultra-gold" },
   { label: "Community", href: "/community" },
-  { label: "Reels", href: "/reels" },
+  { label: "Jhalak", href: "/reels" },
   { label: "Sign In", href: "/auth" },
 ];
 

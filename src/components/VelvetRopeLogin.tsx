@@ -201,40 +201,43 @@ export const VelvetRopeLogin = ({ onClose }: VelvetRopeLoginProps) => {
     setTimeout(onClose, 750);
   };
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast({
-        title: "Welcome back!",
-        description: "You've entered Jashan-E-Aas.",
+ const handleAuth = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+
+  try {
+    if (isLogin) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      toast({ title: "Welcome back!", description: "You've been signed in." });
+       handleClose();
+      navigate(profile?.role === "vendor" ? "/vendor-dashboard" : "/");
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name, role: selectedRole } },
       });
+      if (error) throw error;
 
-      handleClose();
-
-if (selectedRole === "vendor") {
-  navigate("/vendor/dashboard");
-} else {
-  navigate("/");
-}
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { data: { full_name: name } },
-        });
-        if (error) throw error;
-        toast({ title: "Account created!", description: "Welcome to Jashan-E-Aas." });
-        handleClose();
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Something went wrong";
-      toast({ title: "Error", description: msg, variant: "destructive" });
+      toast({ title: "Account created!", description: "Welcome to Jashan-E-Aas." });
+       handleClose();
+      navigate(selectedRole === "vendor" ? "/vendor-dashboard" : "/");
     }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "An error occurred";
+    toast({ title: "Error", description: msg, variant: "destructive" });
+  } finally {
     setLoading(false);
-  };
+  }
+};
 
   return (
     <motion.div

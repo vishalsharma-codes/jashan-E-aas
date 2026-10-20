@@ -18,42 +18,42 @@ const Auth = () => {
   const [selectedRole, setSelectedRole] = useState<"customer" | "vendor">("customer");
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+const handleAuth = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  try {
+    if (isLogin) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
 
-    try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast({
-  title: "Welcome back!",
-  description: "You've been signed in.",
-});
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
 
-if (selectedRole === "vendor") {
-  navigate("/vendor/signin");
-} else {
-  navigate("/");
-}
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { display_name: name } },
-        });
-        if (error) throw error;
-        toast({ title: "Account created!", description: "Please check your email to verify your account." });
-        setIsLogin(true);
-      }
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "An error occurred";
-      toast({ title: "Error", description: msg, variant: "destructive" });
-    } finally {
-      setLoading(false);
+      toast({ title: "Welcome back!", description: "You've been signed in." });
+      navigate(profile?.role === "vendor" ? "/vendor-dashboard" : "/");
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name, role: selectedRole } },
+      });
+      if (error) throw error;
+
+      toast({ title: "Account created!", description: "Welcome to Jashan-E-Aas." });
+      navigate(selectedRole === "vendor" ? "/vendor-dashboard" : "/");
     }
-  };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "An error occurred";
+    toast({ title: "Error", description: msg, variant: "destructive" });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
