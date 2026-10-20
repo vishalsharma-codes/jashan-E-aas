@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Menu, X, Grid3X3 } from "lucide-react";
 import { CategoryMindmap } from "./outerCategory/CategoryMindmap";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -18,6 +19,14 @@ const navLinks = [
   { label: "Jhalak", href: "/reels" },
   { label: "Sign In", href: "/auth" },
 ];
+
+const { user } = useAuth();
+
+const displayName =
+  user?.user_metadata?.full_name ||
+  user?.user_metadata?.name ||
+  user?.email?.split("@")[0] ||
+  "there";
 
   return (
     <>
@@ -52,7 +61,9 @@ const navLinks = [
                     to={link.href}
                     className={`text-muted-foreground hover:text-foreground transition-colors font-medium text-sm ${link.label === "Ultra Gold" ? "text-gold hover:text-gold-dark" : ""}`}
                   >
-                    {link.label}
+                    {link.label === "Sign In" && user
+  ? `Hi, ${displayName}`
+  : link.label}
                   </Link>
                 </motion.div>
               ))}
@@ -97,7 +108,9 @@ const navLinks = [
                   className={`block text-muted-foreground hover:text-foreground transition-colors font-medium ${link.label === "Ultra Gold" ? "text-gold" : ""}`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  {link.label}
+                  {link.label === "Sign In" && user
+  ? `Hi, ${displayName}`
+  : link.label}
                 </Link>
               ))}
               <button
