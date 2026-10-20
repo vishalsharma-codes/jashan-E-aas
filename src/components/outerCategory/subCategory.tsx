@@ -100,7 +100,7 @@ export default function WeddingSubcategoryCards({
         z-10
         mx-auto
         grid
-        w-full
+        w-full  
         max-w-[1600px]
         grid-cols-1
         gap-x-5

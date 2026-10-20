@@ -614,8 +614,8 @@ export default function DynamicSubcategoryCards({
   );
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-transparent px-5 pb-16">
-      {/* HEADER */}
+    <div className="relative w-full overflow-hidden bg-transparent px-5 pb-8">
+      {/* HEADER
       <div className="relative z-10 flex flex-col items-center justify-center pb-8 pt-10 text-center">
         <div className="relative mb-5 flex h-[150px] w-[150px] items-center justify-center overflow-hidden rounded-full border border-[#d4af37] bg-black shadow-[0_0_45px_rgba(212,175,55,0.25)]">
           {categoryImage ? (
@@ -648,10 +648,10 @@ export default function DynamicSubcategoryCards({
           <div className="h-1.5 w-1.5 rotate-45 bg-[#d4af37]" />
           <div className="h-px w-16 bg-[#d4af37]/50" />
         </div>
-      </div>
+      </div> */}
 
       {/* SUBCATEGORY CARDS */}
-      <div className="relative z-10 mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+     <div className="relative z-10 mx-auto grid w-full max-w-none grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {subcategories.map((subcategory, index) => {
           const image = cardImages[index];
           const Icon = icons[index % icons.length];
@@ -723,7 +723,7 @@ export default function DynamicSubcategoryCards({
       </div>
 
       {/* BROWSE ALL */}
-      <div className="relative z-10 mt-8 flex justify-center">
+      {/* <div className="relative z-10 mt-8 flex justify-center">
         <button
           type="button"
           className="rounded-xl bg-[#d4af37] px-7 py-3 font-serif text-sm font-semibold text-black shadow-[0_0_30px_rgba(212,175,55,0.18)] transition-all duration-300 hover:scale-105 hover:bg-[#e4c04b]"
@@ -731,14 +731,14 @@ export default function DynamicSubcategoryCards({
           Browse All {categoryName} Vendors
           <span className="ml-2">→</span>
         </button>
-      </div>
+      </div> */}
 
       {/* BOTTOM TAGLINE */}
-      <div className="relative z-10 mt-7 flex items-center justify-center gap-4 text-[9px] uppercase tracking-[0.35em] text-[#d4af37]/60">
+      {/* <div className="relative z-10 mt-7 flex items-center justify-center gap-4 text-[9px] uppercase tracking-[0.35em] text-[#d4af37]/60">
         <span className="h-px w-16 bg-[#d4af37]/30" />
         <span>Professional Events • Trusted Vendors</span>
         <span className="h-px w-16 bg-[#d4af37]/30" />
-      </div>
+      </div> */}
     </div>
   );
 }

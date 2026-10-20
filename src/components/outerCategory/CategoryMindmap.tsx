@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { X, ChevronRight, ArrowLeft } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, ChevronRight, ArrowLeft, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { eventCategories, EventCategory, SubCategory } from "@/lib/categoryData";
 import { useNavigate } from "react-router-dom";
 import NetworkBackground from "./NetworkBackground";
-import WeddingSubcategoryCards, { WeddingHeader } from "./subCategory";
+import WeddingSubcategoryCards from "./subCategory";
 import WeddingStyleCards from "./subCategory/wedding";
 import DynamicSubcategoryCards from "./subCategory/DynamicSubcategoryCards";
 import CategorySubcategoryCards from "./categoryDesign/CategorySubcategoryCards";
@@ -72,17 +72,35 @@ const categoryImages: Record<string, string> = {
 // Categories that use their own premium subcategory page
 const premiumCategories = Object.keys(categoryImages);
 
+// ─────────────────────────────────────────────────────────────
+// MOSAIC ARRANGEMENT
+// Edit this to match your own layout.
+//   key   = category name
+//   value = Tailwind grid span classes (columns / rows it covers)
+// Every category that is not listed is a normal 1×1 card.
+// The grid is 2 columns on phones and 4 columns from md up.
+// ─────────────────────────────────────────────────────────────
+const CARD_SPANS: Record<string, string> = {
+  Weddings: "col-span-2 row-span-2",
+};
+
+// The 3 small names shown on a card BEFORE hover.
+// Categories not listed use their first 3 sub-type names.
+const PREVIEW_CHIPS: Record<string, string[]> = {
+  Weddings: ["Sangeet", "Mehendi", "Haldi"],
+};
+
 // Shows a gradient instead of a broken-image icon when a picture fails to load
 const CategoryImage = ({
   src,
   alt,
   gradient,
-  zoomed,
+  className = "",
 }: {
   src?: string;
   alt: string;
   gradient?: string;
-  zoomed: boolean;
+  className?: string;
 }) => {
   const [failed, setFailed] = useState(false);
 
@@ -95,14 +113,220 @@ const CategoryImage = ({
   }
 
   return (
-    <motion.img
+    <img
       src={src}
       alt={alt}
+      decoding="async"
       onError={() => setFailed(true)}
-      className="absolute inset-0 w-full h-full object-cover"
-      animate={{ scale: zoomed ? 1.13 : 1 }}
-      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+      className={`absolute inset-0 h-full w-full object-cover ${className}`}
     />
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// One mosaic card
+//   The golden frame never moves.
+//   Hover: the normal face tilts away (up and back),
+//          the sub-type list face rises from below.
+//   Touch screens: first tap shows the list, second tap opens.
+// ─────────────────────────────────────────────────────────────
+interface CategoryCardProps {
+  category: EventCategory;
+  index: number;
+  big: boolean;
+  query: string;
+  onOpen: (category: EventCategory, rect: DOMRect) => void;
+  onOpenSub: (category: EventCategory, sub: SubCategory) => void;
+}
+
+const CategoryCard = ({ category, index, big, query, onOpen, onOpenSub }: CategoryCardProps) => {
+  const [hovered, setHovered] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const q = query.trim().toLowerCase();
+
+  const previewNames =
+    PREVIEW_CHIPS[category.name] ?? category.subCategories.slice(0, 3).map((s) => s.name);
+  const moreCount = Math.max(0, category.subCategories.length - previewNames.length);
+
+  const isTouch = () =>
+    typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+
+  const open = () => {
+    if (ref.current) onOpen(category, ref.current.getBoundingClientRect());
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: Math.min(index, 12) * 0.04 }}
+      className={CARD_SPANS[category.name] ?? ""}
+      style={{ perspective: 1000 }}
+    >
+      <div
+        ref={ref}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${category.name}`}
+        onMouseEnter={() => !isTouch() && setHovered(true)}
+        onMouseLeave={() => !isTouch() && setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHovered(false);
+        }}
+        onClick={() => {
+          if (isTouch() && !hovered) {
+            setHovered(true);
+            return;
+          }
+          open();
+        }}
+        onKeyDown={(e) => {
+          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            open();
+          }
+        }}
+        className={`group relative h-full w-full cursor-pointer rounded-2xl border-2 p-1.5 transition-[border-color,box-shadow] duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
+          hovered
+            ? "border-gold shadow-[0_0_34px_rgba(212,175,55,0.45)]"
+            : "border-gold/40 shadow-[0_0_14px_rgba(212,175,55,0.12)]"
+        }`}
+      >
+        <div className="relative h-full w-full overflow-hidden rounded-xl bg-black">
+          {/* ───────── FRONT FACE (tilts away on hover) ───────── */}
+          <motion.div
+            className="absolute inset-0"
+            style={{ transformOrigin: "50% 0%", transformStyle: "preserve-3d" }}
+            animate={
+              hovered
+                ? { rotateX: -80, y: -40, opacity: 0, scale: 0.94 }
+                : { rotateX: 0, y: 0, opacity: 1, scale: 1 }
+            }
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <CategoryImage
+              src={categoryImages[category.name]}
+              alt={category.name}
+              gradient={category.gradient}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.7) 36%, rgba(0,0,0,0.08) 70%, rgba(0,0,0,0.25) 100%)",
+              }}
+            />
+            <div className="absolute inset-x-0 bottom-0 flex flex-col p-3 sm:p-4">
+              <div
+                className={`mb-2 flex items-center justify-center rounded-xl border border-gold/70 bg-black/70 shadow-[0_0_14px_rgba(212,175,55,0.3)] ${
+                  big ? "h-16 w-16 text-4xl" : "h-10 w-10 text-2xl"
+                }`}
+              >
+                {category.icon}
+              </div>
+              <div className="flex items-end justify-between gap-2">
+                <h3
+                  className={`font-serif leading-tight text-white drop-shadow-lg ${
+                    big ? "text-3xl sm:text-4xl" : "text-base sm:text-lg"
+                  }`}
+                >
+                  {category.name}
+                </h3>
+                <span className="text-lg leading-none text-gold">→</span>
+              </div>
+              <div className="mt-2 flex min-w-0 gap-1.5 overflow-hidden">
+                {previewNames.slice(0, big ? 3 : 2).map((name) => (
+                  <span
+                    key={name}
+                    className="min-w-0 shrink truncate rounded-full border border-white/25 bg-black/50 px-2.5 py-1 text-[10px] text-white sm:text-xs"
+                  >
+                    {name}
+                  </span>
+                ))}
+                {moreCount > 0 && (
+                  <span className="shrink-0 rounded-full border border-gold/60 bg-gold/10 px-2.5 py-1 text-[10px] font-medium text-gold sm:text-xs">
+                    +{moreCount + (big ? 0 : 1)} more
+                  </span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ───────── BACK FACE (rises from below on hover) ───────── */}
+          <motion.div
+            className="absolute inset-0 flex flex-col"
+            style={{ transformOrigin: "50% 100%", transformStyle: "preserve-3d" }}
+            initial={false}
+            animate={
+              hovered
+                ? { rotateX: 0, y: "0%", opacity: 1 }
+                : { rotateX: 70, y: "100%", opacity: 0 }
+            }
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <CategoryImage
+              src={categoryImages[category.name]}
+              alt=""
+              gradient={category.gradient}
+              className="scale-110 blur-[2px]"
+            />
+            <div className="absolute inset-0 bg-black/80" />
+
+            <div
+              className={`relative z-10 flex min-h-0 flex-1 flex-col p-3 sm:p-4 ${
+                hovered ? "pointer-events-auto" : "pointer-events-none"
+              }`}
+            >
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xl">{category.icon}</span>
+                <h3 className="truncate font-serif text-base text-gold sm:text-lg">
+                  {category.name}
+                </h3>
+              </div>
+
+              <div
+                onWheel={(e) => e.stopPropagation()}
+                className="flex min-h-0 flex-1 flex-wrap content-start gap-1.5 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(212,175,55,0.45)_transparent]"
+              >
+                {category.subCategories.map((sub, i) => {
+                  const match = q && sub.name.toLowerCase().includes(q);
+                  return (
+                    <button
+                      key={sub.name}
+                      type="button"
+                      tabIndex={hovered ? 0 : -1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        open();
+                      }}
+                      style={{
+                        animation: hovered
+                          ? `cm-chip-in 0.3s ease-out ${Math.min(i, 14) * 25 + 150}ms both`
+                          : undefined,
+                      }}
+                      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:text-xs ${
+                        match
+                          ? "border-gold bg-gold/25 text-gold"
+                          : "border-gold/40 bg-black/60 text-white/90 hover:border-gold hover:bg-gold/15 hover:text-gold"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gold" />
+                      {sub.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2 flex items-center justify-between text-[11px] text-gold sm:text-xs">
+                <span className="text-white/50">Pick a type, or</span>
+                <span className="font-medium">Open all →</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 
@@ -110,15 +334,14 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
   const [stage, setStage] = useState<Stage>("idle");
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | null>(null);
-  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
-  const [focusingId, setFocusingId] = useState<string | null>(null);
-  const [fastReturn, setFastReturn] = useState(false);
+  const [originRect, setOriginRect] = useState<DOMRect | null>(null);
+  const [query, setQuery] = useState("");
   const navigate = useNavigate();
 
   // ---- browser Back support -------------------------------------------
   // While the overlay is open we keep ONE extra history entry. Pressing the
   // browser Back button then steps back inside the overlay instead of leaving
-  // the page (which used to jump to the Jhalak page).
+  // the page.
   const stageRef = useRef<Stage>("idle");
   stageRef.current = stage;
   const onCloseRef = useRef(onClose);
@@ -131,7 +354,22 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
     sentinelRef.current = true;
   };
 
-  // lock page scroll behind the overlay (fixes the double scrollbar)
+  // Search: matches category names, sub-type names and services
+  const q = query.trim().toLowerCase();
+  const items = useMemo(() => {
+    if (!q) return eventCategories;
+    return eventCategories.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.subCategories.some(
+          (s) =>
+            s.name.toLowerCase().includes(q) ||
+            s.services.some((sv) => sv.toLowerCase().includes(q))
+        )
+    );
+  }, [q]);
+
+  // lock page scroll behind the overlay
   useEffect(() => {
     if (!isOpen) return;
     const html = document.documentElement;
@@ -170,12 +408,9 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
         setStage("subcategories");
       } else if (current === "subcategories") {
         pushSentinel();
-        setFastReturn(true);
         setSelectedCategory(null);
         setSelectedSubCategory(null);
-        setFocusingId(null);
         setStage("categories");
-        setTimeout(() => setFastReturn(false), 150);
       } else {
         setStage("idle");
         setTimeout(() => onCloseRef.current(), 500);
@@ -195,8 +430,8 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
     setStage("curtain-close");
     setSelectedCategory(null);
     setSelectedSubCategory(null);
-    setHoveredCategory(null);
-    setFocusingId(null);
+    setOriginRect(null);
+    setQuery("");
 
     const t1 = setTimeout(() => setStage("title"), 620);
     const t2 = setTimeout(() => setStage("curtain-open"), 1060);
@@ -218,26 +453,23 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
     setTimeout(onClose, 500);
   };
 
-  const handleCategoryClick = (cat: EventCategory) => {
-    setFocusingId(cat.id);
-    // Short pause so dimming is visible, then layoutId flies the card to center
-    setTimeout(() => {
-      setSelectedCategory(cat);
-      setSelectedSubCategory(null);
-      setStage("subcategories");
-      setFocusingId(null);
-    }, 380);
+  // Opens the category panel (it grows out of the clicked card)
+  const handleCategoryClick = (cat: EventCategory, rect: DOMRect) => {
+    setOriginRect(rect);
+    setSelectedCategory(cat);
+    setSelectedSubCategory(null);
+    setStage("subcategories");
+  };
+
+  // Goes straight to a sub-type (from the names shown on hover)
+  const enterSubCategory = (cat: EventCategory, sub: SubCategory) => {
+    setSelectedCategory(cat);
+    setSelectedSubCategory(sub);
+    setStage(premiumCategories.includes(cat.name) ? "categoryStyles" : "services");
   };
 
   const handleSubCategoryClick = (sub: SubCategory) => {
-    setSelectedSubCategory(sub);
-
-    if (selectedCategory?.name && premiumCategories.includes(selectedCategory.name)) {
-      setStage("categoryStyles");
-      return;
-    }
-
-    setStage("services");
+    if (selectedCategory) enterSubCategory(selectedCategory, sub);
   };
 
   const goToVendors = (url: string) => {
@@ -256,18 +488,9 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
   };
 
   const goBackToCategories = () => {
-    // Disable shared layout animation while returning
-    setFastReturn(true);
-
     setSelectedCategory(null);
     setSelectedSubCategory(null);
-    setFocusingId(null);
     setStage("categories");
-
-    // Re-enable it after the category grid is restored
-    setTimeout(() => {
-      setFastReturn(false);
-    }, 150);
   };
 
   const goBackToSubCategories = () => {
@@ -289,6 +512,23 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
     else goBackToCategories();
   };
 
+  // Keyboard: Esc goes back one level
+  const handleBackRef = useRef(handleBack);
+  handleBackRef.current = handleBack;
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      const s = stageRef.current;
+      if (e.key === "Escape") {
+        if (s === "categories" || s === "subcategories" || s === "services" || s === "categoryStyles") {
+          handleBackRef.current();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen]);
+
   if (!isOpen && stage === "idle") return null;
 
   const showChrome =
@@ -297,7 +537,19 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
     stage === "services" ||
     stage === "categoryStyles";
 
+  const showBoard = stage === "categories" || stage === "subcategories";
   const curtainsOpen = showChrome || stage === "curtain-open";
+
+  // Where the panel grows from (the card that was clicked)
+  const panelFrom =
+    originRect && typeof window !== "undefined"
+      ? {
+          opacity: 0,
+          scale: 0.4,
+          x: originRect.left + originRect.width / 2 - window.innerWidth / 2,
+          y: originRect.top + originRect.height / 2 - window.innerHeight / 2,
+        }
+      : { opacity: 0, scale: 0.9, x: 0, y: 20 };
 
   return (
     <AnimatePresence>
@@ -308,6 +560,8 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
           role="dialog"
           aria-modal="true"
         >
+          <style>{`@keyframes cm-chip-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}`}</style>
+
           {/* Base background */}
           <div
             className="absolute inset-0 z-0"
@@ -472,7 +726,7 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
                       <ArrowLeft className="w-4 h-4" />
                       {stage === "categories" ? "Close" : "Back"}
                     </button>
-                    {selectedCategory && (
+                    {selectedCategory && stage !== "subcategories" && (
                       <>
                         <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
                         <button
@@ -510,269 +764,244 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
               )}
             </AnimatePresence>
 
-            {/* Scrollable content: the only scroll area on the page */}
-            <div
-              data-lenis-prevent
-              className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-24 [scrollbar-width:thin] [scrollbar-color:rgba(212,175,55,0.45)_transparent]"
-            >
-              <AnimatePresence mode="wait">
-                {/* ── CATEGORIES GRID (with layoutId + focus-fade) ── */}
-                {stage === "categories" && (
-                  <motion.div
-                    key="categories"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                    transition={{ duration: 0.3 }}
-                    className="pt-8"
-                  >
-                    <LayoutGroup>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-5 md:gap-7 mt-4">
-                        {eventCategories.map((category, index) => (
-                          <motion.div
-                            key={category.id}
-                            layoutId={fastReturn ? undefined : `cat-${category.id}`}
-                            initial={fastReturn ? false : { opacity: 0, y: -50, scale: 0.85 }}
-                            animate={{
-                              opacity: focusingId && focusingId !== category.id ? 0 : 1,
-                              y: 0,
-                              scale: focusingId === category.id ? 1.12 : 1,
-                              filter:
-                                focusingId && focusingId !== category.id
-                                  ? "brightness(0.15) blur(3px)"
-                                  : hoveredCategory && hoveredCategory !== category.id
-                                    ? "brightness(0.5)"
-                                    : "brightness(1)",
-                              zIndex: focusingId === category.id ? 40 : 1,
-                            }}
-                            transition={{
-                              opacity: { duration: 0.28 },
-                              filter: { duration: 0.2 },
-                              scale: { duration: 0.28 },
-                              default: {
-                                delay: fastReturn ? 0 : index * 0.055,
-                                type: "spring",
-                                stiffness: 200,
-                                damping: 18,
-                              },
-                            }}
-                            className="relative group cursor-pointer focus:outline-none"
-                            onHoverStart={() => !focusingId && setHoveredCategory(category.id)}
-                            onHoverEnd={() => setHoveredCategory(null)}
-                            onClick={() => handleCategoryClick(category)}
-                            style={{ position: "relative" }}
-                          >
-                            {/* Rope above */}
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-                              <div className="w-px h-4 bg-gradient-to-b from-gold/80 to-gold/20" />
-                              <motion.div
-                                animate={{ rotate: [0, 8, -8, 0] }}
-                                transition={{ repeat: Infinity, duration: 2.5 + (index % 3) * 0.5 }}
-                                className="w-2.5 h-2.5 rounded-full bg-gold shadow-md"
-                                style={{ boxShadow: "0 0 6px rgba(212,175,55,0.7)" }}
-                              />
-                            </div>
+            {/* ── MOSAIC BOARD ── */}
+            {showBoard && (
+              <motion.div
+                key="board"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className={`flex min-h-0 flex-1 flex-col items-stretch gap-3 px-2 sm:px-3 transition-[filter] duration-300 ${
+                  stage === "subcategories" ? "pointer-events-none blur-[3px] brightness-50" : ""
+                }`}
+              >
+                {/* Search */}
+                <div className="relative w-full max-w-md flex-shrink-0">
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gold/70" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="I'm planning a… (wedding, birthday, concert)"
+                    className="w-full rounded-full border border-gold/30 bg-black/60 py-2.5 pl-11 pr-10 text-sm text-white placeholder:text-white/40 focus:border-gold focus:outline-none"
+                  />
+                  {query && (
+                    <button
+                      onClick={() => setQuery("")}
+                      aria-label="Clear search"
+                      className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-white/60 hover:text-gold"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
 
-                            {/* ───────── CATEGORY IMAGE CARD ───────── */}
-                            <motion.div
-                              animate={{
-                                boxShadow:
-                                  hoveredCategory === category.id || focusingId === category.id
-                                    ? "0 0 35px rgba(212,175,55,0.45)"
-                                    : "none",
-                                scale: hoveredCategory === category.id ? 1.04 : 1,
-                              }}
-                              transition={{ duration: 0.25 }}
-                              className="relative overflow-hidden rounded-2xl bg-black border border-white/10"
-                            >
-                              {/* Image (falls back to a gradient if it cannot load) */}
-                              <CategoryImage
-                                src={categoryImages[category.name]}
-                                alt={category.name}
-                                gradient={category.gradient}
-                                zoomed={hoveredCategory === category.id}
-                              />
+                {/* Cards */}
+                <div
+                  data-lenis-prevent
+                  className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain px-1 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:rgba(212,175,55,0.45)_transparent]"
+                >
+                  {items.length > 0 ? (
+                    
+<div className="mx-auto grid w-full max-w-none grid-cols-2 auto-rows-[180px] grid-flow-dense gap-3 sm:auto-rows-[210px] sm:gap-4 lg:grid-cols-4 xl:grid-cols-4">
 
-                              {/* Dark overall overlay */}
-                              <div className="absolute inset-0 bg-black/25" />
-
-                              {/* Bottom black gradient */}
-                              <div
-                                className="absolute inset-0"
-                                style={{
-                                  background:
-                                    "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.72) 28%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.05) 100%)",
-                                }}
-                              />
-
-                              {/* Hover glow */}
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: hoveredCategory === category.id ? 1 : 0 }}
-                                transition={{ duration: 0.25 }}
-                                className="absolute inset-0 bg-gradient-to-t from-gold/15 via-transparent to-transparent pointer-events-none"
-                              />
-
-                              {/* Category information */}
-                              <div className="relative z-10 min-h-[150px] sm:min-h-[165px] md:min-h-[180px] flex flex-col justify-end p-4 md:p-5">
-                                <span className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.25em] text-gold mb-2">
-                                  CATEGORY {String(index + 1).padStart(2, "0")}
-                                </span>
-
-                                <div className="flex items-end justify-between gap-3">
-                                  <div>
-                                    <h3 className="font-serif text-white text-lg md:text-xl lg:text-[21px] leading-tight drop-shadow-lg">
-                                      {category.name}
-                                    </h3>
-                                    <p className="text-[10px] text-white/55 mt-1">
-                                      {category.subCategories.length} types
-                                    </p>
-                                  </div>
-
-                                  <motion.div
-                                    animate={{ x: hoveredCategory === category.id ? 6 : 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="flex-shrink-0 text-gold text-2xl leading-none mb-1"
-                                  >
-                                    →
-                                  </motion.div>
-                                </div>
-                              </div>
-
-                              {/* Subtle border highlight */}
-                              <motion.div
-                                animate={{ opacity: hoveredCategory === category.id ? 1 : 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="absolute inset-0 rounded-2xl border border-gold/70 pointer-events-none"
-                              />
-                            </motion.div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </LayoutGroup>
-                  </motion.div>
-                )}
-
-                {/* ── SUBCATEGORIES ── */}
-                {stage === "subcategories" && selectedCategory && (
-                  <motion.div
-                    key="subcategories"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex flex-col items-center pt-2 pb-20"
-                  >
-                    {/* CENTRAL WEDDING HEADER */}
-                    {selectedCategory.name === "Weddings" && (
-                      <div className="mb-30">
-                        <WeddingHeader />
-                      </div>
-                    )}
-
-                    {/* SUBCATEGORY CARDS */}
-                    {selectedCategory.name === "Weddings" ? (
-                      <WeddingSubcategoryCards
-                        subcategories={selectedCategory.subCategories}
-                        onSelect={handleSubCategoryClick}
-                      />
-                    ) : (
-                      <CategorySubcategoryCards
-                        categoryName={selectedCategory.name}
-                        subcategories={selectedCategory.subCategories}
-                        onSelect={handleSubCategoryClick}
-                      />
-                    )}
-                  </motion.div>
-                )}
-
-                {/* ── PREMIUM CATEGORY STYLE PAGE ── */}
-                {stage === "categoryStyles" && selectedSubCategory && (
-                  <motion.div
-                    key={`categoryStyles-${selectedCategory?.name}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.35 }}
-                    className="relative w-full"
-                  >
-                    {selectedCategory?.name === "Weddings" ? (
-                      <WeddingStyleCards
-                        subcategories={selectedSubCategory.services.map((service) => ({
-                          name: service,
-                          services: [],
-                        }))}
-                        onSelect={(subcategory) => handleServiceClick(subcategory.name)}
-                      />
-                    ) : (
-                      <DynamicSubcategoryCards
-                        categoryName={selectedSubCategory.name}
-                        subcategories={selectedSubCategory.services.map((service) => ({
-                          name: service,
-                          services: [],
-                        }))}
-                        onSelect={(subcategory) => handleServiceClick(subcategory.name)}
-                      />
-                    )}
-                  </motion.div>
-                )}
-
-                {/* ── SERVICES ── */}
-                {stage === "services" && selectedSubCategory && (
-                  <motion.div
-                    key="services"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.28 }}
-                  >
-                    {/* Mini category node at top */}
-                    <div className="flex items-center justify-center gap-3 mb-6 mt-2">
-                      <div
-                        className={`w-12 h-12 rounded-full bg-gradient-to-br ${selectedCategory?.gradient} flex items-center justify-center shadow-lg`}
-                      >
-                        <span className="text-2xl">{selectedCategory?.icon}</span>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">{selectedCategory?.name}</p>
-                        <p className="font-bold text-sm text-gold">{selectedSubCategory.name}</p>
-                      </div>
-                    </div>
-
-                    <p className="text-center text-xs text-muted-foreground mb-5">
-                      Tap a service to find verified vendors
-                    </p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
-                      {selectedSubCategory.services.map((service, index) => (
-                        <motion.button
-                          key={service}
-                          initial={{ opacity: 0, scale: 0.8, rotate: -3 }}
-                          animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                          transition={{ delay: index * 0.04, type: "spring", stiffness: 260, damping: 12 }}
-                          whileHover={{ scale: 1.06, y: -3 }}
-                          whileTap={{ scale: 0.96 }}
-                          onClick={() => handleServiceClick(service)}
-                          className={`p-4 rounded-xl bg-gradient-to-br ${selectedCategory?.gradient} text-white font-medium text-sm shadow-lg hover:shadow-xl transition-shadow focus:outline-none focus:ring-2 focus:ring-gold`}
-                        >
-                          {service}
-                        </motion.button>
+                      {items.map((c, i) => (
+                        <CategoryCard
+                          key={c.id}
+                          category={c}
+                          index={i}
+                          big={!!CARD_SPANS[c.name]}
+                          query={query}
+                          onOpen={handleCategoryClick}
+                          onOpenSub={enterSubCategory}
+                        />
                       ))}
                     </div>
-
-                    <div className="mt-6 text-center">
+                  ) : (
+                    <div className="pt-16 text-center">
+                      <p className="text-white/70">No event type matches "{query}".</p>
                       <Button
-                        onClick={() => goToVendors(`/vendors?category=${selectedCategory?.id}`)}
-                        className="bg-gold hover:bg-gold-dark text-background"
+                        onClick={() => setQuery("")}
+                        className="mt-4 bg-gold text-background hover:bg-gold-dark"
                       >
-                        Browse All {selectedCategory?.name} Vendors
-                        <ChevronRight className="w-4 h-4 ml-1" />
+                        Show all categories
                       </Button>
                     </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── OTHER STAGES (scrollable) ── */}
+            {!showBoard && (
+              <div
+                data-lenis-prevent
+                className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-24 [scrollbar-width:thin] [scrollbar-color:rgba(212,175,55,0.45)_transparent]"
+              >
+                <AnimatePresence mode="wait">
+                  {/* ── PREMIUM CATEGORY STYLE PAGE ── */}
+                  {stage === "categoryStyles" && selectedSubCategory && (
+                    <motion.div
+                      key={`categoryStyles-${selectedCategory?.name}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.35 }}
+                      className="relative w-full"
+                    >
+                      {selectedCategory?.name === "Weddings" ? (
+                        <WeddingStyleCards
+                          subcategories={selectedSubCategory.services.map((service) => ({
+                            name: service,
+                            services: [],
+                          }))}
+                          onSelect={(subcategory) => handleServiceClick(subcategory.name)}
+                        />
+                      ) : (
+                        <DynamicSubcategoryCards
+                          categoryName={selectedSubCategory.name}
+                          subcategories={selectedSubCategory.services.map((service) => ({
+                            name: service,
+                            services: [],
+                          }))}
+                          onSelect={(subcategory) => handleServiceClick(subcategory.name)}
+                        />
+                      )}
+                    </motion.div>
+                  )}
+
+                  {/* ── SERVICES ── */}
+                  {stage === "services" && selectedSubCategory && (
+                    <motion.div
+                      key="services"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.28 }}
+                    >
+                      {/* Mini category node at top */}
+                      <div className="flex items-center justify-center gap-3 mb-6 mt-2">
+                        <div
+                          className={`w-12 h-12 rounded-full bg-gradient-to-br ${selectedCategory?.gradient} flex items-center justify-center shadow-lg`}
+                        >
+                          <span className="text-2xl">{selectedCategory?.icon}</span>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">{selectedCategory?.name}</p>
+                          <p className="font-bold text-sm text-gold">{selectedSubCategory.name}</p>
+                        </div>
+                      </div>
+
+                      <p className="text-center text-xs text-muted-foreground mb-5">
+                        Tap a service to find verified vendors
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
+                        {selectedSubCategory.services.map((service, index) => (
+                          <motion.button
+                            key={service}
+                            initial={{ opacity: 0, scale: 0.8, rotate: -3 }}
+                            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                            transition={{ delay: index * 0.04, type: "spring", stiffness: 260, damping: 12 }}
+                            whileHover={{ scale: 1.06, y: -3 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={() => handleServiceClick(service)}
+                            className={`p-4 rounded-xl bg-gradient-to-br ${selectedCategory?.gradient} text-white font-medium text-sm shadow-lg hover:shadow-xl transition-shadow focus:outline-none focus:ring-2 focus:ring-gold`}
+                          >
+                            {service}
+                          </motion.button>
+                        ))}
+                      </div>
+
+                      <div className="mt-6 text-center">
+                        <Button
+                          onClick={() => goToVendors(`/vendors?category=${selectedCategory?.id}`)}
+                          className="bg-gold hover:bg-gold-dark text-background"
+                        >
+                          Browse All {selectedCategory?.name} Vendors
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* ── EXPAND-IN-PLACE PANEL (the board stays behind, blurred) ── */}
+            <AnimatePresence>
+              {stage === "subcategories" && selectedCategory && (
+                <motion.div
+                  key="panel-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-3 sm:p-6"
+                  onClick={handleBack}
+                >
+                  <motion.div
+                    initial={panelFrom}
+                    animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                    exit={panelFrom}
+                    transition={{ type: "spring", stiffness: 260, damping: 30 }}
+                    onClick={(e) => e.stopPropagation()}
+                    role="dialog"
+                    aria-label={selectedCategory.name}
+                    className="relative flex max-h-[90vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-3xl border border-gold/40 bg-[#0b0b0f] shadow-[0_0_80px_rgba(212,175,55,0.25)]"
+                  >
+                    {/* Banner: photo + icon in border + name */}
+                    <div className="relative h-40 flex-shrink-0 overflow-hidden sm:h-52">
+                      <CategoryImage
+                        src={categoryImages[selectedCategory.name]}
+                        alt={selectedCategory.name}
+                        gradient={selectedCategory.gradient}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0f] via-black/55 to-black/20" />
+                      <button
+                        onClick={handleBack}
+                        aria-label="Close panel"
+                        className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white/80 transition-colors hover:border-gold hover:text-gold"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      <div className="absolute bottom-4 left-5 right-16 flex items-end gap-4">
+                        <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-gold/70 bg-black/70 text-4xl shadow-[0_0_18px_rgba(212,175,55,0.3)]">
+                          {selectedCategory.icon}
+                        </div>
+                        <div className="min-w-0">
+                          <h2 className="font-serif text-3xl leading-tight text-white sm:text-4xl">
+                            {selectedCategory.name}
+                          </h2>
+                          <p className="mt-1 text-sm text-white/70">
+                            {selectedCategory.subCategories.length} sub-types · pick one to find
+                            verified vendors
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sub-type tiles (reuses your existing card designs) */}
+                    <div
+                      data-lenis-prevent
+                      className="flex-1 overflow-y-auto overscroll-contain px-2 pb-4 pt-5 sm:px-4 [scrollbar-width:thin] [scrollbar-color:rgba(212,175,55,0.45)_transparent]"
+                    >
+                      {selectedCategory.name === "Weddings" ? (
+                        <WeddingSubcategoryCards
+                          subcategories={selectedCategory.subCategories}
+                          onSelect={handleSubCategoryClick}
+                        />
+                      ) : (
+                        <CategorySubcategoryCards
+                          categoryName={selectedCategory.name}
+                          subcategories={selectedCategory.subCategories}
+                          onSelect={handleSubCategoryClick}
+                        />
+                      )}
+                    </div>
                   </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Edge fringe strips */}

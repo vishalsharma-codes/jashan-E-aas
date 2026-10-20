@@ -27,7 +27,6 @@ import {
   Mic2,
   Car,
   Ticket,
-  Globe,
 } from "lucide-react";
 
 // ============================================================
@@ -39,20 +38,6 @@ interface CategorySubcategoryProps {
   subcategories: SubCategory[];
   onSelect: (subcategory: SubCategory) => void;
 }
-
-// ============================================================
-// LOAD CATEGORY MAIN IMAGES
-// Folder: src/components/outerCategory/categoryImages/
-// ============================================================
-
-const categoryImageModules = import.meta.glob(
-  "../categoryImages/**/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}",
-  {
-    eager: true,
-    import: "default",
-    query: "?url",
-  }
-) as Record<string, string>;
 
 // ============================================================
 // LOAD ALL SUBCATEGORY IMAGES (every folder, absolute path)
@@ -67,15 +52,6 @@ const subcategoryImageModules = import.meta.glob(
     query: "?url",
   }
 ) as Record<string, string>;
-
-// Used by the main (circle) image lookup
-function normalizeName(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 // ============================================================
 // TEXT HELPERS
@@ -263,7 +239,7 @@ type CategoryConfigEntry = {
   imageKeywords?: Record<string, string[]>;
   mainImageKeywords: string[];
   icons?: Record<string, ElementType>;
-  browseText: string;
+  // browseText: string;
 };
 
 const categoryConfig: Record<string, CategoryConfigEntry> = {
@@ -278,7 +254,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "wedding-main",
       "weddings",
     ],
-    browseText: "Browse All Wedding Vendors",
+    // browseText: "Browse All Wedding Vendors",
   },
 
   "Corporate Events": {
@@ -308,7 +284,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "Virtual & Hybrid Events": Video,
       "Awards & Celebrations": Trophy,
     },
-    browseText: "Browse All Corporate Vendors",
+    // browseText: "Browse All Corporate Vendors",
   },
 
   "Social Parties": {
@@ -344,7 +320,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       ],
       "Theme & Concept Parties": ["theme-concept-parties", "theme", "concept"],
     },
-    browseText: "Browse All Social Event Vendors",
+    // browseText: "Browse All Social Event Vendors",
   },
 
   "Educational Events": {
@@ -357,7 +333,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "educational-event-main",
       "educational-events",
     ],
-    browseText: "Browse All Educational Event Vendors",
+    // browseText: "Browse All Educational Event Vendors",
   },
 
   "Concerts & Shows": {
@@ -370,7 +346,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "concerts-main",
       "concerts-shows",
     ],
-    browseText: "Browse All Concert Vendors",
+    // browseText: "Browse All Concert Vendors",
   },
 
   "Religious & Spiritual": {
@@ -383,7 +359,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "religious-main",
       "religious-spiritual",
     ],
-    browseText: "Browse All Religious Event Vendors",
+    // browseText: "Browse All Religious Event Vendors",
   },
 
   "Exhibitions & Expos": {
@@ -396,7 +372,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "exhibitions-main",
       "exhibitions-expos",
     ],
-    browseText: "Browse All Exhibition Vendors",
+    // browseText: "Browse All Exhibition Vendors",
   },
 
   "Sports Events": {
@@ -409,7 +385,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "sports-event-main",
       "sports-events",
     ],
-    browseText: "Browse All Sports Event Vendors",
+    // browseText: "Browse All Sports Event Vendors",
   },
 
   "Government Events": {
@@ -422,7 +398,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "government-event-main",
       "government-events",
     ],
-    browseText: "Browse All Government Event Vendors",
+    // browseText: "Browse All Government Event Vendors",
   },
 
   "Charity & NGO Events": {
@@ -435,7 +411,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "charity-events-main",
       "charity-ngo-events",
     ],
-    browseText: "Browse All Charity Event Vendors",
+    // browseText: "Browse All Charity Event Vendors",
   },
 
   "Fashion & Lifestyle": {
@@ -448,7 +424,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "fashion-main",
       "fashion-lifestyle",
     ],
-    browseText: "Browse All Fashion Event Vendors",
+    // browseText: "Browse All Fashion Event Vendors",
   },
 
   "Virtual & Hybrid Events": {
@@ -461,7 +437,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "virtual-events-main",
       "virtual-hybrid-events",
     ],
-    browseText: "Browse All Virtual Event Vendors",
+    // browseText: "Browse All Virtual Event Vendors",
   },
 
   "Festivals & Melas": {
@@ -474,7 +450,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "festivals-main",
       "festivals-melas",
     ],
-    browseText: "Browse All Festival Vendors",
+    // browseText: "Browse All Festival Vendors",
   },
 
   "Hospitality & F&B": {
@@ -487,7 +463,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "hospitality-main",
       "hospitality-fnb",
     ],
-    browseText: "Browse All Hospitality Vendors",
+    // browseText: "Browse All Hospitality Vendors",
   },
 
   "Film & Media Events": {
@@ -500,7 +476,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "film-events-main",
       "film-media-events",
     ],
-    browseText: "Browse All Media Vendors",
+    // browseText: "Browse All Media Vendors",
   },
 
   "Tech & Innovation": {
@@ -513,7 +489,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "tech-events-main",
       "tech-innovation",
     ],
-    browseText: "Browse All Tech Event Vendors",
+    // browseText: "/ All Tech Event Vendors",
   },
 
   "Health & Wellness": {
@@ -526,7 +502,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "wellness-main",
       "health-wellness",
     ],
-    browseText: "Browse All Wellness Vendors",
+    // browseText: "Browse All Wellness Vendors",
   },
 
   "Community Events": {
@@ -539,7 +515,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "community-event-main",
       "community-events",
     ],
-    browseText: "Browse All Community Event Vendors",
+    // browseText: "Browse All Community Event Vendors",
   },
 
   "Agricultural & Rural Events": {
@@ -552,7 +528,7 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "agricultural-events-main",
       "agricultural-rural-events",
     ],
-    browseText: "Browse All Agricultural Event Vendors",
+    // browseText: "Browse All Agricultural Event Vendors",
   },
 
   "Automotive Events": {
@@ -565,61 +541,9 @@ const categoryConfig: Record<string, CategoryConfigEntry> = {
       "automotive-event-main",
       "automotive-events",
     ],
-    browseText: "Browse All Automotive Vendors",
+    // browseText: "/ All Automotive Vendors",
   },
 };
-
-// ============================================================
-// FIND MAIN CATEGORY IMAGE
-// Searches ONLY inside src/components/outerCategory/categoryImages/
-// ============================================================
-
-function getCategoryMainImage(categoryName: string) {
-  const config = categoryConfig[categoryName];
-  if (!config) return undefined;
-
-  const entries = Object.entries(categoryImageModules);
-
-  for (const keyword of config.mainImageKeywords) {
-    const normalizedKeyword = normalizeName(keyword);
-
-    const found = entries.find(([path]) => {
-      const filename = path
-        .split("/")
-        .pop()
-        ?.toLowerCase()
-        .replace(/\.(jpg|jpeg|png|webp)$/i, "");
-
-      if (!filename) return false;
-
-      const normalizedFilename = normalizeName(filename);
-
-      return (
-        normalizedFilename === normalizedKeyword ||
-        normalizedFilename.includes(normalizedKeyword)
-      );
-    });
-
-    if (found) return found[1];
-  }
-
-  // Fallback: search using the category name itself
-  const normalizedCategory = normalizeName(categoryName);
-
-  const fallback = entries.find(([path]) => {
-    const filename = path
-      .split("/")
-      .pop()
-      ?.toLowerCase()
-      .replace(/\.(jpg|jpeg|png|webp)$/i, "");
-
-    if (!filename) return false;
-
-    return normalizeName(filename).includes(normalizedCategory);
-  });
-
-  return fallback?.[1];
-}
 
 // ============================================================
 // MAIN COMPONENT
@@ -636,10 +560,8 @@ export default function CategorySubcategoryCards({
     description:
       "Discover professional services and trusted vendors for your event.",
     mainImageKeywords: [],
-    browseText: `Browse All ${categoryName} Vendors`,
+    // browseText: `Browse All ${categoryName} Vendors`,
   };
-
-  const categoryImage = getCategoryMainImage(categoryName);
 
   const cardImages = useMemo(
     () => pickImages(categoryName, subcategories),
@@ -647,59 +569,7 @@ export default function CategorySubcategoryCards({
   );
 
   return (
-    <div className="relative min-h-screen w-full overflow-y-auto px-6 pb-16">
-      {/* HEADER */}
-      <div className="relative z-10 flex flex-col items-center text-center pt-6">
-        {/* Decorative lines */}
-        <div className="flex items-center gap-5 mb-3">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-[#d4af37]" />
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-[#d4af37]" />
-        </div>
-
-        {/* CIRCLE IMAGE */}
-        <div className="relative mb-4">
-          <div className="absolute inset-0 rounded-full bg-[#d4af37]/20 blur-2xl scale-125" />
-
-          <div className="relative w-[150px] h-[150px] md:w-[165px] md:h-[165px] rounded-full overflow-hidden border-2 border-[#d4af37] shadow-[0_0_35px_rgba(212,175,55,0.35)] bg-black">
-            {categoryImage ? (
-              <img
-                src={categoryImage}
-                alt={categoryName}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Globe className="w-12 h-12 text-[#d4af37]" />
-              </div>
-            )}
-          </div>
-
-          <div className="absolute -inset-3 rounded-full border border-[#d4af37]/20 pointer-events-none" />
-        </div>
-
-        {/* CATEGORY LABEL */}
-        <p className="text-[#d4af37] text-[13px] font-semibold tracking-[0.35em] uppercase mb-2">
-          {config.label}
-        </p>
-
-        {/* MAIN HEADING */}
-        <h1 className="font-serif text-white text-3xl md:text-5xl font-semibold leading-tight drop-shadow-xl">
-          {config.heading}
-        </h1>
-
-        {/* DESCRIPTION */}
-        <p className="mt-3 max-w-2xl text-white/60 text-sm md:text-base">
-          {config.description}
-        </p>
-      </div>
-
-      {/* DIVIDER */}
-      <div className="flex items-center justify-center gap-4 my-7">
-        <div className="h-px w-24 bg-gradient-to-r from-transparent to-[#d4af37]/60" />
-        <div className="w-1.5 h-1.5 rotate-45 bg-[#d4af37]" />
-        <div className="h-px w-24 bg-gradient-to-l from-transparent to-[#d4af37]/60" />
-      </div>
-
+    <div className="relative w-full px-6 pb-6">
       {/* SUBCATEGORY CARDS */}
       <div className="relative z-10 mx-auto w-full max-w-[1500px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {subcategories.map((subcategory, index) => {
@@ -774,7 +644,7 @@ export default function CategorySubcategoryCards({
       </div>
 
       {/* BROWSE ALL VENDORS */}
-      <div className="relative z-10 flex justify-center mt-10">
+      {/* <div className="relative z-10 flex justify-center mt-10">
         <button
           type="button"
           className="group flex items-center gap-3 rounded-xl border border-[#d4af37] bg-[#d4af37] px-8 py-3 font-serif text-sm font-semibold text-black shadow-[0_0_30px_rgba(212,175,55,0.20)] transition-all duration-300 hover:bg-[#f0c94a] hover:shadow-[0_0_40px_rgba(212,175,55,0.35)]"
@@ -784,16 +654,16 @@ export default function CategorySubcategoryCards({
             →
           </span>
         </button>
-      </div>
+      </div> */}
 
       {/* BOTTOM TAGLINE */}
-      <div className="relative z-10 flex items-center justify-center gap-4 mt-7">
+      {/* <div className="relative z-10 flex items-center justify-center gap-4 mt-7">
         <div className="h-px w-20 bg-[#d4af37]/40" />
         <p className="text-[9px] uppercase tracking-[0.5em] text-[#d4af37]/60">
           Professional Events · Trusted Vendors
         </p>
         <div className="h-px w-20 bg-[#d4af37]/40" />
-      </div>
+      </div> */}
     </div>
   );
 }
