@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { eventCategories, EventCategory, SubCategory } from "@/lib/categoryData";
 import { useNavigate } from "react-router-dom";
 import NetworkBackground from "./NetworkBackground";
-import WeddingSubcategoryCards,{ WeddingHeader }  from "./subCategory";
+import WeddingSubcategoryCards, { WeddingHeader } from "./subCategory";
 import WeddingStyleCards from "./subCategory/wedding";
 import DynamicSubcategoryCards from "./subCategory/DynamicSubcategoryCards";
 import CategorySubcategoryCards from "./categoryDesign/CategorySubcategoryCards";
@@ -36,19 +36,17 @@ interface CategoryMindmapProps {
   onClose: () => void;
 }
 
-type Stage = "idle" | "curtain-close" | "title" | "curtain-open" | "categories" | "subcategories" | "services"| "categoryStyles";
-export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
-  const [stage, setStage] = useState<Stage>("idle");
-  const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | null>(null);
-  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
-  const [hoveredSub, setHoveredSub] = useState<string | null>(null);
-  const [focusingId, setFocusingId] = useState<string | null>(null);
-  const [fastReturn, setFastReturn] = useState(false);
-  const navigate = useNavigate();
+type Stage =
+  | "idle"
+  | "curtain-close"
+  | "title"
+  | "curtain-open"
+  | "categories"
+  | "subcategories"
+  | "services"
+  | "categoryStyles";
 
-
-  const categoryImages: Record<string, string> = {
+const categoryImages: Record<string, string> = {
   "Weddings": weddingImage,
   "Corporate Events": corporateImage,
   "Social Parties": socialPartiesImage,
@@ -71,6 +69,124 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
   "Automotive Events": automotiveImage,
 };
 
+// Categories that use their own premium subcategory page
+const premiumCategories = Object.keys(categoryImages);
+
+// Shows a gradient instead of a broken-image icon when a picture fails to load
+const CategoryImage = ({
+  src,
+  alt,
+  gradient,
+  zoomed,
+}: {
+  src?: string;
+  alt: string;
+  gradient?: string;
+  zoomed: boolean;
+}) => {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div
+        className={`absolute inset-0 bg-gradient-to-br ${gradient ?? "from-[#3a2a0a] to-[#0d0d12]"}`}
+      />
+    );
+  }
+
+  return (
+    <motion.img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className="absolute inset-0 w-full h-full object-cover"
+      animate={{ scale: zoomed ? 1.13 : 1 }}
+      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+    />
+  );
+};
+
+export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
+  const [stage, setStage] = useState<Stage>("idle");
+  const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | null>(null);
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [focusingId, setFocusingId] = useState<string | null>(null);
+  const [fastReturn, setFastReturn] = useState(false);
+  const navigate = useNavigate();
+
+  // ---- browser Back support -------------------------------------------
+  // While the overlay is open we keep ONE extra history entry. Pressing the
+  // browser Back button then steps back inside the overlay instead of leaving
+  // the page (which used to jump to the Jhalak page).
+  const stageRef = useRef<Stage>("idle");
+  stageRef.current = stage;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const sentinelRef = useRef(false); // is our extra history entry active?
+  const ignorePopRef = useRef(false); // skip the popstate we cause ourselves
+
+  const pushSentinel = () => {
+    window.history.pushState({ ...(window.history.state ?? {}), mindmap: true }, "");
+    sentinelRef.current = true;
+  };
+
+  // lock page scroll behind the overlay (fixes the double scrollbar)
+  useEffect(() => {
+    if (!isOpen) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const previous = { html: html.style.overflow, body: body.style.overflow };
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = previous.html;
+      body.style.overflow = previous.body;
+    };
+  }, [isOpen]);
+
+  // history entry + browser Back handling
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (!sentinelRef.current) pushSentinel();
+
+    const onPop = (e: PopStateEvent) => {
+      if (ignorePopRef.current) {
+        ignorePopRef.current = false;
+        return;
+      }
+      if (e.state?.mindmap) {
+        sentinelRef.current = true; // browser Forward landed on our entry
+        return;
+      }
+      if (!sentinelRef.current) return;
+      sentinelRef.current = false; // our entry was just popped
+
+      const current = stageRef.current;
+      if (current === "categoryStyles" || current === "services") {
+        pushSentinel();
+        setSelectedSubCategory(null);
+        setStage("subcategories");
+      } else if (current === "subcategories") {
+        pushSentinel();
+        setFastReturn(true);
+        setSelectedCategory(null);
+        setSelectedSubCategory(null);
+        setFocusingId(null);
+        setStage("categories");
+        setTimeout(() => setFastReturn(false), 150);
+      } else {
+        setStage("idle");
+        setTimeout(() => onCloseRef.current(), 500);
+      }
+    };
+
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [isOpen]);
+
+  // ---- opening animation ------------------------------------------------
   useEffect(() => {
     if (!isOpen) {
       setStage("idle");
@@ -85,11 +201,20 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
     const t1 = setTimeout(() => setStage("title"), 620);
     const t2 = setTimeout(() => setStage("curtain-open"), 1060);
     const t3 = setTimeout(() => setStage("categories"), 1780);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
   }, [isOpen]);
 
   const handleClose = () => {
     setStage("idle");
+    if (sentinelRef.current) {
+      sentinelRef.current = false;
+      ignorePopRef.current = true;
+      window.history.back(); // remove our extra history entry
+    }
     setTimeout(onClose, 500);
   };
 
@@ -104,89 +229,85 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
     }, 380);
   };
 
-const handleSubCategoryClick = (sub: SubCategory) => {
-  setSelectedSubCategory(sub);
+  const handleSubCategoryClick = (sub: SubCategory) => {
+    setSelectedSubCategory(sub);
 
-  // ============================================================
-  // CATEGORIES THAT USE THEIR OWN PREMIUM SUBCATEGORY PAGE
-  // ============================================================
+    if (selectedCategory?.name && premiumCategories.includes(selectedCategory.name)) {
+      setStage("categoryStyles");
+      return;
+    }
 
-  const premiumCategories = [
-    "Weddings",
-    "Corporate Events",
-    "Social Parties",
-    "Educational Events",
-    "Concerts & Shows",
-    "Religious & Spiritual",
-    "Exhibitions & Expos",
-    "Sports Events",
-    "Government Events",
-    "Charity & NGO Events",
-    "Fashion & Lifestyle",
-    "Virtual & Hybrid Events",
-    "Festivals & Melas",
-    "Hospitality & F&B",
-    "Film & Media Events",
-    "Tech & Innovation",
-    "Health & Wellness",
-    "Community Events",
-    "Agricultural & Rural Events",
-    "Automotive Events",
-  ];
+    setStage("services");
+  };
 
-  if (
-    selectedCategory?.name &&
-    premiumCategories.includes(selectedCategory.name)
-  ) {
-    setStage("categoryStyles");
-    return;
-  }
-
-  // ============================================================
-  // FALLBACK
-  // ============================================================
-
-  setStage("services");
-};
-
-  const handleServiceClick = (service: string) => {
-    navigate(`/vendors?category=${selectedCategory?.id}&service=${encodeURIComponent(service)}`);
+  const goToVendors = (url: string) => {
+    // replace our extra history entry, so Back from the vendors page
+    // returns straight to the page the overlay was opened on
+    const hadSentinel = sentinelRef.current;
+    sentinelRef.current = false;
+    navigate(url, { replace: hadSentinel });
     onClose();
   };
 
- const goBackToCategories = () => {
-  // Disable shared layout animation while returning
-  setFastReturn(true);
+  const handleServiceClick = (service: string) => {
+    goToVendors(
+      `/vendors?category=${selectedCategory?.id}&service=${encodeURIComponent(service)}`
+    );
+  };
 
-  setSelectedCategory(null);
-  setSelectedSubCategory(null);
-  setFocusingId(null);
-  setStage("categories");
+  const goBackToCategories = () => {
+    // Disable shared layout animation while returning
+    setFastReturn(true);
 
-  // Re-enable it after the category grid is restored
-  setTimeout(() => {
-    setFastReturn(false);
-  }, 150);
-};
+    setSelectedCategory(null);
+    setSelectedSubCategory(null);
+    setFocusingId(null);
+    setStage("categories");
+
+    // Re-enable it after the category grid is restored
+    setTimeout(() => {
+      setFastReturn(false);
+    }, 150);
+  };
 
   const goBackToSubCategories = () => {
     setSelectedSubCategory(null);
     setStage("subcategories");
   };
 
+  // The Back button in the header
+  const handleBack = () => {
+    if (stage === "categories") {
+      handleClose();
+      return;
+    }
+    if (sentinelRef.current) {
+      window.history.back(); // the popstate handler steps back one level
+      return;
+    }
+    if (stage === "services" || stage === "categoryStyles") goBackToSubCategories();
+    else goBackToCategories();
+  };
+
   if (!isOpen && stage === "idle") return null;
 
-  const numCols = (n: number) => n <= 3 ? n : n <= 6 ? 3 : n <= 8 ? 4 : 3;
+  const showChrome =
+    stage === "categories" ||
+    stage === "subcategories" ||
+    stage === "services" ||
+    stage === "categoryStyles";
+
+  const curtainsOpen = showChrome || stage === "curtain-open";
 
   return (
     <AnimatePresence>
       {(isOpen || stage === "curtain-close") && (
         <div
-            className="fixed inset-0 z-50 overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-          >
-
+          data-lenis-prevent
+          className="fixed inset-0 z-50 overflow-hidden"
+          role="dialog"
+          aria-modal="true"
+        >
           {/* Base background */}
           <div
             className="absolute inset-0 z-0"
@@ -205,7 +326,6 @@ const handleSubCategoryClick = (sub: SubCategory) => {
             <NetworkBackground />
           </div>
 
-
           {/* Spotlight during title */}
           <AnimatePresence>
             {stage === "title" && (
@@ -215,7 +335,10 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4 }}
                 className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                style={{ background: "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(212,175,55,0.25) 0%, rgba(139,0,0,0.1) 40%, transparent 70%)" }}
+                style={{
+                  background:
+                    "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(212,175,55,0.25) 0%, rgba(139,0,0,0.1) 40%, transparent 70%)",
+                }}
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -224,8 +347,13 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                   transition={{ duration: 0.4, delay: 0.1 }}
                   className="text-center px-8"
                 >
-                  <p className="text-gold/60 text-sm uppercase tracking-widest mb-3 font-medium">Jashan-E-Aas</p>
-                  <h2 className="font-serif text-4xl md:text-6xl font-bold text-gold" style={{ textShadow: "0 0 40px rgba(212,175,55,0.5)" }}>
+                  <p className="text-gold/60 text-sm uppercase tracking-widest mb-3 font-medium">
+                    Jashan-E-Aas
+                  </p>
+                  <h2
+                    className="font-serif text-4xl md:text-6xl font-bold text-gold"
+                    style={{ textShadow: "0 0 40px rgba(212,175,55,0.5)" }}
+                  >
                     What kind of event
                   </h2>
                   <h2 className="font-serif text-4xl md:text-6xl font-bold text-white mt-2">
@@ -238,21 +366,43 @@ const handleSubCategoryClick = (sub: SubCategory) => {
 
           {/* ── LEFT CURTAIN ── */}
           <motion.div
-            className="absolute top-0 left-0 bottom-0 w-1/2 z-20 origin-left overflow-hidden"
+            className="absolute top-0 left-0 bottom-0 w-1/2 z-20 origin-left overflow-hidden pointer-events-none"
             initial={{ x: 0 }}
-            animate={{
-              x: stage === "curtain-open" || stage === "categories" || stage === "subcategories" || stage === "services"||
-    stage === "categoryStyles"
-                ? "-100%" : 0,
+            animate={{ x: curtainsOpen ? "-100%" : 0 }}
+            transition={{
+              duration: 0.72,
+              ease: [0.4, 0, 0.2, 1],
+              delay: stage === "curtain-open" ? 0.1 : 0,
             }}
-            transition={{ duration: 0.72, ease: [0.4, 0, 0.2, 1], delay: stage === "curtain-open" ? 0.1 : 0 }}
           >
-            <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #3d0000 0%, #8b0000 25%, #6b0000 50%, #8b0000 75%, #3d0000 100%)" }} />
-            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "repeating-linear-gradient(90deg, transparent 0px, transparent 18px, rgba(212,175,55,0.15) 18px, rgba(212,175,55,0.15) 20px)" }} />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to bottom, #3d0000 0%, #8b0000 25%, #6b0000 50%, #8b0000 75%, #3d0000 100%)",
+              }}
+            />
+            <div
+              className="absolute inset-0 opacity-30"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(90deg, transparent 0px, transparent 18px, rgba(212,175,55,0.15) 18px, rgba(212,175,55,0.15) 20px)",
+              }}
+            />
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="absolute bottom-0 flex flex-col items-center gap-1" style={{ left: `${12 + i * 10}%` }}>
-                <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-md" style={{ boxShadow: "0 0 6px rgba(212,175,55,0.8)" }} />
-                <div className="w-px bg-gradient-to-b from-gold/80 to-gold/20" style={{ height: `${30 + (i % 3) * 20}px` }} />
+              <div
+                key={i}
+                className="absolute bottom-0 flex flex-col items-center gap-1"
+                style={{ left: `${12 + i * 10}%` }}
+              >
+                <div
+                  className="w-1.5 h-1.5 rounded-full bg-gold shadow-md"
+                  style={{ boxShadow: "0 0 6px rgba(212,175,55,0.8)" }}
+                />
+                <div
+                  className="w-px bg-gradient-to-b from-gold/80 to-gold/20"
+                  style={{ height: `${30 + (i % 3) * 20}px` }}
+                />
               </div>
             ))}
             <div className="absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l from-gold/30 to-transparent" />
@@ -260,21 +410,43 @@ const handleSubCategoryClick = (sub: SubCategory) => {
 
           {/* ── RIGHT CURTAIN ── */}
           <motion.div
-            className="absolute top-0 right-0 bottom-0 w-1/2 z-20 origin-right overflow-hidden"
+            className="absolute top-0 right-0 bottom-0 w-1/2 z-20 origin-right overflow-hidden pointer-events-none"
             initial={{ x: 0 }}
-            animate={{
-              x: stage === "curtain-open" || stage === "categories" || stage === "subcategories" || stage === "services"||
-    stage === "categoryStyles"
-                ? "100%" : 0,
+            animate={{ x: curtainsOpen ? "100%" : 0 }}
+            transition={{
+              duration: 0.72,
+              ease: [0.4, 0, 0.2, 1],
+              delay: stage === "curtain-open" ? 0.1 : 0,
             }}
-            transition={{ duration: 0.72, ease: [0.4, 0, 0.2, 1], delay: stage === "curtain-open" ? 0.1 : 0 }}
           >
-            <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #3d0000 0%, #8b0000 25%, #6b0000 50%, #8b0000 75%, #3d0000 100%)" }} />
-            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "repeating-linear-gradient(90deg, transparent 0px, transparent 18px, rgba(212,175,55,0.15) 18px, rgba(212,175,55,0.15) 20px)" }} />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to bottom, #3d0000 0%, #8b0000 25%, #6b0000 50%, #8b0000 75%, #3d0000 100%)",
+              }}
+            />
+            <div
+              className="absolute inset-0 opacity-30"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(90deg, transparent 0px, transparent 18px, rgba(212,175,55,0.15) 18px, rgba(212,175,55,0.15) 20px)",
+              }}
+            />
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="absolute bottom-0 flex flex-col items-center gap-1" style={{ left: `${8 + i * 11}%` }}>
-                <div className="w-1.5 h-1.5 rounded-full bg-gold shadow-md" style={{ boxShadow: "0 0 6px rgba(212,175,55,0.8)" }} />
-                <div className="w-px bg-gradient-to-b from-gold/80 to-gold/20" style={{ height: `${25 + (i % 4) * 15}px` }} />
+              <div
+                key={i}
+                className="absolute bottom-0 flex flex-col items-center gap-1"
+                style={{ left: `${8 + i * 11}%` }}
+              >
+                <div
+                  className="w-1.5 h-1.5 rounded-full bg-gold shadow-md"
+                  style={{ boxShadow: "0 0 6px rgba(212,175,55,0.8)" }}
+                />
+                <div
+                  className="w-px bg-gradient-to-b from-gold/80 to-gold/20"
+                  style={{ height: `${25 + (i % 4) * 15}px` }}
+                />
               </div>
             ))}
             <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-gold/30 to-transparent" />
@@ -284,7 +456,7 @@ const handleSubCategoryClick = (sub: SubCategory) => {
           <div className="absolute inset-0 z-10 flex flex-col overflow-hidden">
             {/* Header */}
             <AnimatePresence>
-              {(stage === "categories" || stage === "subcategories" || stage === "services") && (
+              {showChrome && (
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -294,8 +466,8 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                   {/* Breadcrumbs */}
                   <div className="flex items-center gap-2 text-sm">
                     <button
-                      onClick={stage === "categories" ? handleClose : stage === "services" ? goBackToSubCategories : goBackToCategories}
-                      className="flex items-center gap-1.5 text-muted-foreground hover:text-gold transition-colors"
+                      onClick={handleBack}
+                      className="flex items-center gap-1.5 text-muted-foreground hover:text-gold transition-colors focus:outline-none focus-visible:text-gold"
                     >
                       <ArrowLeft className="w-4 h-4" />
                       {stage === "categories" ? "Close" : "Back"}
@@ -329,6 +501,7 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                   {/* Close */}
                   <button
                     onClick={handleClose}
+                    aria-label="Close"
                     className="w-9 h-9 rounded-full bg-card/80 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-gold/40 transition-all"
                   >
                     <X className="w-4 h-4" />
@@ -337,10 +510,12 @@ const handleSubCategoryClick = (sub: SubCategory) => {
               )}
             </AnimatePresence>
 
-            {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8">
+            {/* Scrollable content: the only scroll area on the page */}
+            <div
+              data-lenis-prevent
+              className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-24 [scrollbar-width:thin] [scrollbar-color:rgba(212,175,55,0.45)_transparent]"
+            >
               <AnimatePresence mode="wait">
-
                 {/* ── CATEGORIES GRID (with layoutId + focus-fade) ── */}
                 {stage === "categories" && (
                   <motion.div
@@ -349,35 +524,37 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0, transition: { duration: 0.2 } }}
                     transition={{ duration: 0.3 }}
-                    className="pt-10"
+                    className="pt-8"
                   >
                     <LayoutGroup>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-5 md:gap-7 mt-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-5 md:gap-7 mt-4">
                         {eventCategories.map((category, index) => (
                           <motion.div
                             key={category.id}
                             layoutId={fastReturn ? undefined : `cat-${category.id}`}
-                            initial={
-                                      fastReturn
-                                        ? false
-                                        : { opacity: 0, y: -50, scale: 0.85 }
-                                    }
+                            initial={fastReturn ? false : { opacity: 0, y: -50, scale: 0.85 }}
                             animate={{
                               opacity: focusingId && focusingId !== category.id ? 0 : 1,
                               y: 0,
                               scale: focusingId === category.id ? 1.12 : 1,
-                              filter: focusingId && focusingId !== category.id
-                                ? "brightness(0.15) blur(3px)"
-                                : hoveredCategory && hoveredCategory !== category.id
-                                  ? "brightness(0.5)"
-                                  : "brightness(1)",
+                              filter:
+                                focusingId && focusingId !== category.id
+                                  ? "brightness(0.15) blur(3px)"
+                                  : hoveredCategory && hoveredCategory !== category.id
+                                    ? "brightness(0.5)"
+                                    : "brightness(1)",
                               zIndex: focusingId === category.id ? 40 : 1,
                             }}
                             transition={{
                               opacity: { duration: 0.28 },
                               filter: { duration: 0.2 },
                               scale: { duration: 0.28 },
-                              default: { delay: fastReturn ? 0 : index * 0.055, type: "spring", stiffness: 200, damping: 18 },
+                              default: {
+                                delay: fastReturn ? 0 : index * 0.055,
+                                type: "spring",
+                                stiffness: 200,
+                                damping: 18,
+                              },
                             }}
                             className="relative group cursor-pointer focus:outline-none"
                             onHoverStart={() => !focusingId && setHoveredCategory(category.id)}
@@ -397,96 +574,78 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                             </div>
 
                             {/* ───────── CATEGORY IMAGE CARD ───────── */}
-                          <motion.div
-                            animate={{
-                              boxShadow:
-                                hoveredCategory === category.id || focusingId === category.id
-                                  ? "0 0 35px rgba(212,175,55,0.45)"
-                                  : "none",
-                              scale: hoveredCategory === category.id ? 1.04 : 1,
-                            }}
-                            transition={{ duration: 0.25 }}
-                            className="relative overflow-hidden rounded-2xl bg-black border border-white/10"
-                          >
-                            {/* Image */}
-                            <motion.img
-                              src={categoryImages[category.name]}
-                              alt={category.name}
-                              className="absolute inset-0 w-full h-full object-cover"
-                              animate={{
-                                scale: hoveredCategory === category.id ? 1.13 : 1,
-                              }}
-                              transition={{
-                                duration: 0.65,
-                                ease: [0.22, 1, 0.36, 1],
-                              }}
-                            />
-
-                            {/* Dark overall overlay */}
-                            <div className="absolute inset-0 bg-black/25" />
-
-                            {/* Bottom black gradient */}
-                            <div
-                              className="absolute inset-0"
-                              style={{
-                                background:
-                                  "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.72) 28%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.05) 100%)",
-                              }}
-                            />
-
-                            {/* Hover glow */}
                             <motion.div
-                              initial={{ opacity: 0 }}
                               animate={{
-                                opacity: hoveredCategory === category.id ? 1 : 0,
+                                boxShadow:
+                                  hoveredCategory === category.id || focusingId === category.id
+                                    ? "0 0 35px rgba(212,175,55,0.45)"
+                                    : "none",
+                                scale: hoveredCategory === category.id ? 1.04 : 1,
                               }}
                               transition={{ duration: 0.25 }}
-                              className="absolute inset-0 bg-gradient-to-t from-gold/15 via-transparent to-transparent pointer-events-none"
-                            />
+                              className="relative overflow-hidden rounded-2xl bg-black border border-white/10"
+                            >
+                              {/* Image (falls back to a gradient if it cannot load) */}
+                              <CategoryImage
+                                src={categoryImages[category.name]}
+                                alt={category.name}
+                                gradient={category.gradient}
+                                zoomed={hoveredCategory === category.id}
+                              />
 
-                            {/* Category information */}
-                            <div className="relative z-10 min-h-[150px] sm:min-h-[165px] md:min-h-[180px] flex flex-col justify-end p-4 md:p-5">
-                              
-                              {/* Category number */}
-                              <span className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.25em] text-gold mb-2">
-                                CATEGORY {String(index + 1).padStart(2, "0")}
-                              </span>
+                              {/* Dark overall overlay */}
+                              <div className="absolute inset-0 bg-black/25" />
 
-                              {/* Category name + arrow */}
-                              <div className="flex items-end justify-between gap-3">
-                                <div>
-                                  <h3 className="font-serif text-white text-lg md:text-xl lg:text-[21px] leading-tight drop-shadow-lg">
-                                    {category.name}
-                                  </h3>
+                              {/* Bottom black gradient */}
+                              <div
+                                className="absolute inset-0"
+                                style={{
+                                  background:
+                                    "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.72) 28%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.05) 100%)",
+                                }}
+                              />
 
-                                  <p className="text-[10px] text-white/55 mt-1">
-                                    {category.subCategories.length} types
-                                  </p>
+                              {/* Hover glow */}
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: hoveredCategory === category.id ? 1 : 0 }}
+                                transition={{ duration: 0.25 }}
+                                className="absolute inset-0 bg-gradient-to-t from-gold/15 via-transparent to-transparent pointer-events-none"
+                              />
+
+                              {/* Category information */}
+                              <div className="relative z-10 min-h-[150px] sm:min-h-[165px] md:min-h-[180px] flex flex-col justify-end p-4 md:p-5">
+                                <span className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.25em] text-gold mb-2">
+                                  CATEGORY {String(index + 1).padStart(2, "0")}
+                                </span>
+
+                                <div className="flex items-end justify-between gap-3">
+                                  <div>
+                                    <h3 className="font-serif text-white text-lg md:text-xl lg:text-[21px] leading-tight drop-shadow-lg">
+                                      {category.name}
+                                    </h3>
+                                    <p className="text-[10px] text-white/55 mt-1">
+                                      {category.subCategories.length} types
+                                    </p>
+                                  </div>
+
+                                  <motion.div
+                                    animate={{ x: hoveredCategory === category.id ? 6 : 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="flex-shrink-0 text-gold text-2xl leading-none mb-1"
+                                  >
+                                    →
+                                  </motion.div>
                                 </div>
-
-                                {/* Arrow */}
-                                <motion.div
-                                  animate={{
-                                    x: hoveredCategory === category.id ? 6 : 0,
-                                  }}
-                                  transition={{ duration: 0.2 }}
-                                  className="flex-shrink-0 text-gold text-2xl leading-none mb-1"
-                                >
-                                  →
-                                </motion.div>
                               </div>
-                            </div>
 
-                            {/* Subtle border highlight */}
-                            <motion.div
-                              animate={{
-                                opacity: hoveredCategory === category.id ? 1 : 0,
-                              }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute inset-0 rounded-2xl border border-gold/70 pointer-events-none"
-                            />
-                          </motion.div>
-                                                  
+                              {/* Subtle border highlight */}
+                              <motion.div
+                                animate={{ opacity: hoveredCategory === category.id ? 1 : 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="absolute inset-0 rounded-2xl border border-gold/70 pointer-events-none"
+                              />
+                            </motion.div>
                           </motion.div>
                         ))}
                       </div>
@@ -495,133 +654,69 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                 )}
 
                 {/* ── SUBCATEGORIES ── */}
-{stage === "subcategories" && selectedCategory && (
-  <motion.div
-    key="subcategories"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    transition={{ duration: 0.3 }}
-    className="flex flex-col items-center pt-2 pb-20"
-  >
+                {stage === "subcategories" && selectedCategory && (
+                  <motion.div
+                    key="subcategories"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col items-center pt-2 pb-20"
+                  >
+                    {/* CENTRAL WEDDING HEADER */}
+                    {selectedCategory.name === "Weddings" && (
+                      <div className="mb-30">
+                        <WeddingHeader />
+                      </div>
+                    )}
 
-    {/* CENTRAL WEDDING HEADER */}
-    {selectedCategory.name === "Weddings" && (
-    <div className="mb-30">
-      <WeddingHeader />
-    </div>)}
+                    {/* SUBCATEGORY CARDS */}
+                    {selectedCategory.name === "Weddings" ? (
+                      <WeddingSubcategoryCards
+                        subcategories={selectedCategory.subCategories}
+                        onSelect={handleSubCategoryClick}
+                      />
+                    ) : (
+                      <CategorySubcategoryCards
+                        categoryName={selectedCategory.name}
+                        subcategories={selectedCategory.subCategories}
+                        onSelect={handleSubCategoryClick}
+                      />
+                    )}
+                  </motion.div>
+                )}
 
-    {/* SUBCATEGORY CARDS */}
-    {selectedCategory.name === "Weddings" ? (
+                {/* ── PREMIUM CATEGORY STYLE PAGE ── */}
+                {stage === "categoryStyles" && selectedSubCategory && (
+                  <motion.div
+                    key={`categoryStyles-${selectedCategory?.name}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.35 }}
+                    className="relative w-full"
+                  >
+                    {selectedCategory?.name === "Weddings" ? (
+                      <WeddingStyleCards
+                        subcategories={selectedSubCategory.services.map((service) => ({
+                          name: service,
+                          services: [],
+                        }))}
+                        onSelect={(subcategory) => handleServiceClick(subcategory.name)}
+                      />
+                    ) : (
+                      <DynamicSubcategoryCards
+                        categoryName={selectedSubCategory.name}
+                        subcategories={selectedSubCategory.services.map((service) => ({
+                          name: service,
+                          services: [],
+                        }))}
+                        onSelect={(subcategory) => handleServiceClick(subcategory.name)}
+                      />
+                    )}
+                  </motion.div>
+                )}
 
-  <WeddingSubcategoryCards
-    subcategories={selectedCategory.subCategories}
-    onSelect={handleSubCategoryClick}
-  />
-
-) : (
-
-  <CategorySubcategoryCards
-    categoryName={selectedCategory.name}
-    subcategories={selectedCategory.subCategories}
-    onSelect={handleSubCategoryClick}
-  />
-    )}
-  </motion.div>
-)}
-
-{/* ============================================================
-    PREMIUM CATEGORY SUBCATEGORY PAGE
-============================================================ */}
-
-{stage === "categoryStyles" && selectedSubCategory && (
-  <motion.div
-    key={`categoryStyles-${selectedCategory?.name}`}
-    initial={{
-      opacity: 0,
-      y: 20,
-    }}
-    animate={{
-      opacity: 1,
-      y: 0,
-    }}
-    exit={{
-      opacity: 0,
-      y: -20,
-    }}
-    transition={{
-      duration: 0.35,
-    }}
-    className="relative w-full"
-  >
-
-    {/* ========================================================
-        BACK BUTTON
-    ======================================================== */}
-
-    <button
-      onClick={goBackToSubCategories}
-      className="
-        absolute
-        top-2
-        left-5
-        z-50
-        flex
-        items-center
-        gap-2
-        px-4
-        py-2
-        rounded-full
-        border
-        border-gold/40
-        bg-black/60
-        backdrop-blur-md
-        text-white
-        text-sm
-        hover:border-gold
-        hover:text-gold
-        hover:bg-gold/10
-        transition-all
-        duration-200
-      "
-    >
-      <ArrowLeft className="w-4 h-4" />
-      <span>Back</span>
-    </button>
-
-    {/* ========================================================
-        WEDDING STYLE PAGE
-    ======================================================== */}
-
-    {selectedCategory?.name === "Weddings" ? (
-
-      <WeddingStyleCards
-        subcategories={selectedSubCategory.services.map((service) => ({
-          name: service,
-          services: [],
-        }))}
-        onSelect={(subcategory) =>
-          handleServiceClick(subcategory.name)
-        }
-      />
-
-    ) : (
-
-      <DynamicSubcategoryCards
-        categoryName={selectedSubCategory.name}
-        subcategories={selectedSubCategory.services.map((service) => ({
-          name: service,
-          services: [],
-        }))}
-        onSelect={(subcategory) =>
-          handleServiceClick(subcategory.name)
-        }
-      />
-
-    )}
-
-  </motion.div>
-)}
                 {/* ── SERVICES ── */}
                 {stage === "services" && selectedSubCategory && (
                   <motion.div
@@ -633,7 +728,9 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                   >
                     {/* Mini category node at top */}
                     <div className="flex items-center justify-center gap-3 mb-6 mt-2">
-                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${selectedCategory?.gradient} flex items-center justify-center shadow-lg`}>
+                      <div
+                        className={`w-12 h-12 rounded-full bg-gradient-to-br ${selectedCategory?.gradient} flex items-center justify-center shadow-lg`}
+                      >
                         <span className="text-2xl">{selectedCategory?.icon}</span>
                       </div>
                       <div>
@@ -665,7 +762,7 @@ const handleSubCategoryClick = (sub: SubCategory) => {
 
                     <div className="mt-6 text-center">
                       <Button
-                        onClick={() => navigate(`/vendors?category=${selectedCategory?.id}`)}
+                        onClick={() => goToVendors(`/vendors?category=${selectedCategory?.id}`)}
                         className="bg-gold hover:bg-gold-dark text-background"
                       >
                         Browse All {selectedCategory?.name} Vendors
@@ -674,21 +771,24 @@ const handleSubCategoryClick = (sub: SubCategory) => {
                     </div>
                   </motion.div>
                 )}
-
               </AnimatePresence>
             </div>
           </div>
 
           {/* Edge fringe strips */}
           <AnimatePresence>
-            {(stage === "categories" || stage === "subcategories" || stage === "services") && (
+            {showChrome && (
               <>
                 <motion.div
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-crimson/40 to-transparent pointer-events-none z-10"
                 />
                 <motion.div
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l from-crimson/40 to-transparent pointer-events-none z-10"
                 />
               </>

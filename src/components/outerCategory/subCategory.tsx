@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ElementType } from "react";
 import type { SubCategory } from "@/lib/categoryData";
 
@@ -66,33 +67,51 @@ const weddingIcons: ElementType[] = [
   WandSparkles,
 ];
 
+// Shows a warm gradient instead of a broken-image icon and alt text
+// when a picture is missing or cannot be decoded.
+const CardImage = ({ src, alt }: { src?: string; alt: string }) => {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div className="absolute inset-0 bg-gradient-to-br from-[#4a3410] via-[#1c1510] to-[#0d0d12]" />
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+    />
+  );
+};
+
 export default function WeddingSubcategoryCards({
   subcategories,
   onSelect,
 }: SubCategoryProps) {
-
-  console.log("WeddingSubcategoryCards rendered:", subcategories.length);
-
   return (
     <div
-  className="
-    fixed
-    z-50
-    left-1/2
-    -translate-x-1/2
-    top-[420px]
-    grid
-    grid-cols-1
-    sm:grid-cols-2
-    lg:grid-cols-4
-    gap-x-5
-    gap-y-5
-    w-[1600px]
-    max-w-[92vw]
-  "
->
+      className="
+        relative
+        z-10
+        mx-auto
+        grid
+        w-full
+        max-w-[1600px]
+        grid-cols-1
+        gap-x-5
+        gap-y-5
+        px-4
+        pb-8
+        sm:grid-cols-2
+        lg:grid-cols-4
+      "
+    >
       {subcategories.map((subcategory, index) => {
-        const image = weddingImages[index];
         const Icon = weddingIcons[index] || Palette;
 
         return (
@@ -103,7 +122,6 @@ export default function WeddingSubcategoryCards({
             className="
               group
               relative
-              z-50
               h-[180px]
               w-full
               overflow-hidden
@@ -117,37 +135,15 @@ export default function WeddingSubcategoryCards({
               hover:-translate-y-1
               hover:border-[#d4af37]
               hover:shadow-[0_15px_45px_rgba(0,0,0,0.6)]
+              focus:outline-none
+              focus-visible:border-[#d4af37]
             "
           >
-
             {/* Background image */}
-            <img
-              src={image}
-              alt={subcategory.name}
-              className="
-                absolute
-                inset-0
-                w-full
-                h-full
-                object-cover
-                transition-transform
-                duration-700
-                ease-out
-                group-hover:scale-110
-              "
-            />
+            <CardImage src={weddingImages[index]} alt={subcategory.name} />
 
             {/* Dark overlay */}
-            <div
-              className="
-                absolute
-                inset-0
-                bg-gradient-to-t
-                from-black
-                via-black/65
-                to-black/10
-              "
-            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/65 to-black/10" />
 
             {/* Hover glow */}
             <div
@@ -164,11 +160,8 @@ export default function WeddingSubcategoryCards({
 
             {/* Content */}
             <div className="absolute inset-0 flex flex-col justify-end p-6">
-
               <div className="flex items-end justify-between gap-3">
-
                 <div>
-
                   {/* Icon */}
                   <div
                     className="
@@ -191,15 +184,7 @@ export default function WeddingSubcategoryCards({
                   </div>
 
                   {/* Title */}
-                  <h3
-                    className="
-                      text-white
-                      text-[18px]
-                      font-semibold
-                      leading-tight
-                      drop-shadow-lg
-                    "
-                  >
+                  <h3 className="text-white text-[18px] font-semibold leading-tight drop-shadow-lg">
                     {subcategory.name}
                   </h3>
 
@@ -207,7 +192,6 @@ export default function WeddingSubcategoryCards({
                   <p className="text-white/60 text-xs mt-1">
                     {subcategory.services?.length ?? 0} services
                   </p>
-
                 </div>
 
                 {/* Arrow */}
@@ -222,11 +206,8 @@ export default function WeddingSubcategoryCards({
                     group-hover:translate-x-2
                   "
                 />
-
               </div>
-
             </div>
-
           </button>
         );
       })}
@@ -234,11 +215,11 @@ export default function WeddingSubcategoryCards({
   );
 }
 
-
 export function WeddingHeader() {
+  const [failed, setFailed] = useState(false);
+
   return (
     <div className="relative flex flex-col items-center text-center">
-
       {/* Wedding image */}
       <div
         className="
@@ -252,54 +233,34 @@ export function WeddingHeader() {
           shadow-[0_0_40px_rgba(212,175,55,0.4)]
         "
       >
-        <img
-          src={weddingMain}
-          alt="Weddings"
-          className="w-full h-full object-cover"
-        />
+        {failed ? (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#4a3410] to-[#0d0d12]">
+            <Flower2 className="h-16 w-16 text-[#d4af37]" />
+          </div>
+        ) : (
+          <img
+            src={weddingMain}
+            alt="Weddings"
+            onError={() => setFailed(true)}
+            className="w-full h-full object-cover"
+          />
+        )}
       </div>
 
       {/* WEDDINGS */}
-      <p
-        className="
-          mt-4
-          text-[#d4af37]
-          text-[15px]
-          font-semibold
-          tracking-[0.3em]
-          uppercase
-        "
-      >
+      <p className="mt-4 text-[#d4af37] text-[15px] font-semibold tracking-[0.3em] uppercase">
         WEDDINGS
       </p>
 
       {/* Main heading */}
-      <h1
-        className="
-          mt-1
-          font-serif
-          text-white
-          text-4xl
-          md:text-5xl
-          font-semibold
-          leading-tight
-        "
-      >
+      <h1 className="mt-1 font-serif text-white text-4xl md:text-5xl font-semibold leading-tight">
         Plan Your Perfect Wedding
       </h1>
 
       {/* Description */}
-      <p
-        className="
-          mt-2
-          text-white/65
-          text-base
-          max-w-2xl
-        "
-      >
+      <p className="mt-2 text-white/65 text-base max-w-2xl">
         Explore wedding services and find trusted vendors for every part of your celebration.
       </p>
-
     </div>
   );
 }
