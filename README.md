@@ -141,3 +141,66 @@ src/
 └── integrations/
     └── supabase/client.ts     # Supabase client (safe fallback if no keys)
 ```
+
+# Baatein: customer ↔ vendor chat with voice & video calls
+
+Adds a **Baatein** link to the navbar (visible when signed in, with a gold unread badge) and a
+WhatsApp-style chat page at `/chat`. No new npm packages are needed.
+
+## What you get
+- Real-time 1-to-1 chat (Supabase Realtime): text, emoji, photos, files, voice notes
+- Read ticks, typing indicator, online dot, unread badges, day separators
+- **Voice call** and **video call** (WebRTC) with ringing, accept/decline, mute, camera off, timer
+- Call history shows in the chat ("Video call · 3:21", "Missed voice call")
+- Customer quick-reply chips ("Are you available on my event date?", "Request a quote")
+- Mobile layout: list and conversation are two screens
+
+## Setup (about 10 minutes)
+
+1. **Database**: open Supabase → SQL Editor → paste and run `supabase/chat_schema.sql`.
+   This creates the tables, security rules, realtime and the `chat-media` storage bucket.
+
+2. **Copy files** into your project, keeping the same paths:
+   ```
+   src/lib/chatClient.ts        src/lib/chatTypes.ts      src/lib/chatApi.ts
+   src/hooks/useChat.ts         src/hooks/useVoiceRecorder.ts
+   src/components/chat/*        src/pages/Chat.tsx
+   ```
+
+3. **Point to your Supabase client**: open `src/lib/chatClient.ts` and fix the one import
+   so it matches the client your `useAuth` already uses.
+
+4. **Replace** `src/components/Navbar.tsx` and `src/App.tsx` with the versions provided.
+   Changes are marked with `// NEW`. (`Chat.tsx` imports `Navbar` from `@/components/Navbar`;
+   change that path if yours differs.)
+
+5. **Add a "Message" button on vendor cards / profiles** (this is how chats start):
+   ```tsx
+   import { MessageVendorButton } from "@/components/chat/MessageVendorButton";
+
+   <MessageVendorButton
+     vendor={{ userId: vendor.user_id, name: vendor.business_name, avatar: vendor.logo_url, service: vendor.category }}
+   />
+   ```
+   `userId` must be the vendor's **auth user id**. Vendors then see the same Baatein page and
+   reply from there.
+
+## Testing calls
+Use two different browsers (or one normal and one incognito window), sign in as a customer and as
+a vendor, start a chat from the customer, and press the phone or camera icon.
+`localhost` is allowed to use camera and mic; a deployed site needs **https**.
+
+## Before going live
+- **TURN server**: calls use free Google STUN servers, which connect most users. Some mobile
+  networks and strict firewalls need a TURN relay. Add one (e.g. Metered, Twilio, Cloudflare Calls
+  or self-hosted coturn) via `.env`:
+  ```
+  VITE_TURN_URL=turn:your-turn-host:3478
+  VITE_TURN_USERNAME=...
+  VITE_TURN_CREDENTIAL=...
+  ```
+- **Incoming calls ring only while the site is open** in a browser tab. For ringing when the
+  site is closed you'd need push notifications (a later add-on).
+- Chat media bucket is public-read (files have unguessable paths). For stricter privacy switch
+  to a private bucket with signed URLs.
+- Labels are plain English; wire them into your language switcher if you want them translated.

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Menu, X, Grid3X3 } from "lucide-react";
+import { Menu, X, Grid3X3, MessageCircle } from "lucide-react";
 import { CategoryMindmap } from "./outerCategory/CategoryMindmap";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useUnreadCount } from "@/hooks/useChat"; // NEW
 
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -17,17 +18,40 @@ const navLinks = [
   // { label: "How It Works", href: "/how-it-works" },
   { label: "Ultra Gold", href: "/ultra-gold" },
   { label: "Community", href: "/community" },
+  { label: "Baatein", href: "/chat" }, // NEW: chat with vendors (shown only when signed in)
   { label: "Jhalak", href: "/reels" },
   { label: "Sign In", href: "/auth" },
 ];
 
 const { user } = useAuth();
+const unreadCount = useUnreadCount(); // NEW
+
+// NEW: hide the chat link for signed-out visitors
+const visibleLinks = navLinks.filter((l) => l.label !== "Baatein" || user);
 
 const displayName =
   user?.user_metadata?.full_name ||
   user?.user_metadata?.name ||
   user?.email?.split("@")[0] ||
   "there";
+
+// NEW: label + icon + unread badge for the chat link
+const renderLabel = (link: { label: string }) => {
+  if (link.label === "Sign In" && user) return `Hi, ${displayName}`;
+  if (link.label === "Baatein") {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        Baatein
+        {unreadCount > 0 && (
+          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-gold text-primary-foreground text-[10px] font-semibold flex items-center justify-center">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </span>
+    );
+  }
+  return link.label;
+};
 
   return (
     <>
@@ -51,21 +75,19 @@ const displayName =
 
             {/* Desktop nav */}
             <div className="hidden md:flex items-center gap-6">
-              {navLinks.map((link, index) => (
+              {visibleLinks.map((link, index) => (
                 <motion.div
                   key={link.label}
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.08 }}
                 >
-                   
+
                   <Link
                     to={link.href}
                     className={`text-muted-foreground hover:text-foreground transition-colors font-medium text-sm ${link.label === "Ultra Gold" ? "text-gold hover:text-gold-dark" : ""}`}
                   >
-                    {link.label === "Sign In" && user
-  ? `Hi, ${displayName}`
-  : link.label}
+                    {renderLabel(link)}
                   </Link>
                 </motion.div>
               ))}
@@ -104,19 +126,17 @@ const displayName =
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden border-t border-border"
           >
-             
+
             <div className="container mx-auto px-4 py-4 space-y-4">
             <LanguageSwitcher/>
-              {navLinks.map((link) => (
+              {visibleLinks.map((link) => (
                 <Link
                   key={link.label}
                   to={link.href}
                   className={`block text-muted-foreground hover:text-foreground transition-colors font-medium ${link.label === "Ultra Gold" ? "text-gold" : ""}`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  {link.label === "Sign In" && user
-  ? `Hi, ${displayName}`
-  : link.label}
+                  {renderLabel(link)}
                 </Link>
               ))}
               <button

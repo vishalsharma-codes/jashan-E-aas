@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { UploadReelModal } from "@/components/UploadReelModal";
+import { ReelSearch } from "@/components/ReelSearch";
 
 // ============================================================
 // TYPES & CONSTANTS
@@ -246,7 +247,7 @@ const CommentsSheetContent = ({
           </div>
         ))}
       </div>
-      
+
       <div className="border-t border-border">
         <div className="flex justify-between px-4 pt-3 text-xl">
           {QUICK_EMOJIS.map((emoji) => (
@@ -691,8 +692,11 @@ export const SpotlightReels = ({
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
   const orderRef = useRef<string[] | null>(null); // random order for this open
   const scrolledRef = useRef(false);
+  const prevQuery = useRef("");
 
-  const [reels, setReels] = useState<ReelItem[]>([]);
+  // allReels = everything loaded from the database; reels = what the search leaves visible
+  const [allReels, setReels] = useState<ReelItem[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [paused, setPaused] = useState(false);
@@ -709,6 +713,15 @@ export const SpotlightReels = ({
 
   const [comments, setComments] = useState<ReelComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+
+  const reels = useMemo(() => {
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return allReels;
+    return allReels.filter((r) => {
+      const hay = `${r.caption} ${r.authorName}`.toLowerCase();
+      return words.every((w) => hay.includes(w));
+    });
+  }, [allReels, query]);
 
   const currentReel: ReelItem | undefined = reels[activeIndex];
   const currentId = currentReel?.id;
@@ -728,82 +741,84 @@ export const SpotlightReels = ({
   }, [user, toast, navigate]);
 
   // ---- load reels, like counts and comment counts ----
-  const loadReels = useCallback(async (randomize = true) => {
-    const { data, error } = await supabase
-      .from("reels")
-      .select("id, user_id, video_path, caption, status, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
+  const loadReels = useCallback(
+    async (randomize = true) => {
+      const { data, error } = await supabase
+        .from("reels")
+        .select("id, user_id, video_path, caption, status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-    if (error) {
-      toast({ title: "Could not load jhalaks", description: error.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    // fetch author names separately
-    const userIds = Array.from(new Set((data ?? []).map((r: any) => r.user_id)));
-    const { data: profileRows } = userIds.length
-      ? await supabase.from("profiles").select("id, display_name, role").in("id", userIds)
-      : { data: [] as any[] };
-    const profileMap = new Map<string, any>((profileRows ?? []).map((p: any) => [p.id, p]));
-
-    const items: ReelItem[] = (data ?? []).map((r: any) => {
-      const profile = profileMap.get(r.user_id);
-      const name: string = profile?.display_name || "Jashan-E-Aas user";
-      return {
-        id: r.id,
-        userId: r.user_id,
-        videoUrl: supabase.storage.from("reels").getPublicUrl(r.video_path).data.publicUrl,
-        caption: r.caption ?? "",
-        authorName: name,
-        authorInitials: initialsOf(name),
-        isVendor: profile?.role === "vendor",
-        isMine: !!user && r.user_id === user.id,
-        approved: r.status === "approved",
-      };
-    });
-        let ordered = items;
-    if (randomize) {
-      if (!orderRef.current) {
-        // first load after opening: pick a fresh random order
-        orderRef.current = shuffle(items.map((i) => i.id));
+      if (error) {
+        toast({ title: "Could not load jhalaks", description: error.message, variant: "destructive" });
+        setLoading(false);
+        return;
       }
-      const pos = new Map(orderRef.current.map((id, idx) => [id, idx]));
-      // any reel not in the saved order goes to the front
-      ordered = [...items].sort(
-        (a, b) => (pos.get(a.id) ?? -1) - (pos.get(b.id) ?? -1)
-      );
-    }
-    setReels(ordered);
 
-    const ids = ordered.map((i) => i.id);
+      // fetch author names separately
+      const userIds = Array.from(new Set((data ?? []).map((r: any) => r.user_id)));
+      const { data: profileRows } = userIds.length
+        ? await supabase.from("profiles").select("id, display_name, role").in("id", userIds)
+        : { data: [] as any[] };
+      const profileMap = new Map<string, any>((profileRows ?? []).map((p: any) => [p.id, p]));
 
-    // const ids = items.map((i) => i.id);
-    if (ids.length) {
-      const [likesRes, commentsRes] = await Promise.all([
-        supabase.from("likes").select("reel_id, user_id").in("reel_id", ids),
-        supabase.from("comments").select("reel_id").in("reel_id", ids),
-      ]);
-
-      const counts: Record<string, number> = {};
-      const mine = new Set<string>();
-      (likesRes.data ?? []).forEach((l: any) => {
-        counts[l.reel_id] = (counts[l.reel_id] ?? 0) + 1;
-        if (user && l.user_id === user.id) mine.add(l.reel_id);
+      const items: ReelItem[] = (data ?? []).map((r: any) => {
+        const profile = profileMap.get(r.user_id);
+        const name: string = profile?.display_name || "Jashan-E-Aas user";
+        return {
+          id: r.id,
+          userId: r.user_id,
+          videoUrl: supabase.storage.from("reels").getPublicUrl(r.video_path).data.publicUrl,
+          caption: r.caption ?? "",
+          authorName: name,
+          authorInitials: initialsOf(name),
+          isVendor: profile?.role === "vendor",
+          isMine: !!user && r.user_id === user.id,
+          approved: r.status === "approved",
+        };
       });
-      setLikeCounts(counts);
-      setLiked(mine);
 
-      const cCounts: Record<string, number> = {};
-      (commentsRes.data ?? []).forEach((c: any) => {
-        cCounts[c.reel_id] = (cCounts[c.reel_id] ?? 0) + 1;
-      });
-      setCommentCounts(cCounts);
-    }
+      let ordered = items;
+      if (randomize) {
+        if (!orderRef.current) {
+          // first load after opening: pick a fresh random order
+          orderRef.current = shuffle(items.map((i) => i.id));
+        }
+        const pos = new Map(orderRef.current.map((id, idx) => [id, idx]));
+        // any reel not in the saved order goes to the front
+        ordered = [...items].sort(
+          (a, b) => (pos.get(a.id) ?? -1) - (pos.get(b.id) ?? -1)
+        );
+      }
+      setReels(ordered);
 
-    setLoading(false);
-  }, [user, toast]);
+      const ids = ordered.map((i) => i.id);
+      if (ids.length) {
+        const [likesRes, commentsRes] = await Promise.all([
+          supabase.from("likes").select("reel_id, user_id").in("reel_id", ids),
+          supabase.from("comments").select("reel_id").in("reel_id", ids),
+        ]);
+
+        const counts: Record<string, number> = {};
+        const mine = new Set<string>();
+        (likesRes.data ?? []).forEach((l: any) => {
+          counts[l.reel_id] = (counts[l.reel_id] ?? 0) + 1;
+          if (user && l.user_id === user.id) mine.add(l.reel_id);
+        });
+        setLikeCounts(counts);
+        setLiked(mine);
+
+        const cCounts: Record<string, number> = {};
+        (commentsRes.data ?? []).forEach((c: any) => {
+          cCounts[c.reel_id] = (cCounts[c.reel_id] ?? 0) + 1;
+        });
+        setCommentCounts(cCounts);
+      }
+
+      setLoading(false);
+    },
+    [user, toast]
+  );
 
   useEffect(() => {
     if (isOpen) loadReels();
@@ -811,9 +826,10 @@ export const SpotlightReels = ({
 
   // ---- open / close housekeeping ----
   useEffect(() => {
-        if (!isOpen) {
+    if (!isOpen) {
       scrolledRef.current = false;
       orderRef.current = null; // next open gets a new random order
+      setQuery(""); // clear the search when Jhalak closes
       return;
     }
     const previousOverflow = document.body.style.overflow;
@@ -839,11 +855,22 @@ export const SpotlightReels = ({
     return () => cancelAnimationFrame(frame);
   }, [isOpen, reels.length, initialIndex]);
 
+  // when the search text changes, go back to the first result
+  useEffect(() => {
+    if (prevQuery.current === query) return;
+    prevQuery.current = query;
+    setActiveIndex(0);
+    scrollerRef.current?.scrollTo({ top: 0 });
+  }, [query]);
+
   // ---- which jhalak is on screen decides which one plays ----
   useEffect(() => {
     if (!isOpen) return;
     const root = scrollerRef.current;
     if (!root) return;
+
+    // drop refs of slides that were removed by the search
+    slideRefs.current = slideRefs.current.slice(0, reels.length);
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -1034,8 +1061,9 @@ export const SpotlightReels = ({
     setCommentCounts((c) => ({ ...c, [currentReel.id]: Math.max(0, (c[currentReel.id] ?? 1) - 1) }));
   };
 
-    const handleUploaded = async () => {
+  const handleUploaded = async () => {
     orderRef.current = null;
+    setQuery(""); // show everything so the new upload is visible
     await loadReels(false); // newest first, so the new upload is on top
     scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -1117,15 +1145,16 @@ export const SpotlightReels = ({
             ))}
           </div>
 
-          {/* LOADING / EMPTY STATES */}
+          {/* LOADING */}
           {loading && (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-white/80" />
             </div>
           )}
 
-          {!loading && reels.length === 0 && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-8 text-center text-white">
+          {/* EMPTY: no reels exist at all */}
+          {!loading && allReels.length === 0 && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black px-8 text-center text-white">
               <Clapperboard className="h-12 w-12 text-gold" />
               <h3 className="text-lg font-semibold">No jhalaks yet</h3>
               <p className="max-w-xs text-sm text-white/70">
@@ -1141,13 +1170,24 @@ export const SpotlightReels = ({
             </div>
           )}
 
-          {/* TOP BAR */}
+          {/* EMPTY: reels exist but the search matches none */}
+          {!loading && allReels.length > 0 && reels.length === 0 && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black px-8 text-center text-white">
+              <p className="text-lg font-semibold">No jhalaks found for &quot;{query}&quot;</p>
+              <button type="button" onClick={() => setQuery("")} className="text-sm text-gold underline">
+                Clear search
+              </button>
+            </div>
+          )}
+
+          {/* TOP BAR: search + upload + close side by side */}
           <div
             className="pointer-events-none absolute left-1/2 top-0 z-30 flex -translate-x-1/2 items-center justify-between px-4 py-4"
             style={{ width: FRAME_WIDTH }}
           >
             <h2 className="text-xl font-bold text-white drop-shadow">Jhalak</h2>
-            <div className="pointer-events-auto flex items-center gap-4 text-white">
+            <div className="pointer-events-auto flex flex-row items-center gap-4 text-white">
+              <ReelSearch value={query} onChange={setQuery} resultCount={reels.length} />
               <button
                 type="button"
                 aria-label="Upload a jhalak"

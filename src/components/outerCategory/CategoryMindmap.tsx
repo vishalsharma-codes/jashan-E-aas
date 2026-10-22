@@ -10,6 +10,7 @@ import WeddingStyleCards from "./subCategory/wedding";
 import DynamicSubcategoryCards from "./subCategory/DynamicSubcategoryCards";
 import CategorySubcategoryCards from "./categoryDesign/CategorySubcategoryCards";
 
+
 import weddingImage from "./categoryImages/weddings.jpg";
 import corporateImage from "./categoryImages/corporate-events.jpg";
 import socialPartiesImage from "./categoryImages/social-parties.jpg";

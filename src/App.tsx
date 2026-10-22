@@ -22,16 +22,22 @@ import TrustSafety from "./pages/TrustSafety";
 import NotFound from "./pages/NotFound";
 import ChooseRole from "./pages/ChooseRole";
 import Reels from "./pages/Reels";
+import Chat from "./pages/Chat"; // NEW
+import { ChatProvider } from "@/components/chat/ChatProvider"; // NEW
 import { SmoothScroll } from "@/components/SmoothScroll";
+import { ModerationToasts, AdminModeration } from "@/components/chat/moderation";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      {/* NEW: ChatProvider = online presence + incoming/outgoing voice & video calls (works on every page) */}
+      <ChatProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <ModerationToasts />
         <BrowserRouter>
                     <SmoothScroll />
           <Routes>
@@ -51,12 +57,17 @@ const App = () => (
             <Route path="/rewards" element={<GamificationPage />} />
             <Route path="/compare" element={<VendorComparison />} />
             <Route path="/trust-safety" element={<TrustSafety />} />
+            {/* NEW: chat */}
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/chat/:conversationId" element={<Chat />} />
             <Route path="*" element={<NotFound />} />
             <Route path="/choose-role" element={<ChooseRole />} />
             <Route path="/reels" element={<Reels />} />
+            <Route path="/admin/moderation" element={<AdminModeration />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </ChatProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
