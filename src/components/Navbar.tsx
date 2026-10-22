@@ -4,6 +4,7 @@ import { Menu, X, Grid3X3 } from "lucide-react";
 import { CategoryMindmap } from "./outerCategory/CategoryMindmap";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -13,7 +14,7 @@ export const Navbar = () => {
 const navLinks = [
   { label: "Vendors", href: "/vendors" },
   { label: "For Partners", href: "/for-partners" },
-  { label: "How It Works", href: "/how-it-works" },
+  // { label: "How It Works", href: "/how-it-works" },
   { label: "Ultra Gold", href: "/ultra-gold" },
   { label: "Community", href: "/community" },
   { label: "Jhalak", href: "/reels" },
@@ -57,6 +58,7 @@ const displayName =
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.08 }}
                 >
+                   
                   <Link
                     to={link.href}
                     className={`text-muted-foreground hover:text-foreground transition-colors font-medium text-sm ${link.label === "Ultra Gold" ? "text-gold hover:text-gold-dark" : ""}`}
@@ -67,6 +69,8 @@ const displayName =
                   </Link>
                 </motion.div>
               ))}
+
+<LanguageSwitcher />
 
               {/* Category mindmap trigger */}
               <motion.button
@@ -100,7 +104,9 @@ const displayName =
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden border-t border-border"
           >
+             
             <div className="container mx-auto px-4 py-4 space-y-4">
+            <LanguageSwitcher/>
               {navLinks.map((link) => (
                 <Link
                   key={link.label}

@@ -105,6 +105,15 @@ const formatCount = (n: number) => {
   return n.toLocaleString();
 };
 
+const shuffle = <T,>(arr: T[]): T[] => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
 // ============================================================
 // BOTTOM SHEET
 // ============================================================
@@ -680,6 +689,7 @@ export const SpotlightReels = ({
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const orderRef = useRef<string[] | null>(null); // random order for this open
   const scrolledRef = useRef(false);
 
   const [reels, setReels] = useState<ReelItem[]>([]);
@@ -718,7 +728,7 @@ export const SpotlightReels = ({
   }, [user, toast, navigate]);
 
   // ---- load reels, like counts and comment counts ----
-  const loadReels = useCallback(async () => {
+  const loadReels = useCallback(async (randomize = true) => {
     const { data, error } = await supabase
       .from("reels")
       .select("id, user_id, video_path, caption, status, created_at")
@@ -753,9 +763,23 @@ export const SpotlightReels = ({
         approved: r.status === "approved",
       };
     });
-    setReels(items);
+        let ordered = items;
+    if (randomize) {
+      if (!orderRef.current) {
+        // first load after opening: pick a fresh random order
+        orderRef.current = shuffle(items.map((i) => i.id));
+      }
+      const pos = new Map(orderRef.current.map((id, idx) => [id, idx]));
+      // any reel not in the saved order goes to the front
+      ordered = [...items].sort(
+        (a, b) => (pos.get(a.id) ?? -1) - (pos.get(b.id) ?? -1)
+      );
+    }
+    setReels(ordered);
 
-    const ids = items.map((i) => i.id);
+    const ids = ordered.map((i) => i.id);
+
+    // const ids = items.map((i) => i.id);
     if (ids.length) {
       const [likesRes, commentsRes] = await Promise.all([
         supabase.from("likes").select("reel_id, user_id").in("reel_id", ids),
@@ -787,8 +811,9 @@ export const SpotlightReels = ({
 
   // ---- open / close housekeeping ----
   useEffect(() => {
-    if (!isOpen) {
+        if (!isOpen) {
       scrolledRef.current = false;
+      orderRef.current = null; // next open gets a new random order
       return;
     }
     const previousOverflow = document.body.style.overflow;
@@ -1009,8 +1034,9 @@ export const SpotlightReels = ({
     setCommentCounts((c) => ({ ...c, [currentReel.id]: Math.max(0, (c[currentReel.id] ?? 1) - 1) }));
   };
 
-  const handleUploaded = async () => {
-    await loadReels();
+    const handleUploaded = async () => {
+    orderRef.current = null;
+    await loadReels(false); // newest first, so the new upload is on top
     scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 

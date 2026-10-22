@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState,useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -17,6 +17,7 @@ import { EveBuddy } from "@/components/EveBuddy";
 import { UpiPaymentModal } from "@/components/UpiPayment";
 import { DynamicBackground } from "@/components/DynamicBackground";
 import { vendors, type Vendor } from "@/lib/vendorData";
+import { AutoScrollMarquee, type AutoScrollMarqueeHandle } from "@/components/AutoScrollMarquee";
 
 const GOLD = "#E9B638";
 
@@ -75,11 +76,11 @@ const PHOTO_POOL = [
 const priceNumber = (price: string) => {
   // Understand Indian price labels such as ₹25K, ₹1.5L and ₹600–₹2,200/plate.
   // Sort by the first amount shown in a price range.
-  const match = price.replace(/,/g, "").match(/(\\d+(?:\\.\\d+)?)\\s*(crore|cr|lakh|lac|l|k)?/i);
+  const match = price.replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*(crore|cr|lakh|lac|l|k)?/i);
   if (!match) return 0;
 
   const amount = Number(match[1]);
-  const unit = (match[2] || "").toLowerCase();
+  const unit = (match[2] || "").toLowerCase();  
 
   if (unit === "k") return amount * 1_000;
   if (["l", "lakh", "lac"].includes(unit)) return amount * 100_000;
@@ -188,14 +189,8 @@ function VendorCard({
 }
 
 function CarouselSection({
-  title,
-  subtitle,
-  items,
-  onBook,
-  onProfile,
-  savedIds,
-  onToggleSaved,
-  onViewAll,
+  title, subtitle, items, onBook, onProfile, savedIds, onToggleSaved, onViewAll,
+  direction = "right-to-left",
 }: {
   title: string;
   subtitle: string;
@@ -205,10 +200,9 @@ function CarouselSection({
   savedIds: Set<string>;
   onToggleSaved: (id: string) => void;
   onViewAll: () => void;
+  direction?: "right-to-left" | "left-to-right";
 }) {
-  const [scrollIndex, setScrollIndex] = useState(0);
-  const visible = items.length > 0 ? [...items.slice(scrollIndex), ...items.slice(0, scrollIndex)] : [];
-  const shift = (dir: number) => setScrollIndex((current) => items.length ? (current + dir + items.length) % items.length : 0);
+  const marqueeRef = useRef<AutoScrollMarqueeHandle>(null);
 
   return (
     <section className="mb-7">
@@ -219,20 +213,27 @@ function CarouselSection({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button type="button" onClick={onViewAll} className="inline-flex items-center whitespace-nowrap text-xs font-semibold text-amber-300 transition hover:text-amber-200">View All <ArrowUpRight className="ml-1 inline h-3.5 w-3.5" /></button>
-          <button type="button" aria-label={`Previous ${title}`} onClick={() => shift(-1)} className="grid h-8 w-8 place-items-center rounded-full border border-amber-400/50 text-amber-300 transition hover:bg-amber-300 hover:text-black"><ChevronLeft className="h-4 w-4" /></button>
-          <button type="button" aria-label={`Next ${title}`} onClick={() => shift(1)} className="grid h-8 w-8 place-items-center rounded-full border border-amber-400/50 text-amber-300 transition hover:bg-amber-300 hover:text-black"><ChevronRight className="h-4 w-4" /></button>
+          <button type="button" aria-label={`Previous ${title}`} onClick={() => marqueeRef.current?.nudge("left")} className="grid h-8 w-8 place-items-center rounded-full border border-amber-400/50 text-amber-300 transition hover:bg-amber-300 hover:text-black"><ChevronLeft className="h-4 w-4" /></button>
+          <button type="button" aria-label={`Next ${title}`} onClick={() => marqueeRef.current?.nudge("right")} className="grid h-8 w-8 place-items-center rounded-full border border-amber-400/50 text-amber-300 transition hover:bg-amber-300 hover:text-black"><ChevronRight className="h-4 w-4" /></button>
         </div>
       </div>
+
       {items.length ? (
-        <div className="-mx-1 overflow-x-auto px-1 pb-3 [scrollbar-width:thin] [scrollbar-color:#d4a72c_#11181c]">
-          <div className="flex snap-x snap-mandatory gap-3">
-            {items.slice(0, 10).map((vendor, index) => (
-              <div key={`${title}-${vendor.id}`} className="w-[245px] shrink-0 snap-start sm:w-[265px]">
-                <VendorCard vendor={vendor} index={index} compact onBook={onBook} onProfile={onProfile} saved={savedIds.has(vendor.id)} onToggleSaved={onToggleSaved} />
-              </div>
-            ))}
-          </div>
-        </div>
+        <AutoScrollMarquee ref={marqueeRef} speed={40} gap={12} direction={direction} className="-mx-1 px-1 pb-3 pt-1">
+          {items.slice(0, 10).map((vendor, index) => (
+            <div key={`${title}-${vendor.id}`} className="w-[245px] shrink-0 sm:w-[265px]">
+              <VendorCard
+                vendor={vendor}
+                index={index}
+                compact
+                onBook={onBook}
+                onProfile={onProfile}
+                saved={savedIds.has(vendor.id)}
+                onToggleSaved={onToggleSaved}
+              />
+            </div>
+          ))}
+        </AutoScrollMarquee>
       ) : (
         <div className="rounded-xl border border-white/10 bg-white/[.02] p-6 text-sm text-zinc-400">No vendors to show in this section yet.</div>
       )}
@@ -304,8 +305,12 @@ const Vendors = () => {
     switch (sortBy) {
       case "rating": result = [...result].sort((a, b) => b.rating - a.rating); break;
       case "reviews": result = [...result].sort((a, b) => b.reviews - a.reviews); break;
-      case "price-low": result = [...result].sort((a, b) => priceNumber(a.price) - priceNumber(b.price)); break;
-      case "price-high": result = [...result].sort((a, b) => priceNumber(b.price) - priceNumber(a.price)); break;
+      case "price-low":
+  result = [...result].sort((a, b) => (a.priceMin ?? priceNumber(a.price)) - (b.priceMin ?? priceNumber(b.price)));
+  break;
+case "price-high":
+  result = [...result].sort((a, b) => (b.priceMin ?? priceNumber(b.price)) - (a.priceMin ?? priceNumber(a.price)));
+  break;
       default: result = [...result].sort((a, b) => Number(b.isVerified) - Number(a.isVerified) || b.rating - a.rating);
     }
     return result;
@@ -336,7 +341,7 @@ const Vendors = () => {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#080d10] text-white">
+    <div className="min-h-screen overflow-x-clip bg-[#080d10] text-white">
       <DynamicBackground />
       <Navbar />
 
@@ -392,8 +397,7 @@ const Vendors = () => {
           </section>
 
           {/* All Vendors carousel */}
-          <CarouselSection
-            title="All Vendors"
+          <CarouselSection title="All Vendors" 
             subtitle="Explore our verified vendors across different event types"
             items={filtered.slice(0, 10)}
             onBook={handleBook}
@@ -401,6 +405,7 @@ const Vendors = () => {
             savedIds={savedIds}
             onToggleSaved={toggleSaved}
             onViewAll={openAllVendors}
+            direction="right-to-left"
           />
 
           {/* Top rated carousel */}
@@ -413,6 +418,7 @@ const Vendors = () => {
             savedIds={savedIds}
             onToggleSaved={toggleSaved}
             onViewAll={openAllVendors}
+            direction="left-to-right"
           />
 
           {/* Featured vendor */}
@@ -456,7 +462,7 @@ const Vendors = () => {
 
           {/* Full directory */}
           <section id="all-vendors" className="scroll-mt-24 border-t border-white/10 pt-7">
-            <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="sticky top-20 z-20 -mx-4 mb-4 flex flex-col gap-4 border-b border-white/10 bg-[#080d10]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:-mx-8 lg:px-8">
               <div>
                 <p className="text-[10px] font-bold tracking-[.25em] text-amber-300">FIND YOUR PERFECT MATCH</p>
                 <h2 className="mt-1 font-serif text-2xl font-semibold text-white sm:text-3xl">Browse All Vendors</h2>
@@ -497,15 +503,15 @@ const Vendors = () => {
               </motion.div>
             )}
 
-            <div className="mb-4 flex flex-wrap items-center gap-2">
+            {/* <div className="mb-4 flex flex-wrap items-center gap-2">
               <span className="mr-1 text-xs text-zinc-500">Category:</span>
               {SERVICE_CATEGORIES.slice(0, 8).map((category) => <button type="button" key={category.label} onClick={() => setActiveCategory(category.match)} className={`rounded-full border px-3 py-1.5 text-xs transition ${activeCategory === category.match ? "border-amber-300 bg-amber-300 text-black" : "border-white/10 bg-[#10171b] text-zinc-300 hover:border-amber-300/50"}`}>{category.label}</button>)}
               <button type="button" onClick={() => setCategoryOpen(true)} className="rounded-full border border-amber-300/30 px-3 py-1.5 text-xs text-amber-300 hover:bg-amber-300/10">More categories +</button>
               {(activeCategory !== "All" || activeEvent !== "All Events" || searchQuery || activeFilterCount > 0) && <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-xs text-rose-300 hover:bg-rose-400/10"><X className="h-3 w-3" /> Clear</button>}
-            </div>
+            </div> */}
 
             {filtered.length ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-10 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filtered.map((vendor, index) => (
                   <div key={vendor.id} className="relative">
                     {bookedVendorId === vendor.id && <div className="absolute inset-x-0 top-0 z-20 rounded-t-2xl bg-emerald-600 px-2 py-1 text-center text-xs font-bold text-white">✓ Token paid — booking confirmed</div>}
