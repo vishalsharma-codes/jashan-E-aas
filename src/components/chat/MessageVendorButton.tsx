@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { MessageCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getOrCreateConversation, type VendorRef } from "@/lib/chatApi";
@@ -24,23 +24,34 @@ export function MessageVendorButton({
   className?: string;
   children?: ReactNode;
 }) {
-  const { user } = useAuth();
+  const auth = useAuth() as { user: any; loading?: boolean; isLoading?: boolean };
+  const user = auth.user;
+  const loading = auth.loading ?? auth.isLoading ?? false;
   const navigate = useNavigate();
+  const location = useLocation();
   const [busy, setBusy] = useState(false);
 
   const open = async () => {
+    if (loading) return; // still checking the session: don't treat as logged out
+
     if (!user) {
-      toast.info("Please sign in to chat with vendors");
-      navigate("/auth");
+      toast.error("Please log in first to use Baatein", {
+        description: "Sign in to chat with vendors and the community.",
+      });
+      navigate("/auth", { state: { from: location.pathname + location.search } });
       return;
     }
     if (user.id === vendor.userId) {
       toast.info("This is your own profile");
       return;
     }
+
     setBusy(true);
     try {
-      const id = await getOrCreateConversation({ id: user.id, name: userDisplayName(user) }, vendor);
+      const id = await getOrCreateConversation(
+        { id: user.id, name: userDisplayName(user) },
+        vendor
+      );
       navigate(`/chat/${id}`);
     } catch {
       toast.error("Couldn't open the chat. Please try again.");

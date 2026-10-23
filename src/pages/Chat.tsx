@@ -1,5 +1,6 @@
-import { useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,7 +9,6 @@ import { useConversations } from "@/hooks/useChat";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useChatContext } from "@/components/chat/ChatProvider";
-import { ModerationBanner } from "@/components/chat/moderation";
 
 export default function Chat() {
   const auth = useAuth() as { user: any; loading?: boolean; isLoading?: boolean };
@@ -17,8 +17,22 @@ export default function Chat() {
 
   const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const warned = useRef(false);
   const { conversations, loading, reload } = useConversations();
   const { onlineIds } = useChatContext();
+
+  // Logged out (typed /chat in the address bar, or arrived from a link):
+  // show the alert once and send them to the login page. `replace` keeps Back from looping.
+  useEffect(() => {
+    if (!authLoading && !user && !warned.current) {
+      warned.current = true;
+      toast.error("Please log in first to use Baatein", {
+        description: "Sign in to chat with vendors and the community.",
+      });
+      navigate("/auth", { replace: true, state: { from: location.pathname } });
+    }
+  }, [authLoading, user]);
 
   const active = conversations.find((c) => c.id === conversationId) ?? null;
 
@@ -32,7 +46,6 @@ export default function Chat() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="pt-20">
-        <ModerationBanner />
         <div className="container mx-auto px-0 md:px-4 md:py-6">
           {authLoading ? (
             <div className="h-[60vh] flex items-center justify-center text-muted-foreground">Loading…</div>
