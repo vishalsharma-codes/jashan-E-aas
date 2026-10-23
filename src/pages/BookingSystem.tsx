@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { DynamicBackground } from "@/components/DynamicBackground";
 import { Footer } from "@/components/Footer";
 import { EveBuddy } from "@/components/EveBuddy";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { UpiPaymentModal } from "@/components/UpiPayment";
+import { MultiDayCalendar, MAX_DAYS, formatDay, toISO } from "@/components/booking/MultiDayCalendar";
+import { checkVendorAvailability } from "@/lib/BookingAvailability";
 import {
   AlertTriangle, CheckCircle, Clock, Shield, CreditCard,
   ChevronDown, ChevronUp, Star, MapPin, CalendarDays, Users,
-  ArrowRight, ArrowLeft, Sparkles, Lock, Zap, CheckSquare
+  ArrowRight, ArrowLeft, Sparkles, Lock, Zap, CheckSquare, CalendarX, Trophy
 } from "lucide-react";
 import { vendors } from "@/lib/vendorData";
 
@@ -57,19 +58,25 @@ const eventPaymentStructures = [
   { event: "Last-Minute Booking", structure: "60% upfront → 40% post-event" },
 ];
 
-const STEPS = ["Event Type", "Select Vendor", "Date & Details", "Review", "Payment"];
+// Order matters: tell us about the event first, THEN see vendors who are free on those days.
+const STEPS = ["Event Type", "Your Details", "Select Vendor", "Review", "Payment"];
 
-type BookingStep = 0 | 1 | 2 | 3 | 4 | 5;
+type BookingStep = 0 | 1 | 2 | 3 | 4;
+type AvailTab = "full" | "partial" | "all";
 
 interface BookingState {
   eventType: string;
-  vendorId: string;
-  date: string;
-  guests: string;
+  dates: string[];      // up to MAX_DAYS, "YYYY-MM-DD"
   city: string;
+  guests: string;
   requirements: string;
+  vendorId: string;
   agreed: boolean;
 }
+
+const EMPTY_BOOKING: BookingState = {
+  eventType: "", dates: [], city: "", guests: "", requirements: "", vendorId: "", agreed: false,
+};
 
 const EVENT_TYPES = [
   { id: "wedding", label: "Wedding", emoji: "💍" },
@@ -88,29 +95,74 @@ const EVENT_TYPES = [
 
 const CITIES = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Pune", "Jaipur", "Kolkata", "Goa", "Ahmedabad", "Surat", "Kochi"];
 const GUEST_OPTIONS = ["< 50", "50–100", "100–200", "200–500", "500–1000", "1000+"];
+const inr = (n: number) => new Intl.NumberFormat("en-IN").format(n);
 
 export default function BookingSystem() {
   const [expandedTimeline, setExpandedTimeline] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"guide" | "wizard">("wizard");
   const [step, setStep] = useState<BookingStep>(0);
-  const [booking, setBooking] = useState<BookingState>({
-    eventType: "", vendorId: "", date: "", guests: "", city: "", requirements: "", agreed: false
-  });
+  const [booking, setBooking] = useState<BookingState>(EMPTY_BOOKING);
+  const [availTab, setAvailTab] = useState<AvailTab>("full");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [bookingDone, setBookingDone] = useState(false);
   const [bookingId, setBookingId] = useState("");
 
-  const selectedVendor = vendors.find(v => v.id === booking.vendorId);
-  const filteredVendors = booking.eventType
-    ? vendors.filter(v => v.categoryId === booking.eventType).slice(0, 12)
-    : vendors.slice(0, 12);
+  const eventLabel = EVENT_TYPES.find((e) => e.id === booking.eventType)?.label;
+  const dayCount = booking.dates.length;
 
-  const tokenAmount = selectedVendor ? Math.round(selectedVendor.priceMin * 0.15) : 0;
+  // ── Vendors for this event type, ranked by availability on the chosen days ──
+  const { results, usedFallback } = useMemo(() => {
+    const inCategory = vendors.filter((v) => v.categoryId === booking.eventType);
+    const pool = inCategory.length ? inCategory : vendors;
+    const rows = pool.map((v) => {
+      const a = checkVendorAvailability(v as any, booking.dates);
+      const sameCity = !!booking.city && String(v.location ?? "").toLowerCase().includes(booking.city.toLowerCase());
+      const score = (a.status === "full" ? 50 : a.status === "partial" ? 15 : 0) + (sameCity ? 25 : 0) + Number(v.rating) * 4;
+      return { v, a, sameCity, score };
+    });
+    rows.sort((x, y) => y.score - x.score);
+    return { results: rows, usedFallback: inCategory.length === 0 };
+  }, [booking.eventType, booking.dates, booking.city]);
 
-  const handleNext = () => setStep(s => Math.min(s + 1, 4) as BookingStep);
-  const handleBack = () => setStep(s => Math.max(s - 1, 0) as BookingStep);
+  const counts = {
+    full: results.filter((r) => r.a.status === "full").length,
+    partial: results.filter((r) => r.a.status === "partial").length,
+    all: results.length,
+  };
+  const shown = results
+    .filter((r) => (availTab === "all" ? true : r.a.status === availTab))
+    .slice(0, 18);
+  const bestId = results.find((r) => r.a.status === "full")?.v.id;
 
-  const handlePaymentSuccess = (txnId: string) => {
+  const selected = results.find((r) => r.v.id === booking.vendorId);
+  const selectedVendor = selected?.v ?? vendors.find((v) => v.id === booking.vendorId);
+
+  // Price is per event day; token = 15% of the estimated total
+  const estimate = selectedVendor ? Number(selectedVendor.priceMin) * Math.max(dayCount, 1) : 0;
+  const tokenAmount = Math.round(estimate * 0.15);
+
+  // If the user edits dates and the chosen vendor is no longer free, un-select them.
+  useEffect(() => {
+    if (booking.vendorId && selected && selected.a.status !== "full") {
+      setBooking((b) => ({ ...b, vendorId: "" }));
+    }
+  }, [booking.dates]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lead-time hint based on the first selected day (ties into the guide tab)
+  const daysUntil = dayCount
+    ? Math.ceil((new Date(`${booking.dates[0]}T00:00:00`).getTime() - new Date(`${toISO(new Date())}T00:00:00`).getTime()) / 86400000)
+    : null;
+  const leadTime =
+    daysUntil === null ? null
+    : daysUntil < 7 ? { tone: "red", text: "Short notice: very few vendors will be free. Emergency vendor surcharge may apply." }
+    : daysUntil < 30 ? { tone: "amber", text: "Cutting it close: availability is limited, so book soon to lock your vendor." }
+    : { tone: "green", text: "Great timing: you have plenty of time and the widest choice of vendors." };
+
+  const handleNext = () => setStep((s) => Math.min(s + 1, 4) as BookingStep);
+  const handleBack = () => setStep((s) => Math.max(s - 1, 0) as BookingStep);
+  const goTo = (i: number) => { if (i < step) setStep(i as BookingStep); }; // jump back to any finished step
+
+  const handlePaymentSuccess = (_txnId: string) => {
     setPaymentOpen(false);
     setBookingId(`JEA-${Date.now().toString().slice(-8)}`);
     setBookingDone(true);
@@ -118,10 +170,16 @@ export default function BookingSystem() {
 
   const canProceed = () => {
     if (step === 0) return !!booking.eventType;
-    if (step === 1) return !!booking.vendorId;
-    if (step === 2) return !!booking.date && !!booking.city && !!booking.guests;
+    if (step === 1) return dayCount > 0 && !!booking.city && !!booking.guests;
+    if (step === 2) return !!booking.vendorId && selected?.a.status === "full";
     if (step === 3) return booking.agreed;
     return true;
+  };
+
+  const leadStyles: Record<string, string> = {
+    red: "bg-red-500/10 border-red-500/30 text-red-400",
+    amber: "bg-amber-500/10 border-amber-500/30 text-amber-400",
+    green: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
   };
 
   return (
@@ -140,10 +198,9 @@ export default function BookingSystem() {
             Booking & <span className="text-gradient-gold">Payment System</span>
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-8">
-            Book verified vendors, pay via UPI escrow, and enjoy complete peace of mind.
+            Pick your dates, see only vendors who are free, pay via UPI escrow, and enjoy complete peace of mind.
           </p>
 
-          {/* Tabs */}
           <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => setActiveTab("wizard")}
@@ -168,16 +225,21 @@ export default function BookingSystem() {
             <div className="container mx-auto px-4 max-w-3xl">
               {!bookingDone ? (
                 <>
-                  {/* Progress Steps */}
+                  {/* Progress steps (tap a finished step to go back and edit it) */}
                   <div className="flex items-center justify-between mb-8 overflow-x-auto pb-2">
                     {STEPS.map((label, i) => (
                       <div key={label} className="flex items-center">
-                        <div className={`flex flex-col items-center gap-1 ${i <= step ? "opacity-100" : "opacity-40"}`}>
+                        <button
+                          type="button"
+                          onClick={() => goTo(i)}
+                          disabled={i >= step}
+                          className={`flex flex-col items-center gap-1 ${i <= step ? "opacity-100" : "opacity-40"} ${i < step ? "cursor-pointer" : "cursor-default"}`}
+                        >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${i < step ? "bg-emerald-500 text-white" : i === step ? "bg-gold text-background" : "bg-muted text-muted-foreground"}`}>
                             {i < step ? <CheckCircle className="w-4 h-4" /> : i + 1}
                           </div>
                           <span className="text-[10px] text-muted-foreground whitespace-nowrap">{label}</span>
-                        </div>
+                        </button>
                         {i < STEPS.length - 1 && (
                           <div className={`w-8 md:w-12 h-0.5 mx-1 mb-4 transition-all ${i < step ? "bg-emerald-500" : "bg-border"}`} />
                         )}
@@ -185,19 +247,33 @@ export default function BookingSystem() {
                     ))}
                   </div>
 
+                  {/* Live summary strip once details are known */}
+                  {step >= 2 && (
+                    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-gold/20 bg-gold/5 px-4 py-2.5 text-xs">
+                      <span className="font-semibold text-gold">{eventLabel}</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span>{booking.dates.map((d) => formatDay(d)).join(", ")}</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span>{booking.city}</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span>{booking.guests} guests</span>
+                      {step === 2 && (
+                        <button onClick={() => setStep(1)} className="ml-auto text-gold underline">Edit</button>
+                      )}
+                    </div>
+                  )}
+
                   <motion.div
                     key={step}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
                     className="bg-card border border-border rounded-2xl p-6 shadow-lg"
                   >
-
                     {/* ── STEP 0: Event Type ── */}
                     {step === 0 && (
                       <div>
                         <h2 className="font-serif text-2xl font-bold mb-1">What kind of event?</h2>
-                        <p className="text-muted-foreground text-sm mb-6">Select your event type to see matching vendors</p>
+                        <p className="text-muted-foreground text-sm mb-6">Select your event type. We'll match specialists for it.</p>
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                           {EVENT_TYPES.map((et) => (
                             <motion.button
@@ -215,70 +291,26 @@ export default function BookingSystem() {
                       </div>
                     )}
 
-                    {/* ── STEP 1: Select Vendor ── */}
+                    {/* ── STEP 1: Your Details (dates, city, guests) ── */}
                     {step === 1 && (
-                      <div>
-                        <h2 className="font-serif text-2xl font-bold mb-1">Choose your vendor</h2>
-                        <p className="text-muted-foreground text-sm mb-4">
-                          {filteredVendors.length} verified vendors for{" "}
-                          <span className="text-gold">{EVENT_TYPES.find(e => e.id === booking.eventType)?.label || "your event"}</span>
-                        </p>
-                        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                          {filteredVendors.map((v) => (
-                            <motion.button
-                              key={v.id}
-                              whileHover={{ scale: 1.01 }}
-                              onClick={() => setBooking({ ...booking, vendorId: v.id })}
-                              className={`w-full text-left p-4 rounded-xl border transition-all ${booking.vendorId === v.id ? "bg-gold/10 border-gold" : "bg-muted/40 border-border hover:border-gold/40"}`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${v.gradient} flex items-center justify-center text-white font-bold flex-shrink-0`}>
-                                  {v.initials}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-0.5">
-                                    <span className="font-bold text-sm">{v.name}</span>
-                                    {v.isVerified && <CheckCircle className="w-3.5 h-3.5 text-gold flex-shrink-0" />}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">{v.category} · {v.location}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="flex items-center gap-1 text-xs">
-                                      <Star className="w-3 h-3 text-gold fill-gold" />
-                                      <span className="font-semibold">{v.rating}</span>
-                                      <span className="text-muted-foreground">({v.reviews})</span>
-                                    </span>
-                                    <span className="text-xs text-gold font-semibold">{v.price}</span>
-                                  </div>
-                                </div>
-                                {booking.vendorId === v.id && (
-                                  <CheckCircle className="w-5 h-5 text-gold flex-shrink-0" />
-                                )}
-                              </div>
-                            </motion.button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── STEP 2: Date & Details ── */}
-                    {step === 2 && (
-                      <div className="space-y-5">
+                      <div className="space-y-6">
                         <div>
-                          <h2 className="font-serif text-2xl font-bold mb-1">Event details</h2>
-                          <p className="text-muted-foreground text-sm">Tell us about your event</p>
+                          <h2 className="font-serif text-2xl font-bold mb-1">Tell us about your {eventLabel?.toLowerCase() ?? "event"}</h2>
+                          <p className="text-muted-foreground text-sm">Next, we'll show only vendors who are free on your dates.</p>
                         </div>
 
                         <div>
                           <label className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                            <CalendarDays className="w-4 h-4 text-gold" /> Event Date
+                            <CalendarDays className="w-4 h-4 text-gold" /> Event Date(s)
+                            <span className="ml-1 text-xs font-normal text-muted-foreground">(up to {MAX_DAYS} days)</span>
                           </label>
-                          <input
-                            type="date"
-                            min={new Date().toISOString().split("T")[0]}
-                            value={booking.date}
-                            onChange={(e) => setBooking({ ...booking, date: e.target.value })}
-                            className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-foreground focus:outline-none focus:border-gold text-sm"
-                          />
+                          <MultiDayCalendar value={booking.dates} onChange={(dates) => setBooking({ ...booking, dates })} />
+                          {leadTime && (
+                            <div className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs ${leadStyles[leadTime.tone]}`}>
+                              <Clock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                              <span>{leadTime.text}</span>
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -286,7 +318,7 @@ export default function BookingSystem() {
                             <MapPin className="w-4 h-4 text-gold" /> Event City
                           </label>
                           <div className="flex flex-wrap gap-2">
-                            {CITIES.map(city => (
+                            {CITIES.map((city) => (
                               <button
                                 key={city}
                                 onClick={() => setBooking({ ...booking, city })}
@@ -303,7 +335,7 @@ export default function BookingSystem() {
                             <Users className="w-4 h-4 text-gold" /> Expected Guests
                           </label>
                           <div className="grid grid-cols-3 gap-2">
-                            {GUEST_OPTIONS.map(g => (
+                            {GUEST_OPTIONS.map((g) => (
                               <button
                                 key={g}
                                 onClick={() => setBooking({ ...booking, guests: g })}
@@ -328,6 +360,114 @@ export default function BookingSystem() {
                       </div>
                     )}
 
+                    {/* ── STEP 2: Select Vendor (availability-aware) ── */}
+                    {step === 2 && (
+                      <div>
+                        <h2 className="font-serif text-2xl font-bold mb-1">Vendors free on your dates</h2>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          {counts.full} of {counts.all} {eventLabel ? `${eventLabel} ` : ""}vendors are available on all {dayCount} selected day{dayCount > 1 ? "s" : ""}.
+                        </p>
+                        {usedFallback && (
+                          <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                            No specialists listed yet for this event type, so we're showing all verified vendors.
+                          </p>
+                        )}
+
+                        {/* availability filter */}
+                        <div className="mb-4 flex flex-wrap gap-2">
+                          {([
+                            ["full", `Free on all days (${counts.full})`],
+                            ["partial", `Partly free (${counts.partial})`],
+                            ["all", `Show all (${counts.all})`],
+                          ] as [AvailTab, string][]).map(([key, label]) => (
+                            <button
+                              key={key}
+                              onClick={() => setAvailTab(key)}
+                              className={`rounded-full border px-3 py-1.5 text-xs transition-all ${availTab === key ? "border-gold bg-gold text-background" : "border-border bg-muted hover:border-gold/60"}`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {shown.length === 0 ? (
+                          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                            <CalendarX className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                            <p className="text-sm font-medium">No vendors in this list for your dates.</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Try partly-free vendors, or change your dates.</p>
+                            <Button variant="outline" size="sm" className="mt-4" onClick={() => setStep(1)}>Change dates</Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+                            {shown.map(({ v, a, sameCity }) => {
+                              const free = a.status === "full";
+                              const isSel = booking.vendorId === v.id;
+                              return (
+                                <motion.button
+                                  key={v.id}
+                                  whileHover={free ? { scale: 1.01 } : undefined}
+                                  disabled={!free}
+                                  onClick={() => setBooking({ ...booking, vendorId: v.id })}
+                                  className={`w-full text-left p-4 rounded-xl border transition-all ${
+                                    isSel ? "bg-gold/10 border-gold" : free ? "bg-muted/40 border-border hover:border-gold/40" : "bg-muted/20 border-border opacity-60 cursor-not-allowed"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${v.gradient} flex items-center justify-center text-white font-bold flex-shrink-0`}>
+                                      {v.initials}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                                        <span className="font-bold text-sm">{v.name}</span>
+                                        {v.isVerified && <CheckCircle className="w-3.5 h-3.5 text-gold flex-shrink-0" />}
+                                        {v.id === bestId && (
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-semibold text-gold">
+                                            <Trophy className="h-3 w-3" /> Best match
+                                          </span>
+                                        )}
+                                        {sameCity && (
+                                          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">In {booking.city}</span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">{v.category} · {v.location}</p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="flex items-center gap-1 text-xs">
+                                          <Star className="w-3 h-3 text-gold fill-gold" />
+                                          <span className="font-semibold">{v.rating}</span>
+                                          <span className="text-muted-foreground">({v.reviews})</span>
+                                        </span>
+                                        <span className="text-xs text-gold font-semibold">{v.price}</span>
+                                      </div>
+
+                                      {/* per-day availability dots */}
+                                      <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {booking.dates.map((d) => {
+                                          const ok = a.freeDays.includes(d);
+                                          return (
+                                            <span key={d} className={`rounded-md px-1.5 py-0.5 text-[10px] ${ok ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400 line-through"}`}>
+                                              {formatDay(d)}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                      {!free && (
+                                        <p className="mt-1.5 text-[11px] text-muted-foreground">
+                                          {a.status === "partial"
+                                            ? `Free on ${a.freeDays.length} of ${dayCount} days. Change your dates to book.`
+                                            : "Not available on your dates."}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {isSel && <CheckCircle className="w-5 h-5 text-gold flex-shrink-0" />}
+                                  </div>
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* ── STEP 3: Review ── */}
                     {step === 3 && selectedVendor && (
                       <div className="space-y-5">
@@ -336,7 +476,6 @@ export default function BookingSystem() {
                           <p className="text-muted-foreground text-sm">Confirm all details before proceeding to payment</p>
                         </div>
 
-                        {/* Vendor Summary */}
                         <div className="bg-muted/50 border border-border rounded-xl p-4">
                           <div className="flex items-center gap-3 mb-3">
                             <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${selectedVendor.gradient} flex items-center justify-center text-white font-bold`}>
@@ -353,15 +492,19 @@ export default function BookingSystem() {
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div className="bg-background/50 rounded-lg p-2">
                               <p className="text-xs text-muted-foreground">Event Type</p>
-                              <p className="font-medium">{EVENT_TYPES.find(e => e.id === booking.eventType)?.label}</p>
-                            </div>
-                            <div className="bg-background/50 rounded-lg p-2">
-                              <p className="text-xs text-muted-foreground">Event Date</p>
-                              <p className="font-medium">{booking.date}</p>
+                              <p className="font-medium">{eventLabel}</p>
                             </div>
                             <div className="bg-background/50 rounded-lg p-2">
                               <p className="text-xs text-muted-foreground">Location</p>
                               <p className="font-medium">{booking.city}</p>
+                            </div>
+                            <div className="bg-background/50 rounded-lg p-2 col-span-2">
+                              <p className="text-xs text-muted-foreground">Event Day{dayCount > 1 ? "s" : ""} ({dayCount})</p>
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {booking.dates.map((d) => (
+                                  <span key={d} className="rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-xs text-gold">{formatDay(d, true)}</span>
+                                ))}
+                              </div>
                             </div>
                             <div className="bg-background/50 rounded-lg p-2">
                               <p className="text-xs text-muted-foreground">Guests</p>
@@ -376,25 +519,27 @@ export default function BookingSystem() {
                           )}
                         </div>
 
-                        {/* Payment Breakdown */}
                         <div className="bg-gradient-to-r from-gold/10 to-crimson/10 border border-gold/30 rounded-xl p-4">
                           <h3 className="font-bold mb-3 flex items-center gap-2">
                             <CreditCard className="w-4 h-4 text-gold" /> Payment Plan
                           </h3>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Vendor Price Range</span>
+                              <span className="text-muted-foreground">Vendor starting price (per day)</span>
                               <span className="font-semibold">{selectedVendor.price}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Estimated total ({dayCount} day{dayCount > 1 ? "s" : ""})</span>
+                              <span className="font-semibold">₹{inr(estimate)}+</span>
                             </div>
                             <div className="flex justify-between border-t border-gold/20 pt-2">
                               <span className="text-gold font-semibold">Token (15% today)</span>
-                              <span className="text-gold font-bold text-lg">₹{new Intl.NumberFormat("en-IN").format(tokenAmount)}</span>
+                              <span className="text-gold font-bold text-lg">₹{inr(tokenAmount)}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">Balance paid in milestones as per Jashan-E-Aas escrow policy</p>
+                            <p className="text-xs text-muted-foreground">Final quote is confirmed by the vendor. Balance is paid in milestones as per Jashan-E-Aas escrow policy.</p>
                           </div>
                         </div>
 
-                        {/* T&C */}
                         <label className="flex items-start gap-3 cursor-pointer">
                           <input
                             type="checkbox"
@@ -421,15 +566,13 @@ export default function BookingSystem() {
                       <div className="space-y-5">
                         <div>
                           <h2 className="font-serif text-2xl font-bold mb-1">Secure Your Booking</h2>
-                          <p className="text-muted-foreground text-sm">Pay the token amount to confirm your booking</p>
+                          <p className="text-muted-foreground text-sm">Pay the token amount to lock these dates</p>
                         </div>
 
                         <div className="bg-gradient-to-r from-gold/10 to-crimson/10 border border-gold/30 rounded-2xl p-5 text-center">
-                          <p className="text-muted-foreground text-sm mb-1">Token Payment (15% of base price)</p>
-                          <p className="text-4xl font-bold text-gold mb-1">
-                            ₹{new Intl.NumberFormat("en-IN").format(tokenAmount)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">to secure {selectedVendor.name}</p>
+                          <p className="text-muted-foreground text-sm mb-1">Token Payment (15% of estimated total)</p>
+                          <p className="text-4xl font-bold text-gold mb-1">₹{inr(tokenAmount)}</p>
+                          <p className="text-xs text-muted-foreground">to secure {selectedVendor.name} for {dayCount} day{dayCount > 1 ? "s" : ""}</p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -438,7 +581,7 @@ export default function BookingSystem() {
                             { icon: "↩️", label: "Refund Policy Applies" },
                             { icon: "⚡", label: "Instant Confirmation" },
                             { icon: "🛡️", label: "Dispute Protection" },
-                          ].map(f => (
+                          ].map((f) => (
                             <div key={f.label} className="flex items-center gap-2 bg-muted rounded-xl p-3 text-xs">
                               <span>{f.icon}</span>
                               <span className="font-medium">{f.label}</span>
@@ -452,7 +595,7 @@ export default function BookingSystem() {
                           className="w-full h-14 bg-gradient-to-r from-gold to-gold-dark text-background font-bold text-lg"
                         >
                           <Lock className="w-5 h-5 mr-2" />
-                          Pay ₹{new Intl.NumberFormat("en-IN").format(tokenAmount)} via UPI
+                          Pay ₹{inr(tokenAmount)} via UPI
                         </Button>
 
                         <p className="text-center text-xs text-muted-foreground">
@@ -474,7 +617,7 @@ export default function BookingSystem() {
                           disabled={!canProceed()}
                           className="flex-1 bg-gold hover:bg-gold-dark text-background font-semibold flex items-center justify-center gap-1.5"
                         >
-                          {step === 3 ? "Proceed to Payment" : "Continue"}
+                          {step === 1 ? "Show Available Vendors" : step === 3 ? "Proceed to Payment" : "Continue"}
                           <ArrowRight className="w-4 h-4" />
                         </Button>
                       )}
@@ -514,9 +657,9 @@ export default function BookingSystem() {
                       <span className="text-muted-foreground">Vendor</span>
                       <span className="font-semibold">{selectedVendor?.name}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Event Date</span>
-                      <span className="font-semibold">{booking.date}</span>
+                    <div className="flex justify-between gap-4 text-sm">
+                      <span className="text-muted-foreground">Event Day{dayCount > 1 ? "s" : ""}</span>
+                      <span className="font-semibold text-right">{booking.dates.map((d) => formatDay(d)).join(", ")}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">City</span>
@@ -524,7 +667,7 @@ export default function BookingSystem() {
                     </div>
                     <div className="flex justify-between text-sm border-t border-border pt-3">
                       <span className="text-muted-foreground">Token Paid</span>
-                      <span className="font-bold text-emerald-400">₹{new Intl.NumberFormat("en-IN").format(tokenAmount)} ✓</span>
+                      <span className="font-bold text-emerald-400">₹{inr(tokenAmount)} ✓</span>
                     </div>
                   </div>
 
@@ -535,7 +678,7 @@ export default function BookingSystem() {
                   </div>
 
                   <Button
-                    onClick={() => { setBookingDone(false); setStep(0); setBooking({ eventType: "", vendorId: "", date: "", guests: "", city: "", requirements: "", agreed: false }); }}
+                    onClick={() => { setBookingDone(false); setStep(0); setBooking(EMPTY_BOOKING); setAvailTab("full"); }}
                     className="w-full bg-gold hover:bg-gold-dark text-background font-semibold"
                   >
                     Book Another Vendor
@@ -549,8 +692,6 @@ export default function BookingSystem() {
         {/* ─── GUIDE TAB ─── */}
         {activeTab === "guide" && (
           <motion.div key="guide" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-20">
-
-            {/* Advance Booking Guide */}
             <section className="py-12">
               <div className="container mx-auto px-4">
                 <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-8">
@@ -615,7 +756,6 @@ export default function BookingSystem() {
               </div>
             </section>
 
-            {/* Payment Architecture */}
             <section className="py-12 bg-charcoal-light/30">
               <div className="container mx-auto px-4">
                 <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-10">
@@ -661,7 +801,6 @@ export default function BookingSystem() {
               </div>
             </section>
 
-            {/* Refund Policy */}
             <section className="py-12">
               <div className="container mx-auto px-4 max-w-2xl">
                 <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
@@ -690,7 +829,7 @@ export default function BookingSystem() {
         <UpiPaymentModal
           isOpen={paymentOpen}
           amount={tokenAmount}
-          description={`Token payment for ${EVENT_TYPES.find(e => e.id === booking.eventType)?.label || "event"}`}
+          description={`Token payment for ${eventLabel || "event"} (${dayCount} day${dayCount > 1 ? "s" : ""})`}
           vendorName={selectedVendor.name}
           phase="Token / Booking Amount (15%)"
           onSuccess={handlePaymentSuccess}

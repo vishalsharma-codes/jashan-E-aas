@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useUnreadCount } from "@/hooks/useChat";
+import UserMenu from "@/components/UserMenu.tsx";
 
 const navLinks = [
   { label: "Vendors", href: "/vendors" },
@@ -17,7 +18,6 @@ const navLinks = [
   { label: "Community", href: "/community" },
   { label: "Baatein", href: "/chat" }, // always visible; login is checked on click
   { label: "Jhalak", href: "/reels" },
-  { label: "Sign In", href: "/auth" },
 ];
 
 export const Navbar = () => {
@@ -29,12 +29,6 @@ export const Navbar = () => {
   const user = auth.user;
   const loading = auth.loading ?? auth.isLoading ?? false;
   const unreadCount = useUnreadCount();
-
-  const displayName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split("@")[0] ||
-    "there";
 
   // Baatein needs a login: logged-out visitors get an alert and are sent to /auth.
   // They come back to Baatein after signing in (the /auth page reads state.from).
@@ -56,7 +50,6 @@ export const Navbar = () => {
 
   // label + unread badge for the chat link
   const renderLabel = (link: { label: string }) => {
-    if (link.label === "Sign In" && user) return `Hi, ${displayName}`;
     if (link.label === "Baatein") {
       return (
         <span className="inline-flex items-center gap-1.5">
@@ -112,7 +105,7 @@ export const Navbar = () => {
 
               <LanguageSwitcher />
 
-              {/* Category mindmap trigger */}
+               {/* Category mindmap trigger */}
               <motion.button
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -123,6 +116,20 @@ export const Navbar = () => {
               >
                 <Grid3X3 className="w-5 h-5 text-gold group-hover:scale-110 transition-transform" />
               </motion.button>
+
+              {/* Account: dropdown when logged in, Sign In when logged out */}
+              {user ? (
+                <UserMenu />
+              ) : (
+                <Link
+                  to="/auth"
+                  className="text-muted-foreground hover:text-foreground transition-colors font-medium text-sm"
+                >
+                  Sign In
+                </Link>
+              )}
+
+             
             </div>
 
             {/* Mobile menu button */}
@@ -142,7 +149,7 @@ export const Navbar = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-border"
+            className="md:hidden border-t border-border max-h-[calc(100vh-5rem)] overflow-y-auto"
           >
             <div className="container mx-auto px-4 py-4 space-y-4">
               <LanguageSwitcher />
@@ -161,6 +168,19 @@ export const Navbar = () => {
                   {renderLabel(link)}
                 </Link>
               ))}
+
+              {user ? (
+                <UserMenu variant="mobile" onNavigate={() => setIsMobileMenuOpen(false)} />
+              ) : (
+                <Link
+                  to="/auth"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block text-muted-foreground hover:text-foreground transition-colors font-medium"
+                >
+                  Sign In
+                </Link>
+              )}
+
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
