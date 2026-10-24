@@ -26,6 +26,7 @@ import Chat from "./pages/Chat"; // NEW
 import { ChatProvider } from "@/components/chat/ChatProvider"; // NEW
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { ModerationToasts, AdminModeration } from "@/components/chat/moderation";
+import MyReels from "./pages/MyReels";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
             <Route path="/choose-role" element={<ChooseRole />} />
             <Route path="/reels" element={<Reels />} />
+            <Route path="/my-reels" element={<MyReels />} />
             <Route path="/admin/moderation" element={<AdminModeration />} />
           </Routes>
         </BrowserRouter>

@@ -78,7 +78,7 @@ export default function UserMenu({ variant = "desktop", onNavigate }: Props) {
         // { label: "Rewards & Points", to: "/rewards", icon: Gift },
         { label: "Compare Vendors", to: "/compare", icon: GitCompare },
         { label: "Ultra Gold Membership", to: "/ultra-gold", icon: Crown, premium: true },
-        { label: "Jhalak: My Reels", to: "/reels", icon: Clapperboard },
+        { label: "Jhalak: My Reels", to: "/my-reels", icon: Clapperboard },
       ],
       [
         isVendor
@@ -86,7 +86,7 @@ export default function UserMenu({ variant = "desktop", onNavigate }: Props) {
           : { label: "Become a Vendor", sub: "List Your Business", to: "/for-partners", icon: Store },
       ],
       [
-        { label: "Settings", to: "/account?tab=settings", icon: Settings },
+        // { label: "Settings", to: "/account?tab=settings", icon: Settings },
         { label: "Trust & Safety / Help Center", to: "/trust-safety", icon: ShieldCheck },
       ],
     ],

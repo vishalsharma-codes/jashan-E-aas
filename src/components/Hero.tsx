@@ -30,18 +30,11 @@ export const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
 
-    {/* Cinematic event video background */}
-    <video
-      className="absolute inset-0 h-full w-full object-cover"
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      aria-hidden="true"
-    >
-      <source src={weddingVideo} type="video/mp4" />
-    </video>
+    {/* Solid cream background */}
+<div
+  className="absolute inset-0 bg-[#F8EEDC]"
+  aria-hidden="true"
+/>
 
     {/* Dark overlay */}
     <div className="absolute inset-0 bg-[#101114]/65 pointer-events-none" />

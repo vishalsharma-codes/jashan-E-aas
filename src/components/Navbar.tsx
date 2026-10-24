@@ -9,13 +9,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useUnreadCount } from "@/hooks/useChat";
 import UserMenu from "@/components/UserMenu.tsx";
+import { NavDrawer } from "./NavDrawer";
 
 const navLinks = [
-  { label: "Vendors", href: "/vendors" },
-  { label: "For Partners", href: "/for-partners" },
+  // { label: "Vendors", href: "/vendors" },
+  // { label: "For Partners", href: "/for-partners" },
   // { label: "How It Works", href: "/how-it-works" },
-  { label: "Ultra Gold", href: "/ultra-gold" },
-  { label: "Community", href: "/community" },
+  // { label: "Ultra Gold", href: "/ultra-gold" },
+  // { label: "Community", href: "/community" },
   { label: "Baatein", href: "/chat" }, // always visible; login is checked on click
   { label: "Jhalak", href: "/reels" },
 ];
@@ -48,6 +49,7 @@ export const Navbar = () => {
     navigate("/auth", { state: { from: link.href } });
   };
 
+   const DRAWER_LABELS = ["Vendors", "For Partners", "Ultra Gold", "Community"];
   // label + unread badge for the chat link
   const renderLabel = (link: { label: string }) => {
     if (link.label === "Baatein") {
@@ -70,6 +72,8 @@ export const Navbar = () => {
       <nav className="fixed top-0 left-0 right-0 z-30 glass-dark border-b border-border/50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
+          <div className="flex items-center gap-3">
+     <div className="hidden md:block"><NavDrawer /></div>
             {/* Logo */}
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
               <Link to="/" className="flex items-center gap-2">
@@ -81,6 +85,7 @@ export const Navbar = () => {
                 </span>
               </Link>
             </motion.div>
+            </div>
 
             {/* Desktop nav */}
             <div className="hidden md:flex items-center gap-6">
@@ -103,7 +108,7 @@ export const Navbar = () => {
                 </motion.div>
               ))}
 
-              <LanguageSwitcher />
+              {/* <LanguageSwitcher /> */}
 
                {/* Category mindmap trigger */}
               <motion.button
