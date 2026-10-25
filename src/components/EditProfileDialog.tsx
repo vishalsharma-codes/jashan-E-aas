@@ -10,11 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void };
 
+/* Blush Peach: rose #C44A68, plum text #4A3440, cream/white surfaces */
 const field =
-  "relative rounded-xl border border-[#d4af37]/70 bg-black/30 px-4 pt-2 pb-2 transition-colors focus-within:border-[#d4af37] focus-within:shadow-[0_0_12px_rgba(212,175,55,0.25)]";
-const label = "block text-[11px] text-white/55";
+  "relative rounded-xl border border-[#C44A68]/40 bg-[#FFFBF8] px-4 pt-2 pb-2 transition-colors focus-within:border-[#C44A68] focus-within:shadow-[0_0_12px_rgba(196,74,104,0.25)]";
+const label = "block text-[11px] text-[#4A3440]/60";
 const input =
-  "w-full bg-transparent text-[15px] text-white outline-none placeholder:text-white/30 disabled:cursor-not-allowed disabled:text-white/60";
+  "w-full bg-transparent text-[15px] text-[#4A3440] outline-none placeholder:text-[#4A3440]/40 disabled:cursor-not-allowed disabled:text-[#4A3440]/60";
 
 export default function EditProfileDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth() as any;
@@ -94,31 +95,31 @@ export default function EditProfileDialog({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[440px] rounded-[20px] border border-[#d4af37]/60 bg-gradient-to-b from-[#17181f] to-[#0d0d12] p-6 text-white shadow-[0_0_50px_rgba(212,175,55,0.18)] sm:rounded-[20px]"
+        className="max-w-[440px] rounded-[20px] border border-[#C44A68]/50 bg-gradient-to-b from-[#FFFBF8] to-[#FFF1EC] p-6 text-[#4A3440] shadow-[0_20px_60px_-15px_rgba(196,74,104,0.45)] sm:rounded-[20px]"
       >
         {/* ornate corners */}
-        <span className="pointer-events-none absolute left-2 top-2 h-8 w-8 rounded-tl-xl border-l-2 border-t-2 border-[#d4af37]/70" />
-        <span className="pointer-events-none absolute bottom-2 right-2 h-8 w-8 rounded-br-xl border-b-2 border-r-2 border-[#d4af37]/70" />
+        <span className="pointer-events-none absolute left-2 top-2 h-8 w-8 rounded-tl-xl border-l-2 border-t-2 border-[#C44A68]/70" />
+        <span className="pointer-events-none absolute bottom-2 right-2 h-8 w-8 rounded-br-xl border-b-2 border-r-2 border-[#C44A68]/70" />
 
-        <DialogTitle className="text-center font-display text-2xl tracking-[0.12em] text-white">
+        <DialogTitle className="text-center font-display text-2xl tracking-[0.12em] text-[#4A1230]">
           EDIT PROFILE
         </DialogTitle>
         <DialogDescription className="sr-only">Update your personal details</DialogDescription>
-        <div className="mx-auto -mt-2 h-px w-28 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent" />
+        <div className="mx-auto -mt-2 h-px w-28 bg-gradient-to-r from-transparent via-[#C44A68] to-transparent" />
 
         {/* Avatar */}
         <div className="flex flex-col items-center gap-2">
           <div className="relative">
-            <Avatar className="h-24 w-24 ring-2 ring-[#d4af37]">
+            <Avatar className="h-24 w-24 ring-2 ring-[#C44A68]">
               <AvatarImage src={avatarPreview} alt={fullName} className="object-cover" />
-              <AvatarFallback className="bg-gradient-to-br from-[#f3d77a] to-[#b8922a] font-display text-3xl font-semibold text-black">
+              <AvatarFallback className="bg-gradient-to-br from-[#F4A6B8] to-[#C44A68] font-display text-3xl font-semibold text-white">
                 {(fullName || "U").charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#d4af37] text-black shadow-md transition-transform hover:scale-110"
+              className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#C44A68] text-white shadow-md transition-transform hover:scale-110"
               aria-label="Change avatar"
             >
               <Camera className="h-4 w-4" />
@@ -128,7 +129,7 @@ export default function EditProfileDialog({ open, onOpenChange }: Props) {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="text-sm text-[#d4af37] hover:underline"
+            className="text-sm text-[#C44A68] hover:underline"
           >
             Change Avatar
           </button>
@@ -149,7 +150,7 @@ export default function EditProfileDialog({ open, onOpenChange }: Props) {
           <label className={`${field} block`}>
             <span className={label}>Phone Number</span>
             <span className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-[#d4af37]" />
+              <Phone className="h-4 w-4 text-[#C44A68]" />
               <input
                 className={input}
                 type="tel"
@@ -165,7 +166,7 @@ export default function EditProfileDialog({ open, onOpenChange }: Props) {
               <span className={label}>City</span>
               <span className="flex items-center gap-2">
                 <input className={input} placeholder="Lucknow" value={city} onChange={(e) => setCity(e.target.value)} />
-                <Pencil className="h-4 w-4 shrink-0 text-[#d4af37]" />
+                <Pencil className="h-4 w-4 shrink-0 text-[#C44A68]" />
               </span>
             </label>
 
@@ -173,13 +174,13 @@ export default function EditProfileDialog({ open, onOpenChange }: Props) {
               <span className={label}>Date of Birth</span>
               <span className="flex items-center gap-2">
                 <input
-                  className={`${input} [color-scheme:dark]`}
+                  className={`${input} [color-scheme:light]`}
                   type="date"
                   max={new Date().toISOString().split("T")[0]}
                   value={dob}
                   onChange={(e) => setDob(e.target.value)}
                 />
-                <CalendarDays className="h-4 w-4 shrink-0 text-[#d4af37]" />
+                <CalendarDays className="h-4 w-4 shrink-0 text-[#C44A68]" />
               </span>
             </label>
           </div>
@@ -191,7 +192,7 @@ export default function EditProfileDialog({ open, onOpenChange }: Props) {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#b8922a] via-[#f3d77a] to-[#d4af37] py-3 font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#C44A68] via-[#E0708A] to-[#C44A68] py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save Changes
@@ -199,7 +200,7 @@ export default function EditProfileDialog({ open, onOpenChange }: Props) {
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-full border border-[#d4af37]/70 py-3 font-medium text-[#d4af37] transition-colors hover:bg-[#d4af37]/10"
+            className="rounded-full border border-[#C44A68]/60 py-3 font-medium text-[#C44A68] transition-colors hover:bg-[#C44A68]/10"
           >
             Cancel
           </button>

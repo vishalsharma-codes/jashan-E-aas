@@ -203,7 +203,7 @@ export const UpiPayment = ({ amount, description, onSuccess, onCancel, vendorNam
             </Button>
 
             <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
-              <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <Shield className="w-4 h-4 text-emerald-700 flex-shrink-0" />
               <p className="text-xs text-muted-foreground">Your payment is held in Jashan-E-Aas escrow. It will only be released to the vendor after your event is complete.</p>
             </div>
           </motion.div>
@@ -223,7 +223,7 @@ export const UpiPayment = ({ amount, description, onSuccess, onCancel, vendorNam
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
               <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto">
-                <CheckCircle className="w-10 h-10 text-emerald-400" />
+                <CheckCircle className="w-10 h-10 text-emerald-700" />
               </div>
             </motion.div>
             <div>
@@ -233,7 +233,7 @@ export const UpiPayment = ({ amount, description, onSuccess, onCancel, vendorNam
             </div>
             <div className="bg-muted rounded-xl p-3 text-xs text-muted-foreground space-y-1">
               <p className="flex items-center gap-2 justify-center"><Clock className="w-3 h-3" /> Vendor will confirm within 2 hours</p>
-              <p className="flex items-center gap-2 justify-center"><Shield className="w-3 h-3 text-emerald-400" /> Protected by Jashan-E-Aas Escrow</p>
+              <p className="flex items-center gap-2 justify-center"><Shield className="w-3 h-3 text-emerald-700" /> Protected by Jashan-E-Aas Escrow</p>
             </div>
           </motion.div>
         )}

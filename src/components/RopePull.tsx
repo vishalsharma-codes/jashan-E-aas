@@ -30,7 +30,7 @@ export const RopePull = () => {
       {/* Fixed rope in top-right */}
       <div className="fixed top-0 right-20 z-40 flex flex-col items-center" style={{ pointerEvents: "none" }}>
         {/* Ceiling bracket */}
-        <div className="w-7 h-5 bg-gradient-to-b from-gold via-gold-dark to-[#7a5c00] rounded-b-full shadow-lg relative" style={{ pointerEvents: "auto" }}>
+        <div className="w-7 h-5 bg-gradient-to-b from-gold via-gold-dark to-[#8A2A47] rounded-b-full shadow-lg relative" style={{ pointerEvents: "auto" }}>
           {/* Bracket screws */}
           <div className="absolute left-1.5 top-1.5 w-1 h-1 rounded-full bg-gold-light/60" />
           <div className="absolute right-1.5 top-1.5 w-1 h-1 rounded-full bg-gold-light/60" />
@@ -42,7 +42,7 @@ export const RopePull = () => {
           className="relative flex justify-center"
         >
           {/* Main rope strand */}
-          <div className="w-2 h-full bg-gradient-to-b from-[#c49a2a] via-[#e8c84a] to-[#a07820] rounded-full shadow-sm relative overflow-hidden">
+          <div className="w-2 h-full bg-gradient-to-b from-[#C44A68] via-[#E0708A] to-[#A8385A] rounded-full shadow-sm relative overflow-hidden">
             {/* Twisted rope texture */}
             {[...Array(10)].map((_, i) => (
               <div
@@ -51,7 +51,7 @@ export const RopePull = () => {
                 style={{
                   top: `${i * 10}%`,
                   height: "1px",
-                  background: "rgba(90,60,0,0.35)",
+                  background: "rgba(120,30,60,0.35)",
                   transform: "skewX(-30deg)",
                 }}
               />
@@ -86,7 +86,7 @@ export const RopePull = () => {
           <div
             className="w-11 h-16 mx-auto rounded-b-xl shadow-xl relative overflow-hidden flex flex-col items-center justify-end pb-1"
             style={{
-              background: "linear-gradient(160deg, #8b0a1a 0%, #6b0612 40%, #9a1020 70%, #7b0a18 100%)",
+              background: "linear-gradient(160deg, #F4A6B8 0%, #E0708A 40%, #F7B9C6 70%, #E98AA0 100%)",
             }}
           >
             {/* Fabric fold highlights */}
@@ -104,7 +104,7 @@ export const RopePull = () => {
                   className="w-0.5 rounded-b-full"
                   style={{
                     height: 14 + (i % 3) * 4,
-                    background: "linear-gradient(to bottom, #d4a017, #a07820)",
+                    background: "linear-gradient(to bottom, #E0708A, #A8385A)",
                   }}
                   animate={isDragging ? {
                     rotate: [(i - 3.5) * 3, (i - 3.5) * -3, (i - 3.5) * 3],

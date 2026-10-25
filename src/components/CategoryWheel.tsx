@@ -36,7 +36,7 @@ export const CategoryWheel = ({ isOpen, onClose, onSelect }: CategoryWheelProps)
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-0 top-0 w-1/2 h-full velvet-texture border-r-4 border-gold/50"
+            className="absolute left-0 top-0 w-1/2 h-full bg-gradient-to-b from-[#FFD9C7] to-[#FBD3DC] border-r-4 border-gold/50"
           >
             {/* Gold tassels */}
             <div className="absolute right-0 top-0 h-full flex flex-col justify-evenly pr-2">
@@ -58,7 +58,7 @@ export const CategoryWheel = ({ isOpen, onClose, onSelect }: CategoryWheelProps)
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 top-0 w-1/2 h-full velvet-texture border-l-4 border-gold/50"
+            className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-b from-[#FFD9C7] to-[#FBD3DC] border-l-4 border-gold/50"
           >
             {/* Gold tassels */}
             <div className="absolute left-0 top-0 h-full flex flex-col justify-evenly pl-2">
@@ -104,7 +104,7 @@ export const CategoryWheel = ({ isOpen, onClose, onSelect }: CategoryWheelProps)
               <h2 className="font-display text-4xl md:text-5xl text-gold mb-3">
                 Choose Your Event
               </h2>
-              <p className="text-foreground/70 text-lg">
+              <p className="text-white/70 text-lg">
                 Select a category to explore our curated vendors
               </p>
             </motion.div>
@@ -141,9 +141,9 @@ export const CategoryWheel = ({ isOpen, onClose, onSelect }: CategoryWheelProps)
                       {/* Content */}
                       <div className="pt-4 text-center">
                         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-background/20 flex items-center justify-center">
-                          <Icon className="w-8 h-8 text-foreground" />
+                          <Icon className="w-8 h-8 text-white" />
                         </div>
-                        <h3 className="font-display text-xl text-foreground font-semibold">
+                        <h3 className="font-display text-xl text-white font-semibold">
                           {category.label}
                         </h3>
                       </div>

@@ -79,7 +79,7 @@ export const RedCarpetSearch = () => {
             className="relative overflow-hidden rounded-2xl"
           >
             {/* Red velvet background */}
-            <div className="velvet-texture absolute inset-0" />
+            <div className="bg-gradient-to-b from-[#FFD9C7] to-[#FBD3DC] absolute inset-0" />
             
             {/* Gold border effect */}
             <div className="absolute inset-0 rounded-2xl border-2 border-gold/30" />

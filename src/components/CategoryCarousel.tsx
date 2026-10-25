@@ -14,9 +14,7 @@ const pick = (key: string) =>
   )?.[1] ?? "";
 
 /* ------------------------------------------------------------------ */
-/* 1. DATA – replace `image` with your own imports from                */
-/*    src/components/outerCategory/categoryImages/...                  */
-/*    e.g.  import agri from "./categoryImages/agri.jpg"               */
+/* 1. DATA                                                             */
 /* ------------------------------------------------------------------ */
 export type Category = {
   slug: string;
@@ -56,7 +54,6 @@ export default function CategoryCarousel({
   pauseOnHover?: boolean;
 }) {
   const n = categories.length;
-  // 3 identical copies -> we can silently jump between them = endless loop
   const loop = [...categories, ...categories, ...categories];
 
   const scroller = useRef<HTMLDivElement>(null);
@@ -65,10 +62,10 @@ export default function CategoryCarousel({
   const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const activeRef = useRef(n);
   const paused = useRef(false);
-  const pos = useRef(0); // exact (fractional) scroll position
-  const holdUntil = useRef(0); // don't drift until this timestamp
+  const pos = useRef(0);
+  const holdUntil = useRef(0);
   const drag = useRef({ down: false, startX: 0, startLeft: 0, moved: false });
-  const [active, setActive] = useState(n); // global index (middle copy)
+  const [active, setActive] = useState(n);
 
   const slot = (g: number) => items.current[g]?.parentElement as HTMLElement | null;
 
@@ -79,7 +76,6 @@ export default function CategoryCarousel({
     return t.offsetLeft - el.clientWidth / 2 + t.clientWidth / 2;
   };
 
-  /* Curved 3D transform for every card, based on distance from centre */
   const update = useCallback(() => {
     const el = scroller.current;
     if (!el) return;
@@ -107,11 +103,10 @@ export default function CategoryCarousel({
     setActive((p) => (p === best ? p : best));
   }, []);
 
-  /* Silent jump back into the middle copy (looks identical => endless) */
   const normalize = useCallback(() => {
     const el = scroller.current;
     if (!el || drag.current.down) return;
-    const w = centerLeft(2 * n) - centerLeft(n); // width of one full copy
+    const w = centerLeft(2 * n) - centerLeft(n);
     const pitch = w / n;
     if (el.scrollLeft < centerLeft(n) - pitch / 2) el.scrollLeft += w;
     else if (el.scrollLeft >= centerLeft(2 * n) - pitch / 2) el.scrollLeft -= w;
@@ -120,7 +115,6 @@ export default function CategoryCarousel({
   const onScroll = () => {
     cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame(update);
-    // when scrolling stops, jump to the middle copy
     clearTimeout(idleTimer.current);
     idleTimer.current = setTimeout(normalize, 150);
   };
@@ -133,7 +127,6 @@ export default function CategoryCarousel({
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Start on the middle copy */
   useLayoutEffect(() => {
     goTo(n, false);
     update();
@@ -160,12 +153,10 @@ export default function CategoryCarousel({
       last = t;
       const el = scroller.current;
       if (el) {
-        // someone else moved it (user / arrows / dots) -> follow
         if (Math.abs(el.scrollLeft - pos.current) > 2) pos.current = el.scrollLeft;
 
         if (!paused.current && !drag.current.down && t > holdUntil.current && !document.hidden) {
           pos.current += (speed * dt) / 1000;
-          // wrap inside the middle copy so it never ends
           const w = centerLeft(2 * n) - centerLeft(n);
           const lo = centerLeft(n) - w / n / 2;
           const hi = centerLeft(2 * n) - w / n / 2;
@@ -193,7 +184,6 @@ export default function CategoryCarousel({
     goTo(cur - (cur % n) + i);
   };
 
-  /* Mouse drag-to-scroll (touch already scrolls natively) */
   const down = (e: React.PointerEvent) => {
     if (e.pointerType !== "mouse") return;
     const el = scroller.current!;
@@ -221,22 +211,23 @@ export default function CategoryCarousel({
   };
 
   return (
-    <section className="relative overflow-hidden bg-[#14151a] py-20 text-white">
-      {/* soft gold glow behind the cards */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-500/10 blur-[120px]" />
+    /* Blush Peach: cream background, plum text, rose accent */
+    <section className="relative overflow-hidden bg-[#FFF6F2] py-20 text-[#4A3440]">
+      {/* soft peach glow behind the cards */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FFC9B0]/40 blur-[120px]" />
 
       {/* ---------- Heading ---------- */}
       <header className="relative mx-auto max-w-3xl px-6 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-400">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#C44A68]">
           ✦ Browse by event type ✦
         </p>
         <h2 className="mt-4 font-serif text-4xl md:text-6xl">
           Every Event,{" "}
-          <span className="italic text-amber-400">Every Vendor</span>
+          <span className="italic text-[#C44A68]">Every Vendor</span>
         </h2>
-        <p className="mt-4 text-sm text-white/55 md:text-base">
+        {/* <p className="mt-4 text-sm text-[#4A3440]/70 md:text-base">
           20 event categories · 100+ sub-types · 15,000+ verified vendors across India
-        </p>
+        </p> */}
       </header>
 
       {/* ---------- Carousel ---------- */}
@@ -272,13 +263,13 @@ export default function CategoryCarousel({
                   onClick={() => click(c, g)}
                   className={`group relative aspect-[3/4] cursor-pointer select-none overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-300 will-change-transform ${
                     isActive
-                      ? "border-amber-400/70 shadow-[0_20px_60px_-15px_rgba(245,185,60,0.45)]"
-                      : "border-white/10"
+                      ? "border-[#C44A68]/70 shadow-[0_20px_60px_-15px_rgba(196,74,104,0.45)]"
+                      : "border-[#C44A68]/15"
                   }`}
                   style={{ transformStyle: "preserve-3d" }}
                 >
                   {!c.image && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-900/60 via-neutral-900 to-black" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#FFD9C7] via-[#FBD3DC] to-[#FFF6F2]" />
                   )}
                   <img
                     src={c.image || undefined}
@@ -288,19 +279,20 @@ export default function CategoryCarousel({
                     loading="lazy"
                     className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 ${c.image ? "" : "hidden"}`}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                  {/* soft plum fade so the white text stays readable */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#4A3440]/85 via-[#4A3440]/10 to-transparent" />
 
                   <div className="absolute inset-x-0 bottom-0 p-5">
                     <h3
                       className={`font-serif text-xl leading-tight transition-colors ${
-                        isActive ? "text-amber-300" : "text-white"
+                        isActive ? "text-[#FFC9B0]" : "text-white"
                       }`}
                     >
                       {c.name}
                     </h3>
-                    <p className="mt-1 text-xs text-white/65">{c.subtitle}</p>
+                    <p className="mt-1 text-xs text-white/80">{c.subtitle}</p>
                     <span
-                      className={`mt-3 inline-block text-xs font-semibold text-amber-400 transition-all duration-300 ${
+                      className={`mt-3 inline-block text-xs font-semibold text-[#FFC9B0] transition-all duration-300 ${
                         isActive ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
                       }`}
                     >
@@ -318,7 +310,7 @@ export default function CategoryCarousel({
             key={d}
             aria-label={d === "prev" ? "Previous category" : "Next category"}
             onClick={() => step(d === "prev" ? -1 : 1)}
-            className={`absolute top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/50 text-xl backdrop-blur transition hover:border-amber-400 hover:text-amber-400 md:flex ${
+            className={`absolute top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-[#C44A68]/30 bg-white/85 text-xl text-[#C44A68] shadow-md backdrop-blur transition hover:border-[#C44A68] hover:bg-[#C44A68] hover:text-white md:flex ${
               d === "prev" ? "left-6" : "right-6"
             }`}
           >
@@ -336,14 +328,14 @@ export default function CategoryCarousel({
               aria-label={c.name}
               onClick={() => jumpToDot(i)}
               className={`h-1.5 rounded-full transition-all ${
-                i === active % n ? "w-8 bg-amber-400" : "w-1.5 bg-white/25"
+                i === active % n ? "w-8 bg-[#C44A68]" : "w-1.5 bg-[#4A3440]/25"
               }`}
             />
           ))}
         </div>
         <a
           href="/categories"
-          className="font-serif text-sm font-semibold text-amber-400 hover:underline"
+          className="font-serif text-sm font-semibold text-[#C44A68] hover:underline"
         >
           View All Categories →
         </a>

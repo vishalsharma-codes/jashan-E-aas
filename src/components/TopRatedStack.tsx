@@ -9,17 +9,9 @@ import {
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle, MapPin, Star, Tag } from "lucide-react";
 
-/* ─────────────────────────────────────────────────────────────
-   Top Rated — sticky tilted stack
-   Mixes effect1.mp4 (panels slide up over each other with a tilt,
-   giant mixed-type headline with parallax) and the saree-site reel
-   (arched thumbnails, wavy edges, italic gold accent headline).
-
+/* Top Rated — sticky tilted stack (Blush Peach theme)
    Desktop: one sticky full-screen panel per vendor.
-            Incoming panel enters tilted and straightens;
-            the covered panel scales back and dims.
-   Mobile / reduced-motion: same panels as a plain vertical list.
-   ───────────────────────────────────────────────────────────── */
+   Mobile / reduced-motion: same panels as a plain vertical list. */
 
 export interface StackVendor {
   id: string | number;
@@ -40,10 +32,14 @@ export interface StackVendor {
   }[];
 }
 
+/* Blush Peach tokens used in this file */
+const CREAM = "#FFF6F2";
+const PEACH = "#FFC9B0"; // accent text on photo panels
+const ROSE = "#C44A68";
+
 const WAVE =
   "M0,0 H1440 V30 C1260,80 1140,0 960,30 C780,60 660,70 480,40 C300,10 160,60 0,30 Z";
 
-/** hook: is the animated desktop version allowed? */
 function useStackEnabled() {
   const [on, setOn] = useState(false);
   useEffect(() => {
@@ -61,16 +57,15 @@ function useStackEnabled() {
   return on;
 }
 
-/* headline: blackletter first letter + sans rest + "X" + city */
 function Headline({ name, city }: { name: string; city: string }) {
   const short = name.split(/\s[—–-]\s/)[0].trim().toUpperCase();
   const first = short.charAt(0);
   const rest = short.slice(1);
   return (
-    <h3 className="break-words font-[Figtree] text-[clamp(2.4rem,7.2vw,6.6rem)] font-extrabold leading-[0.95] tracking-tight text-white drop-shadow-[0_6px_30px_rgba(0,0,0,0.45)]">
+    <h3 className="break-words font-[Figtree] text-[clamp(2.4rem,7.2vw,6.6rem)] font-extrabold leading-[0.95] tracking-tight text-white drop-shadow-[0_6px_30px_rgba(74,52,64,0.55)]">
       <span className="mr-[0.04em] font-[UnifrakturCook] font-normal">{first}</span>
       {rest}
-      <span className="mx-[0.25em] font-[Instrument_Serif] font-normal italic text-[#e8c46a]">
+      <span className="mx-[0.25em] font-[Instrument_Serif] font-normal italic text-[#FFC9B0]">
         ×
       </span>
       <span className="font-[Instrument_Serif] font-normal italic text-white/90">
@@ -80,7 +75,6 @@ function Headline({ name, city }: { name: string; city: string }) {
   );
 }
 
-/* panel body shared by animated + simple versions */
 function PanelBody({
   v,
   index,
@@ -99,7 +93,6 @@ function PanelBody({
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* background: photo if present, else big gradient + ghost emoji */}
       {cover?.image ? (
         <img
           src={cover.image}
@@ -114,13 +107,14 @@ function PanelBody({
           </span>
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/40" />
+      {/* soft plum tint (instead of pure black) keeps white text readable */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#4A3440]/75 via-[#4A3440]/15 to-[#4A3440]/35" />
 
       <div className="relative z-10 flex h-full flex-col justify-between px-6 py-8 md:px-14 md:py-12">
         {/* top row */}
         <div className="flex items-start justify-between gap-3">
-          <span className="flex items-center gap-2 rounded-full border border-white/25 bg-black/30 px-4 py-1.5 font-[Figtree] text-xs font-semibold uppercase tracking-[0.18em] text-white backdrop-blur">
-            <span className="text-[#e8c46a]">#{index + 1}</span>
+          <span className="flex items-center gap-2 rounded-full border border-white/40 bg-[#4A3440]/35 px-4 py-1.5 font-[Figtree] text-xs font-semibold uppercase tracking-[0.18em] text-white backdrop-blur">
+            <span style={{ color: PEACH }}>#{index + 1}</span>
             Top rated
           </span>
           <div className="flex items-center gap-2">
@@ -129,15 +123,15 @@ function PanelBody({
               onClick={onJumpToLast}
               aria-label={`Jump to the last card, card ${total} of ${total}`}
               title="Jump to the last card in this section"
-              className="rounded-full border border-white/30 bg-black/35 px-3 py-1.5 font-[Instrument_Serif] text-xl text-white/90 backdrop-blur transition hover:border-[#e8c46a] hover:text-[#e8c46a] focus:outline-none focus:ring-2 focus:ring-[#e8c46a]"
+              className="rounded-full border border-white/40 bg-[#4A3440]/40 px-3 py-1.5 font-[Instrument_Serif] text-xl text-white/90 backdrop-blur transition hover:border-[#FFC9B0] hover:text-[#FFC9B0] focus:outline-none focus:ring-2 focus:ring-[#FFC9B0]"
             >
               {String(index + 1).padStart(2, "0")}
-              <span className="text-white/45"> / {String(total).padStart(2, "0")}</span>
+              <span className="text-white/60"> / {String(total).padStart(2, "0")}</span>
             </button>
             <button
               type="button"
               onClick={onJumpToLast}
-              className="rounded-full border border-white/30 bg-black/35 px-4 py-2 font-[Figtree] text-xs font-semibold uppercase tracking-wider text-white transition hover:border-[#e8c46a] hover:bg-[#e8c46a] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#e8c46a]"
+              className="rounded-full border border-white/40 bg-[#4A3440]/40 px-4 py-2 font-[Figtree] text-xs font-semibold uppercase tracking-wider text-white transition hover:border-white hover:bg-white hover:text-[#C44A68] focus:outline-none focus:ring-2 focus:ring-[#FFC9B0]"
             >
               Skip <ArrowRight className="ml-1 inline h-3.5 w-3.5" />
             </button>
@@ -148,33 +142,33 @@ function PanelBody({
         <motion.div style={{ y: headlineY }} className="max-w-[1100px]">
           <Headline name={v.name} city={v.location} />
           <div className="mt-6 flex flex-wrap items-center gap-2.5 font-[Figtree] text-sm text-white">
-            <span className="flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 backdrop-blur">
-              <Star className="h-3.5 w-3.5 fill-[#e8c46a] text-[#e8c46a]" />
+            <span className="flex items-center gap-1.5 rounded-full bg-white/20 px-3.5 py-1.5 backdrop-blur">
+              <Star className="h-3.5 w-3.5" style={{ fill: PEACH, color: PEACH }} />
               <b>{v.rating}</b>
-              {v.reviews !== undefined && <span className="text-white/60">({v.reviews})</span>}
+              {v.reviews !== undefined && <span className="text-white/70">({v.reviews})</span>}
             </span>
-            <span className="flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 backdrop-blur">
-              <Tag className="h-3.5 w-3.5 text-[#e8c46a]" />
+            <span className="flex items-center gap-1.5 rounded-full bg-white/20 px-3.5 py-1.5 backdrop-blur">
+              <Tag className="h-3.5 w-3.5" style={{ color: PEACH }} />
               {v.price}
             </span>
-            <span className="flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 backdrop-blur">
-              <MapPin className="h-3.5 w-3.5 text-[#e8c46a]" />
+            <span className="flex items-center gap-1.5 rounded-full bg-white/20 px-3.5 py-1.5 backdrop-blur">
+              <MapPin className="h-3.5 w-3.5" style={{ color: PEACH }} />
               {v.location}
             </span>
             {v.category && (
-              <span className="rounded-full bg-white/15 px-3.5 py-1.5 backdrop-blur">
+              <span className="rounded-full bg-white/20 px-3.5 py-1.5 backdrop-blur">
                 {v.category}
               </span>
             )}
             {v.isVerified && (
-              <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-3.5 py-1.5 text-emerald-200 backdrop-blur">
+              <span className="flex items-center gap-1.5 rounded-full bg-white/85 px-3.5 py-1.5 font-semibold text-emerald-700 backdrop-blur">
                 <CheckCircle className="h-3.5 w-3.5" /> Verified
               </span>
             )}
           </div>
         </motion.div>
 
-        {/* bottom row: arched thumbs + CTA */}
+        {/* bottom row */}
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="flex gap-3">
             {v.portfolio.slice(0, 4).map((p, k) => (
@@ -182,7 +176,7 @@ function PanelBody({
                 key={p.id}
                 whileHover={{ y: -8 }}
                 transition={{ type: "spring", stiffness: 300, damping: 18 }}
-                className={`relative flex h-28 w-20 items-center justify-center overflow-hidden rounded-t-full rounded-b-lg border border-white/30 shadow-xl md:h-36 md:w-24 ${
+                className={`relative flex h-28 w-20 items-center justify-center overflow-hidden rounded-t-full rounded-b-lg border border-white/60 shadow-xl md:h-36 md:w-24 ${
                   k % 2 ? "mt-4" : ""
                 }`}
               >
@@ -203,7 +197,7 @@ function PanelBody({
 
           <Link
             to={`/vendors?vendor=${v.id}`}
-            className="group inline-flex items-center gap-3 self-start rounded-full bg-[#e8c46a] px-7 py-3.5 font-[Figtree] text-sm font-bold uppercase tracking-wider text-black transition-all hover:gap-5 hover:bg-white md:self-auto"
+            className="group inline-flex items-center gap-3 self-start rounded-full bg-[#C44A68] px-7 py-3.5 font-[Figtree] text-sm font-bold uppercase tracking-wider text-white transition-all hover:gap-5 hover:bg-white hover:text-[#C44A68] md:self-auto"
           >
             View profile
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -214,7 +208,6 @@ function PanelBody({
   );
 }
 
-/* animated sticky panel */
 function StackPanel({
   v,
   index,
@@ -232,10 +225,8 @@ function StackPanel({
   const first = index === 0;
   const last = index === total - 1;
 
-  // entering: progress [(i-1)/steps , i/steps]
   const inA = first ? 0 : (index - 1) / steps;
   const inB = first ? 1 : index / steps;
-  // being covered by the next panel: [i/steps , (i+1)/steps]
   const outA = last ? 0 : index / steps;
   const outB = last ? 1 : (index + 1) / steps;
 
@@ -243,8 +234,7 @@ function StackPanel({
   const rotate = useSpring(rotateRaw, { stiffness: 140, damping: 22, mass: 0.4 });
   const scaleRaw = useTransform(progress, [outA, outB], last ? [1, 1] : [1, 0.92], { clamp: true });
   const scale = useSpring(scaleRaw, { stiffness: 140, damping: 22, mass: 0.4 });
-  const dim = useTransform(progress, [outA, outB], last ? [0, 0] : [0, 0.65], { clamp: true });
-  // headline parallax: rises faster than the panel while entering
+  const dim = useTransform(progress, [outA, outB], last ? [0, 0] : [0, 0.6], { clamp: true });
   const headlineY = useTransform(progress, [inA, inB], first ? [0, 0] : [150, 0], { clamp: true });
 
   return (
@@ -257,19 +247,22 @@ function StackPanel({
         willChange: "transform",
       }}
       id={last ? "top-rated-last-card" : undefined}
-      className={`sticky top-0 h-screen w-full overflow-hidden bg-black shadow-[0_-30px_60px_-20px_rgba(0,0,0,0.7)] ${
-        first ? "" : "rounded-t-[2rem] border-t border-white/10"
+      className={`sticky top-0 h-screen w-full overflow-hidden bg-[#FFF6F2] shadow-[0_-30px_60px_-20px_rgba(196,74,104,0.35)] ${
+        first ? "" : "rounded-t-[2rem] border-t border-white/60"
       }`}
     >
       <PanelBody v={v} index={index} total={total} headlineY={headlineY} onJumpToLast={onJumpToLast} />
-      {/* dim overlay when covered */}
-      <motion.div style={{ opacity: dim }} className="pointer-events-none absolute inset-0 bg-black" />
-      {/* wavy edges on first / last panel */}
+      {/* when covered, the panel fades into cream instead of black */}
+      <motion.div
+        style={{ opacity: dim, backgroundColor: CREAM }}
+        className="pointer-events-none absolute inset-0"
+      />
       {first && (
         <svg
           viewBox="0 0 1440 80"
           preserveAspectRatio="none"
-          className="pointer-events-none absolute inset-x-0 top-0 z-20 h-12 w-full fill-black"
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 h-12 w-full"
+          style={{ fill: CREAM }}
         >
           <path d={WAVE} />
         </svg>
@@ -278,7 +271,8 @@ function StackPanel({
         <svg
           viewBox="0 0 1440 80"
           preserveAspectRatio="none"
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12 w-full -scale-y-100 fill-black"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12 w-full -scale-y-100"
+          style={{ fill: CREAM }}
         >
           <path d={WAVE} />
         </svg>
@@ -304,7 +298,6 @@ export function TopRatedStack({
       window.scrollTo({ top: Math.max(0, lastPanelTop), behavior: "smooth" });
       return;
     }
-
     const lastCard = document.getElementById("top-rated-last-card");
     lastCard?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -314,7 +307,7 @@ export function TopRatedStack({
   });
 
   return (
-    <section className="relative bg-black">
+    <section className="relative bg-[#FFF6F2]">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;800&family=Instrument+Serif:ital@0;1&family=UnifrakturCook:wght@700&display=swap');`}</style>
 
       {/* heading */}
@@ -332,7 +325,7 @@ export function TopRatedStack({
             </p>
             <h2 className="font-[Instrument_Serif] text-4xl text-foreground md:text-6xl">
               Top Rated{" "}
-              <span className="italic text-[#e8c46a]">This Month</span>
+              <span className="italic text-[#C44A68]">This Month</span>
             </h2>
           </div>
           <Link

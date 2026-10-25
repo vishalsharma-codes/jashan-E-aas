@@ -1,4013 +1,829 @@
-import { useMemo,useEffect,useRef, useState } from "react";
-
-import { motion, AnimatePresence,useDragControls } from "framer-motion";
-
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import {
-
   ArrowLeft,
-
   ArrowRight,
-
   CalendarDays,
-
   ChevronRight,
-
   Clock3,
-
   MapPin,
-
   Mic,
-
   Send,
-
   Sparkles,
-
   X,
-
 } from "lucide-react";
 
-
-
-// ============================================================
-
-// EVE BUDDY IMAGES
-
-// ============================================================
-
-
-
 import { eventCategories } from "../lib/categoryData";
+import eveAvatar from "@/assets/eveBuddy/eve-avatar-new.png";
 
-import eveAvatar from "@/assets/eveBuddy/eve-avatar-new\.png";
-
-import eveCelebrating from "@/assets/eveBuddy/eve-celebrating.jpg";
-
-import eveListening from "@/assets/eveBuddy/eve-listening.jpg";
-
-import evePresenting from "@/assets/eveBuddy/eve-presenting.jpg";
-
-import eveRecommendation from "@/assets/eveBuddy/eve-recommendation.jpg";
-
-import eveStanding from "@/assets/eveBuddy/eve-standing.jpg";
-
-import eveThinking from "@/assets/eveBuddy/eve-thinking.jpg";
-
-import eveWaving from "@/assets/eveBuddy/eve-waving.jpg";
-
-import eveWedding from "@/assets/eveBuddy/eve-wedding.jpg";
-
-
-
-// ============================================================
-
-// TYPES
-
-// ============================================================
-
-
+/* ------------------------------------------------------------------
+   Blush Peach palette used in this file
+   cream  #FFF6F2   panel background
+   white  #FFFBF8   cards / inputs
+   blush  #FFF1EC   soft surfaces
+   peach  #FFE3D6   header / hover
+   rose   #C44A68   accent         rose-light #E0708A
+   plum   #4A3440   text
+------------------------------------------------------------------ */
 
 interface EveBuddyChatProps {
-
   isOpen: boolean;
-
   onClose: () => void;
-
 }
-
-
-
-
 
 type EventType = string | null;
 
-
-
 type Step =
-
   | "event"
-
   | "wedding-services"
-
   | "details"
-
   | "services"
-
   | "location"
-
   | "date"
-
   | "budget"
-
   | "recommendations"
-
   | "complete";
 
-
-
-
-
-
-
-// ============================================================
-
-// EVENT DATA
-
-// ============================================================
-
-
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
 
 const eventTypes = eventCategories.map((category) => ({
-
   name: category.name,
-
   icon: category.icon,
-
-  // description: `Explore services for ${category.name.toLowerCase()}`,
-
   categoryId: category.id,
-
 }));
 
+/* shared class strings */
+const PRIMARY_BTN =
+  "flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C44A68] to-[#E0708A] text-xs font-bold text-white transition hover:brightness-110 disabled:opacity-30";
+const DASHED_BTN =
+  "w-full mt-3 h-10 rounded-xl border border-dashed border-[#C44A68]/30 text-xs text-[#4A3440]/60 transition-colors hover:border-[#C44A68]/60 hover:text-[#C44A68]";
+const FIELD_BOX =
+  "mt-2 flex h-12 items-center gap-2 rounded-xl border border-[#C44A68]/20 bg-[#FFFBF8] px-4 focus-within:border-[#C44A68]/60";
+const FIELD_LABEL = "text-[10px] uppercase tracking-[0.18em] text-[#4A3440]/60";
+const CHOICE_CARD =
+  "rounded-xl border border-[#C44A68]/20 bg-[#FFFBF8] text-[#4A3440] transition hover:border-[#C44A68]/60 hover:bg-[#FFE3D6]";
 
-
-
-
-const weddingOptions = [
-
-  "Theme-Based Weddings",
-
-  "Culture-Based Weddings",
-
-  "Pre-Wedding Ceremonies",
-
-  "Photography & Video",
-
-  "Décor & Florals",
-
-  "Catering & Food",
-
-  "Bridal & Grooming",
-
-  "Entertainment & Artists",
-
-  "Venue & Logistics",
-
-  "Priest & Rituals",
-
-  "Invitations & Stationery",
-
-  "Special Effects",
-
-];
-
-
-
-
-
-// ============================================================
-
-// MAIN COMPONENT
-
-// ============================================================
-
-
-
-export const EveBuddyChat = ({
-
-  isOpen,
-
-  onClose,
-
-}: EveBuddyChatProps) => {
-
+export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
   const [step, setStep] = useState<Step>("event");
-
   const [eventType, setEventType] = useState<EventType>(null);
-
-  const [selectedOption, setSelectedOption] = useState<string | null>(
-
-    null
-
-  );
-
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
-
   const [city, setCity] = useState("");
-
   const [date, setDate] = useState("");
-
   const [budget, setBudget] = useState("");
-
   const [message, setMessage] = useState("");
-
   const [aiReply, setAiReply] = useState("");
-
   const [isAiLoading, setIsAiLoading] = useState(false);
-
   const [aiError, setAiError] = useState("");
-
   const [showAllEvents, setShowAllEvents] = useState(false);
-
   const dragControls = useDragControls();
-
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-
-
-  // ==========================================================
-
-  // EVE IMAGE
-
-  // ==========================================================
-
-
-
-  const eveImage = useMemo(() => {
-
-    switch (step) {
-
-      case "event":
-
-        return eveWaving;
-
-
-
-      case "details":
-
-        return eventType === "Wedding"
-
-          ? eveWedding
-
-          : eveListening;
-
-
-
-      case "location":
-
-        return eveThinking;
-
-
-
-      case "date":
-
-        return evePresenting;
-
-
-
-      case "recommendations":
-
-        return eveRecommendation;
-
-
-
-      case "complete":
-
-        return eveCelebrating;
-
-
-
-      default:
-
-        return eveStanding;
-
-    }
-
-  }, [step, eventType]);
-
-
-
   useEffect(() => {
-
-  chatEndRef.current?.scrollIntoView({
-
-    behavior: "smooth",
-
-    block: "end",
-
-  });
-
-}, [messages, isAiLoading]);
-
-
-
-  // ==========================================================
-
-  // RESET
-
-  // ==========================================================
-
-
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, isAiLoading]);
 
   const resetPlanner = () => {
-  setStep("event");
-  setEventType(null);
-  setSelectedOption(null);
-  setSelectedSubCategory(null);
-  setCity("");
-  setDate("");
-  setBudget("");
-  setMessage("");
-  setAiReply("");
-  setAiError("");
-  setIsAiLoading(false);
-  setMessages([]);
-  setShowAllEvents(false);
-};
+    setStep("event");
+    setEventType(null);
+    setSelectedOption(null);
+    setSelectedSubCategory(null);
+    setCity("");
+    setDate("");
+    setBudget("");
+    setMessage("");
+    setAiReply("");
+    setAiError("");
+    setIsAiLoading(false);
+    setMessages([]);
+    setShowAllEvents(false);
+  };
 
+  const handleEventSelect = (event: EventType) => {
+    setEventType(event);
+    setSelectedOption(null);
+    setSelectedSubCategory(null);
+    setStep("details");
+  };
 
+  const handleOptionSelect = (option: string) => {
+    setSelectedSubCategory(option);
+    setSelectedOption(null);
+    setStep("services");
+  };
 
-  // ==========================================================
-
-  // EVENT
-
-  // ==========================================================
-
-const handleEventSelect = (event: EventType) => {
-
-  setEventType(event);
-
-  setSelectedOption(null);
-
-  setSelectedSubCategory(null);
-
-  setStep("details");
-
-};
-
-
-
-const handleOptionSelect = (option: string) => {
-
-  setSelectedSubCategory(option);
-
-  setSelectedOption(null);
-
-  setStep("services");
-
-};
-
-
-
-const handleServiceSelect = (service: string) => {
-
-  setSelectedOption(service);
-
-  setCity("");
-
-  setDate("");
-
-  setBudget("");
-
-  setStep("location");
-
-};
-
-
-
-
-
-  // ==========================================================
-
-  // LOCATION
-
-  // ==========================================================
-
-
+  const handleServiceSelect = (service: string) => {
+    setSelectedOption(service);
+    setCity("");
+    setDate("");
+    setBudget("");
+    setStep("location");
+  };
 
   const handleLocationNext = () => {
-
     if (!city.trim()) return;
-
-
-
     setStep("date");
-
   };
-
-
-
-  // ==========================================================
-
-  // DATE
-
-  // ==========================================================
-
-
 
   const handleDateNext = () => {
-
     if (!date) return;
-
-
-
     setStep("budget");
-
   };
 
-
-
-  // ==========================================================
-
-  // BACK
-
-  // ==========================================================
-
-
-
   const handleBack = () => {
-  if (step === "details") {
-    setEventType(null);
-    setSelectedSubCategory(null);
-    setSelectedOption(null);
-    setStep("event");
-    return;
-  }
-  if (step === "services") { setStep("details"); return; }
-  if (step === "location") { setStep("services"); return; }
-  if (step === "date") { setStep("location"); return; }
-  if (step === "budget") { setStep("date"); return; }
-  if (step === "recommendations") { setStep("budget"); }
-};
-
-
-
-  type ChatMessage = {
-
-  id: string;
-
-  role: "user" | "assistant";
-
-  content: string;
-
-};
-
-
-
-
-
-  // ==========================================================
-
-  // SEND MESSAGE
-
-  // ==========================================================
-
-
-
-
-
-
-
-const handleSendMessage = async () => {
-
-  const userMessage = message.trim();
-
-
-
-  if (!userMessage || isAiLoading) return;
-
-
-
-  setMessages((prev) => [
-
-    ...prev,
-
-    {
-
-      id: `${Date.now()}-user`,
-
-      role: "user",
-
-      content: userMessage,
-
-    },
-
-  ]);
-
-
-
-  setMessage("");
-
-  setAiError("");
-
-  setAiReply("");
-
-  setIsAiLoading(true);
-
-
-
-  try {
-
-    const response = await fetch("http://localhost:3001/api/chat", {
-
-      method: "POST",
-
-      headers: {
-
-        "Content-Type": "application/json",
-
-      },
-
-
-
-body: JSON.stringify({
-
-  message: userMessage,
-
-  history: messages.map((item) => ({
-
-    role: item.role === "assistant" ? "model" : "user",
-
-    parts: [{ text: item.content }],
-
-  })),
-
-}),
-
-
-
-    });
-
-
-
-    const data = await response.json();
-
-
-
-    if (!response.ok) {
-
-      throw new Error(data.error || "Eve couldn't respond.");
-
+    if (step === "details") {
+      setEventType(null);
+      setSelectedSubCategory(null);
+      setSelectedOption(null);
+      setStep("event");
+      return;
     }
+    if (step === "services") { setStep("details"); return; }
+    if (step === "location") { setStep("services"); return; }
+    if (step === "date") { setStep("location"); return; }
+    if (step === "budget") { setStep("date"); return; }
+    if (step === "recommendations") { setStep("budget"); }
+  };
 
+  const askEveSomethingElse = () => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-planner`,
+        role: "assistant",
+        content:
+          "Of course! Ask me anything about your event, or choose an event category to continue planning.",
+      },
+    ]);
+    setStep("event");
+  };
 
-
-    const reply = data.reply || "Please try asking me again.";
-
-
-
-    setAiReply(reply);
-
-
+  const handleSendMessage = async () => {
+    const userMessage = message.trim();
+    if (!userMessage || isAiLoading) return;
 
     setMessages((prev) => [
-
       ...prev,
-
-      {
-
-        id: `${Date.now()}-assistant`,
-
-        role: "assistant",
-
-        content: reply,
-
-      },
-
+      { id: `${Date.now()}-user`, role: "user", content: userMessage },
     ]);
 
-  } catch (error) {
+    setMessage("");
+    setAiError("");
+    setAiReply("");
+    setIsAiLoading(true);
 
-    console.error("EveBuddy chat error:", error);
+    try {
+      const response = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMessage,
+          history: messages.map((item) => ({
+            role: item.role === "assistant" ? "model" : "user",
+            parts: [{ text: item.content }],
+          })),
+        }),
+      });
 
+      const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.error || "Eve couldn't respond.");
+      }
 
-    const errorMessage =
+      const reply = data.reply || "Please try asking me again.";
+      setAiReply(reply);
 
-      error instanceof Error
+      setMessages((prev) => [
+        ...prev,
+        { id: `${Date.now()}-assistant`, role: "assistant", content: reply },
+      ]);
+    } catch (error) {
+      console.error("EveBuddy chat error:", error);
 
-        ? error.message
+      const errorMessage =
+        error instanceof Error ? error.message : "Unable to connect to EveBuddy.";
 
-        : "Unable to connect to EveBuddy.";
-
-
-
-    setAiError(errorMessage);
-
-    setMessages((prev) => [
-
-      ...prev,
-
-      {
-
-        id: `${Date.now()}-error`,
-
-        role: "assistant",
-
-        content: `Sorry, I couldn't respond: ${errorMessage}`,
-
-      },
-
-    ]);
-
-  } finally {
-
-    setIsAiLoading(false);
-
-  }
-
-};
-
-
-
-
-
-  // ==========================================================
-
-  // PANEL
-
-  // ==========================================================
-
-
+      setAiError(errorMessage);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-error`,
+          role: "assistant",
+          content: `Sorry, I couldn't respond: ${errorMessage}`,
+        },
+      ]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   return (
-
     <AnimatePresence>
-
       {isOpen && (
-
         <>
-
-          {/* ==================================================
-
-              SOFT PAGE OVERLAY
-
-              IMPORTANT: NO BACKDROP BLUR
-
-          ================================================== */}
-
-
-
+          {/* soft page overlay (no backdrop blur) */}
           <motion.div
-
             initial={{ opacity: 0 }}
-
             animate={{ opacity: 1 }}
-
             exit={{ opacity: 0 }}
-
             transition={{ duration: 0.2 }}
-
             onClick={onClose}
-
-            className="
-
-              fixed
-
-              inset-0
-
-              z-[80]
-
-              bg-black/15
-
-            "
-
+            className="fixed inset-0 z-[80] bg-[#4A3440]/20"
           />
 
-
-
-          {/* ==================================================
-
-              EVE BUDDY PANEL
-
-          ================================================== */}
-
-
-
+          {/* EVE BUDDY PANEL */}
           <motion.aside
-
-          drag
-
-        dragControls={dragControls}
-
-        dragListener={false}
-
-        dragMomentum={false}
-
-            initial={{
-
-              opacity: 0,
-
-              x: 70,
-
-            }}
-
-            animate={{
-
-              opacity: 1,
-
-              x: 0,
-
-            }}
-
-            exit={{
-
-              opacity: 0,
-
-              x: 70,
-
-            }}
-
-            transition={{
-
-              duration: 0.3,
-
-              ease: [0.22, 1, 0.36, 1],
-
-            }}
-
-            // size of panel
-
+            drag
+            dragControls={dragControls}
+            dragListener={false}
+            dragMomentum={false}
+            initial={{ opacity: 0, x: 70 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 70 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
-
-            className="
-
-  fixed
-
-right-4
-
-top-20
-
-bottom-5
-
-z-[90]
-
-w-[min(560px,calc(100vw-2rem))]
-
-max-w-[calc(100vw-2rem)]
-
-min-w-0
-
-flex
-
-flex-col
-
-overflow-hidden
-
-
-
-  overflow-hidden
-
-
-
-  rounded-[26px]
-
-
-
-  border
-
-  border-[#d4af37]/45
-
-
-
-  bg-[#0b0d11]/[0.97]
-
-
-
-  shadow-[0_20px_80px_rgba(0,0,0,0.65)]
-
-  shadow-[0_0_45px_rgba(212,175,55,0.08)]
-
-
-
-  flex
-
-  flex-col
-
-"
-
+            className="fixed bottom-5 right-4 top-20 z-[90] flex w-[min(560px,calc(100vw-2rem))] min-w-0 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[26px] border border-[#C44A68]/35 bg-[#FFF6F2] text-[#4A3440] shadow-[0_20px_70px_-15px_rgba(196,74,104,0.45)]"
           >
+            {/* rose top line */}
+            <div className="absolute left-0 right-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#C44A68] to-transparent opacity-90" />
 
-            {/* ==================================================
-
-                GOLD TOP GLOW
-
-            ================================================== */}
-
-
-
-            <div
-
-              className="
-
-                absolute
-
-                top-0
-
-                left-0
-
-                right-0
-
-                h-[1px]
-
-                bg-gradient-to-r
-
-                from-transparent
-
-                via-[#d4af37]
-
-                to-transparent
-
-                opacity-90
-
-              "
-
-            />
-
-
-
-            {/* ==================================================
-
-                HEADER
-
-            ================================================== */}
-
-
-
-
-
+            {/* HEADER */}
             <header
-
               onPointerDown={(e) => dragControls.start(e)}
-
-              className="
-
-                relative
-
-                shrink-0
-
-                h-[120px]
-
-                px-5
-
-                flex
-
-                items-center
-
-                justify-between
-
-                border-b
-
-                border-white/[0.07]
-
-                bg-gradient-to-r
-
-                from-[#17130a]
-
-                via-[#241d0c]
-
-                to-[#111318]
-
-                cursor-grab
-
-                active:cursor-grabbing
-
-                select-none
-
-              "
-
+              className="relative flex h-[120px] shrink-0 cursor-grab select-none items-center justify-between border-b border-[#C44A68]/15 bg-gradient-to-r from-[#FFE3D6] via-[#FFD9C7] to-[#FBD3DC] px-5 active:cursor-grabbing"
             >
-
-
-
-
-
-                <div className="flex items-center gap-3">
-
-                  {/* Avatar with floating online indicator */}
-
-                  <div className="relative w-22 h-22 shrink-0">
-
-                    <div
-
-                      className="
-
-                        relative
-
-                        w-full
-
-                        h-full
-
-                        rounded-full
-
-                        overflow-hidden
-
-                        border
-
-                        border-[#d4af37]/70
-
-                        bg-[#090a0c]
-
-                        shadow-[0_0_20px_rgba(212,175,55,0.18)]
-
-                      "
-
-                    >
-
-                      <img
-
-                        src={eveAvatar}
-
-                        alt="EveBuddy AI"
-
-                        className="w-full h-full object-cover"
-
-                      />
-
-                    </div>
-
-
-
-                    {/* Green dot floating above the gold border */}
-
-                    <span
-
-                      className="
-
-                        absolute
-
-                        -top-0.5
-
-                        -right-0.5
-
-                        z-[100]
-
-                        w-2.5
-
-                        h-2.5
-
-                        rounded-full
-
-                        bg-emerald-400
-
-                        border-2
-
-                        border-[#15120c]
-
-                        shadow-[0_0_8px_rgba(52,211,153,0.65)]
-
-                      "
-
-                    />
-
+              <div className="flex items-center gap-3">
+                <div className="relative h-[88px] w-[88px] shrink-0">
+                  <div className="relative h-full w-full overflow-hidden rounded-full border-2 border-[#C44A68]/60 bg-[#FFFBF8] shadow-[0_0_20px_rgba(196,74,104,0.25)]">
+                    <img src={eveAvatar} alt="EveBuddy AI" className="h-full w-full object-cover" />
                   </div>
-
-
-
-                  {/* Assistant title */}
-
-                  <div>
-
-                    <div className="flex items-center gap-1.5">
-
-                      <h2 className="font-display text-[17px] font-bold text-white">
-
-                        EveBuddy AI
-
-                      </h2>
-
-
-
-                      <Sparkles className="w-3.5 h-3.5 text-[#d4af37]" />
-
-                    </div>
-
-
-
-                    <p className="text-[10px] text-[#d4af37] tracking-wide">
-
-                      Your Personal Event Planner
-
-                    </p>
-
-                  </div>
-
+                  <span className="absolute -right-0.5 -top-0.5 z-[100] h-3 w-3 rounded-full border-2 border-[#FFF6F2] bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
                 </div>
 
-
-
-
-
-              {/* RIGHT */}
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="font-display text-[17px] font-bold text-[#4A1230]">EveBuddy AI</h2>
+                    <Sparkles className="h-3.5 w-3.5 text-[#C44A68]" />
+                  </div>
+                  <p className="text-[10px] tracking-wide text-[#C44A68]">Your Personal Event Planner</p>
+                </div>
+              </div>
 
               <div className="flex items-center gap-1">
-
                 <button
-
                   onClick={resetPlanner}
-
                   title="Restart"
-
-                  className="
-
-                    hidden
-
-                    sm:flex
-
-                    items-center
-
-                    justify-center
-
-                    w-8
-
-                    h-8
-
-                    rounded-full
-
-                    text-white/50
-
-                    hover:text-[#d4af37]
-
-                    hover:bg-white/[0.05]
-
-                    transition
-
-                  "
-
+                  className="hidden h-8 w-8 items-center justify-center rounded-full text-[#4A3440]/60 transition hover:bg-white/60 hover:text-[#C44A68] sm:flex"
                 >
-
                   ↻
-
                 </button>
-
-
-
                 <button
-
                   onClick={onClose}
-
-                  className="
-
-                    w-8
-
-                    h-8
-
-                    rounded-full
-
-                    flex
-
-                    items-center
-
-                    justify-center
-
-                    text-white/60
-
-                    hover:text-white
-
-                    hover:bg-white/[0.06]
-
-                    transition
-
-                  "
-
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[#4A3440]/70 transition hover:bg-white/60 hover:text-[#C44A68]"
                 >
-
-                  <X className="w-[18px] h-[18px]" />
-
+                  <X className="h-[18px] w-[18px]" />
                 </button>
-
               </div>
-
             </header>
 
-
-
-            {/* ==================================================
-
-                BODY
-
-            ================================================== */}
-
-
-
-           <main
-  data-lenis-prevent
-  className="
-    relative
-    flex-1
-    min-h-0
-    overflow-y-auto
-    overflow-x-hidden
-    overscroll-contain
-    scrollbar-thin
-    scrollbar-thumb-[#d4af37]/20
-    scrollbar-track-transparent
-  "
->
-
-              
-
-  <AnimatePresence mode="wait">
-
-
-
-                {/* =================================================
-
-                    EVENT SCREEN
-
-                ================================================= */}
-
-
-
+            {/* BODY */}
+            <main
+              data-lenis-prevent
+              className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-thin scrollbar-thumb-[#C44A68]/30 scrollbar-track-transparent"
+            >
+              <AnimatePresence mode="wait">
+                {/* EVENT */}
                 {step === "event" && (
-
                   <motion.div
-
                     key="event"
-
-                    initial={{
-
-                      opacity: 0,
-
-                      y: 12,
-
-                    }}
-
-                    animate={{
-
-                      opacity: 1,
-
-                      y: 0,
-
-                    }}
-
-                    exit={{
-
-                      opacity: 0,
-
-                      y: -12,
-
-                    }}
-
-                    transition={{
-
-                      duration: 0.2,
-
-                    }}
-
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.2 }}
                     className="p-5"
-
                   >
-
-                    {/* Eve introduction */}
-
                     <div className="relative min-h-[150px]">
-
-
-
-  {/* ==================================================
-
-      EVE AVATAR
-
-  ================================================== */}
-
-
-
-  <motion.div
-
-    initial={{
-
-      opacity: 0,
-
-      scale: 0.9,
-
-      x: -10,
-
-    }}
-
-    animate={{
-
-      opacity: 1,
-
-      scale: 1,
-
-      x: 0,
-
-    }}
-
-    transition={{
-
-      duration: 0.35,
-
-    }}
-
-    className="
-
-      absolute
-
-      left-0
-
-      top-0
-
-
-
-      w-[48px]
-
-      h-[56px]
-
-
-
-      flex
-
-      items-end
-
-      justify-center
-
-    "
-
-  >
-
-    <div
-
-      className="
-
-        w-[44px]
-
-        h-[44px]
-
-
-
-        rounded-full
-
-        overflow-hidden
-
-
-
-        border
-
-        border-[#d4af37]/45
-
-
-
-        bg-[#111318]
-
-
-
-        shadow-[0_0_30px_rgba(212,175,55,0.18)]
-
-      "
-
-    >
-
-      <img
-
-        src={eveAvatar}
-
-        alt="Eve Buddy"
-
-        className="
-
-          w-full
-
-          h-full
-
-          object-cover
-
-        "
-
-      />
-
-    </div>
-
-
-
-    {/* online indicator */}
-
-    {/* <span
-
-      className="
-
-        absolute
-
-        right-[1px]
-
-        bottom-[15px]
-
-
-
-        w-3
-
-        h-3
-
-
-
-        rounded-full
-
-
-
-        bg-emerald-400
-
-
-
-        border-2
-
-        border-[#0d0f13]
-
-
-
-        shadow-[0_0_8px_rgba(52,211,153,0.5)]
-
-      "
-
-    /> */}
-
-  </motion.div>
-
-
-
-  {/* ==================================================
-
-      GREETING
-
-  ================================================== */}
-
-
-
-  <motion.div
-
-    initial={{
-
-      opacity: 0,
-
-      y: 8,
-
-    }}
-
-    animate={{
-
-      opacity: 1,
-
-      y: 0,
-
-    }}
-
-    transition={{
-
-      delay: 0.12,
-
-      duration: 0.3,
-
-    }}
-
-    className="
-
-      ml-[52px]
-
-      pt-1
-
-    "
-
-  >
-
-    <div
-
-      className="
-
-        relative
-
-
-
-        rounded-[18px]
-
-        rounded-bl-[5px]
-
-
-
-        bg-gradient-to-br
-
-        from-[#1d2026]
-
-        to-[#15181d]
-
-
-
-        border-b
-
-        border-[#d4af37]/15
-
-
-
-        px-4
-
-        py-3
-
-
-
-        shadow-[0_8px_25px_rgba(0,0,0,0.25)]
-
-      "
-
-    >
-
-      <div className="flex items-center gap-1.5 mb-1">
-
-        <span
-
-          className="
-
-            text-[15px]
-
-            uppercase
-
-            tracking-[0.16em]
-
-            text-[#d4af37]
-
-            font-semibold
-
-          "
-
-        >
-
-          EveBuddy AI
-
-        </span>
-
-
-
-        <Sparkles className="w-3 h-3 text-[#d4af37]" />
-
-      </div>
-
-
-
-      <p
-
-        className="
-
-          text-[15px]
-
-          leading-[1.5]
-
-          text-white/85
-
-        "
-
-      >
-
-        Hi there! 👋
-
-        <br />
-
-        I'm Eve, your personal event planner.
-
-      </p>
-
-    </div>
-
-  </motion.div>
-
-
-
-</div>
-
-
-
-                    {/* heading */}
-
-                    <div className="mt-1 mb-4">
-
-                      <h3
-
-                        className="
-
-                          font-display
-
-                          text-[22px]
-
-                          font-bold
-
-                          text-white
-
-                          tracking-[-0.01em]
-
-                        "
-
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                        transition={{ duration: 0.35 }}
+                        className="absolute left-0 top-0 flex h-[56px] w-[48px] items-end justify-center"
                       >
+                        <div className="h-[44px] w-[44px] overflow-hidden rounded-full border border-[#C44A68]/45 bg-[#FFFBF8] shadow-[0_0_30px_rgba(196,74,104,0.2)]">
+                          <img src={eveAvatar} alt="Eve Buddy" className="h-full w-full object-cover" />
+                        </div>
+                      </motion.div>
 
-                        How can I help you today?
-
-                      </h3>
-
-
-
-                      <p
-
-                        className="
-
-                          text-[15px]
-
-                          text-#DCCBA7
-
-                          mt-1
-
-                        "
-
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.12, duration: 0.3 }}
+                        className="ml-[52px] pt-1"
                       >
-
-                        Choose an event and I'll help you plan it.
-
-                      </p>
-
+                        <div className="relative rounded-[18px] rounded-bl-[5px] border border-[#C44A68]/20 bg-gradient-to-br from-[#FFFBF8] to-[#FFF1EC] px-4 py-3 shadow-[0_8px_25px_-10px_rgba(196,74,104,0.3)]">
+                          <div className="mb-1 flex items-center gap-1.5">
+                            <span className="text-[15px] font-semibold uppercase tracking-[0.16em] text-[#C44A68]">
+                              EveBuddy AI
+                            </span>
+                            <Sparkles className="h-3 w-3 text-[#C44A68]" />
+                          </div>
+                          <p className="text-[15px] leading-[1.5] text-[#4A3440]">
+                            Hi there! 👋
+                            <br />
+                            I'm Eve, your personal event planner.
+                          </p>
+                        </div>
+                      </motion.div>
                     </div>
 
-
-
-                    {/* event cards */}
+                    <div className="mb-4 mt-1">
+                      <h3 className="font-display text-[22px] font-bold tracking-[-0.01em] text-[#4A1230]">
+                        How can I help you today?
+                      </h3>
+                      <p className="mt-1 text-[15px] text-[#4A3440]/70">
+                        Choose an event and I'll help you plan it.
+                      </p>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-3">
-
                       {eventTypes.map((event, index) => (
-
                         <motion.button
-
                           key={event.name}
-
-                          initial={{
-
-                            opacity: 0,
-
-                            y: 8,
-
-                          }}
-
-                          animate={{
-
-                            opacity: 1,
-
-                            y: 0,
-
-                          }}
-
-                          transition={{
-
-                            delay: 0.08 + index * 0.04,
-
-                          }}
-
-                          whileHover={{
-
-                            x: 3,
-
-                          }}
-
-                          whileTap={{
-
-                            scale: 0.985,
-
-                          }}
-
-                          onClick={() =>
-
-                            handleEventSelect(event.name)
-
-                          }
-
-                          className="
-
-                            group
-
-                            relative
-
-                            w-full
-
-
-
-                            min-h-[56px]
-
-
-
-                            overflow-hidden
-
-
-
-                            rounded-[14px]
-
-
-
-                            border
-
-                            border-white/[0.08]
-
-                            hover:border-[#d4af37]/45
-
-
-
-                            bg-gradient-to-r
-
-                            from-[#17191e]
-
-                            to-[#111318]
-
-
-
-                            hover:border-[#d4af37]/65
-
-
-
-                            hover:bg-[#1c1a14]
-
-
-
-                            transition-all
-
-                          "
-
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.08 + index * 0.04 }}
+                          whileHover={{ x: 3 }}
+                          whileTap={{ scale: 0.985 }}
+                          onClick={() => handleEventSelect(event.name)}
+                          className={`group relative min-h-[56px] w-full overflow-hidden rounded-[14px] ${CHOICE_CARD}`}
                         >
-
-                          {/* gold hover line */}
-
-                          <span
-
-                            className="
-
-                              absolute
-
-                              left-0
-
-                              top-0
-
-                              bottom-0
-
-                              w-[2px]
-
-
-
-                              bg-[#d4af37]
-
-
-
-                              scale-y-0
-
-                              group-hover:scale-y-100
-
-
-
-                              transition-transform
-
-                              origin-center
-
-                            "
-
-                          />
-
-
-
-                          <div
-
-                            className="
-
-                              relative
-
-                              flex
-
-                              items-center
-
-                              gap-3
-
-                              px-4
-
-                              py-3
-
-                            "
-
-                          >
-
-                            {/* icon */}
-
-                            <div
-
-                              className="
-
-                                w-9
-
-                                h-9
-
-                                shrink-0
-
-
-
-                                rounded-xl
-
-
-
-                                bg-[#d4af37]/[0.08]
-
-
-
-                                border
-
-                                border-[#d4af37]/20
-
-
-
-                                flex
-
-                                items-center
-
-                                justify-center
-
-
-
-                                text-2xl
-
-                              "
-
-                            >
-
+                          <span className="absolute bottom-0 left-0 top-0 w-[2px] origin-center scale-y-0 bg-[#C44A68] transition-transform group-hover:scale-y-100" />
+                          <div className="relative flex items-center gap-3 px-4 py-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#C44A68]/20 bg-[#C44A68]/[0.08] text-2xl">
                               {event.icon}
-
                             </div>
-
-
-
-                            {/* text */}
-
                             <div className="flex-1 text-left">
-
-                              <p
-
-                                className="
-
-                                  text-[14px]
-
-                                  font-semibold
-
-                                  text-white
-
-                                "
-
-                              >
-
-                                {event.name}
-
-                              </p>
-
-
-
-                              <p
-
-                                className="
-
-                                  text-[13px]
-
-                                  text-#DCCBA7
-
-                                  mt-0.5
-
-                                "
-
-                              >
-{/* 
-                                {event.description} */}
-
-                              </p>
-
+                              <p className="text-[14px] font-semibold text-[#4A3440]">{event.name}</p>
                             </div>
-
-
-
-                            <ChevronRight
-
-                              className="
-
-                                w-4
-
-                                h-4
-
-
-
-                                text-[#d4af37]/70
-
-
-
-                                group-hover:text-[#d4af37]
-
-                                group-hover:translate-x-1
-
-
-
-                                transition
-
-                              "
-
-                            />
-
+                            <ChevronRight className="h-4 w-4 text-[#C44A68]/70 transition group-hover:translate-x-1 group-hover:text-[#C44A68]" />
                           </div>
-
                         </motion.button>
-
                       ))}
-
                     </div>
-
-
-
-                    {/* Browse all
-
-                    <button
-
-                      onClick={() =>
-
-                        setShowAllEvents(!showAllEvents)
-
-                      }
-
-                      className="
-
-                        w-full
-
-                        mt-3
-
-                        h-10
-
-
-
-                        rounded-xl
-
-
-
-                        bg-gradient-to-r
-
-                        from-[#d4af37]
-
-                        to-[#e5c45a]
-
-
-
-                        text-[#111]
-
-
-
-                        text-[11px]
-
-                        font-bold
-
-
-
-                        hover:brightness-110
-
-
-
-                        transition
-
-
-
-                        flex
-
-                        items-center
-
-                        justify-center
-
-                        gap-2
-
-                      "
-
-                    >
-
-                      {showAllEvents
-
-                        ? "Show Featured Events"
-
-                        : "Browse All 20 Event Types"}
-
-
-
-                      <ChevronRight className="w-3.5 h-3.5" />
-
-                    </button> */}
-
                   </motion.div>
-
                 )}
 
-
-
-                {/* =================================================
-
-                    DETAILS
-
-                ================================================= */}
-
-
-
+                {/* DETAILS */}
                 {step === "details" && (
-
                   <motion.div
-
                     key="details"
-
-                    initial={{
-
-                      opacity: 0,
-
-                      x: 20,
-
-                    }}
-
-                    animate={{
-
-                      opacity: 1,
-
-                      x: 0,
-
-                    }}
-
-                    exit={{
-
-                      opacity: 0,
-
-                      x: -20,
-
-                    }}
-
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
                     className="p-5"
-
                   >
-
                     <BackButton onClick={handleBack} />
 
-
-
                     <CompactEveHeader
-
                       image={eveAvatar}
-
                       title={
-
                         eventType === "Wedding"
-
                           ? "Let's plan your wedding ✨"
-
                           : `Let's plan your ${eventType}`
-
                       }
-
                       subtitle={
-
                         eventType === "Wedding"
-
                           ? "What kind of wedding service are you looking for?"
-
                           : "Tell me what you need and I'll help you find the right vendors."
-
                       }
-
                     />
 
-
-
-
-
-                      {eventType ? (
-
-                        <div className="mt-5 grid grid-cols-2 gap-3">
-
-                          {(
-
-                            eventCategories.find(
-
-                              (category) => category.name === eventType
-
-                            )?.subCategories ?? []
-
-                          ).map((option) => (
-
+                    {eventType ? (
+                      <div className="mt-5 grid grid-cols-2 gap-3">
+                        {(
+                          eventCategories.find((category) => category.name === eventType)
+                            ?.subCategories ?? []
+                        ).map((option) => (
                           <motion.button
-
                             key={option.name}
-
-                            whileHover={{
-
-                              x: 2,
-
-                            }}
-
-                            whileTap={{
-
-                              scale: 0.99,
-
-                            }}
-
-                            onClick={() =>
-
-                              handleOptionSelect(option.name)
-
-                            }
-
-                            className="
-
-                              group
-
-                              w-full
-
-                              min-h-[82px]
-
-                              p-3
-
-
-
-                              rounded-xl
-
-
-
-                              border
-
-                              border-white/[0.07]
-
-
-
-                              bg-[#181b20]
-
-
-
-                              hover:border-[#d4af37]/45
-
-                              hover:bg-[#d4af37]/[0.05]
-
-
-
-                              transition
-
-
-
-                             flex
-
-                              flex-col
-
-                              items-center
-
-                              justify-center
-
-                              gap-3
-
-                              text-center
-
-                              text-left
-
-                            "
-
+                            whileHover={{ x: 2 }}
+                            whileTap={{ scale: 0.99 }}
+                            onClick={() => handleOptionSelect(option.name)}
+                            className={`group flex min-h-[82px] w-full flex-col items-center justify-center gap-3 p-3 text-center ${CHOICE_CARD}`}
                           >
-
-                            <span
-
-                              className="
-
-                                text-[16px]
-
-                                font-medium
-
-                                text-white/85
-
-                              "
-
-                            >
-
-                              {option.name}
-
-                            </span>
-
-
-
-                            <ChevronRight
-
-                              className="w-4 h-4 text-[#d4af37]/70"
-
-                            />
-
+                            <span className="text-[16px] font-medium text-[#4A3440]">{option.name}</span>
+                            <ChevronRight className="h-4 w-4 text-[#C44A68]/70" />
                           </motion.button>
-
                         ))}
-
-
-
-                        
-
                       </div>
-
                     ) : (
-
                       <div className="mt-5">
-
                         <button
-
-                          onClick={() =>
-
-                            handleOptionSelect(
-
-                              "General Event Planning"
-
-                            )
-
-                          }
-
-                          className="
-
-                           border
-
-                            border-[#d4af37]/25
-
-                            bg-gradient-to-br
-
-                            from-[#1b1b1d]
-
-                            to-[#101114]
-
-                            shadow-[0_4px_15px_rgba(0,0,0,0.2)]
-
-                            hover:border-[#d4af37]/70
-
-                            hover:from-[#262115]
-
-                            hover:to-[#15130e]
-
-                            hover:shadow-[0_0_18px_rgba(212,175,55,0.10)]
-
-                            transition-all
-
-                            duration-200
-
-                          "
-
+                          onClick={() => handleOptionSelect("General Event Planning")}
+                          className={`w-full p-4 text-left ${CHOICE_CARD}`}
                         >
-
                           <div className="flex items-center justify-between">
-
-                            <span className="text-sm font-medium">
-
-                              General Event Planning
-
-                            </span>
-
-
-
-                            <ArrowRight className="w-4 h-4 text-[#d4af37]" />
-
+                            <span className="text-sm font-medium">General Event Planning</span>
+                            <ArrowRight className="h-4 w-4 text-[#C44A68]" />
                           </div>
-
-
-
-                          <p className="text-[11px] text-white/40 mt-1">
-
+                          <p className="mt-1 text-[11px] text-[#4A3440]/60">
                             Help me find vendors for my event
-
                           </p>
-
                         </button>
-
                       </div>
-
                     )}
-
                   </motion.div>
-
                 )}
 
-
-
-
-
+                {/* SERVICES */}
                 {step === "services" && (
-
                   <motion.div
-
                     key="services"
-
                     initial={{ opacity: 0, x: 20 }}
-
                     animate={{ opacity: 1, x: 0 }}
-
                     exit={{ opacity: 0, x: -20 }}
-
                     className="p-5"
-
                   >
-
                     <BackButton onClick={() => setStep("details")} />
 
-
-
                     <CompactEveHeader
-
                       image={eveAvatar}
-
-                      title={`Choose a service ✨`}
-
+                      title="Choose a service ✨"
                       subtitle={`Select a service under ${selectedSubCategory ?? "your chosen category"}.`}
-
                     />
-
-
 
                     <div className="mt-5 grid grid-cols-2 gap-3">
-  {(
-    eventCategories
-      .find((category) => category.name === eventType)
-      ?.subCategories.find(
-        (subCategory) => subCategory.name === selectedSubCategory
-      )?.services ?? []
-  ).map((service) => (
-    <motion.button
-      key={service}
-      whileTap={{ scale: 0.98 }}
-      onClick={() => handleServiceSelect(service)}
-      className="group min-h-[76px] w-full p-3 rounded-xl border border-[#d4af37]/20 bg-[#181b20] hover:border-[#d4af37]/65 hover:bg-[#d4af37]/[0.06] transition-colors duration-150 flex items-center justify-between gap-2 text-left"
-    >
-      <span className="text-xs font-medium text-white/85">
-
-                            {service}
-
-                          </span>
-
-                          <ChevronRight className="w-3.5 h-3.5 text-[#d4af37]/60 group-hover:text-[#d4af37] transition" />
-
+                      {(
+                        eventCategories
+                          .find((category) => category.name === eventType)
+                          ?.subCategories.find(
+                            (subCategory) => subCategory.name === selectedSubCategory
+                          )?.services ?? []
+                      ).map((service) => (
+                        <motion.button
+                          key={service}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => handleServiceSelect(service)}
+                          className={`group flex min-h-[76px] w-full items-center justify-between gap-2 p-3 text-left transition-colors duration-150 ${CHOICE_CARD}`}
+                        >
+                          <span className="text-xs font-medium text-[#4A3440]">{service}</span>
+                          <ChevronRight className="h-3.5 w-3.5 text-[#C44A68]/60 transition group-hover:text-[#C44A68]" />
                         </motion.button>
-
                       ))}
 
-
-
                       <button
-
                         onClick={() => setStep("details")}
-
-                        className="w-full mt-3 h-10 rounded-xl border border-dashed border-white/20 text-[11px] text-white/40 hover:border-[#d4af37]/40 hover:text-[#d4af37] transition"
-
+                        className="col-span-2 mt-1 h-10 w-full rounded-xl border border-dashed border-[#C44A68]/30 text-[11px] text-[#4A3440]/60 transition hover:border-[#C44A68]/60 hover:text-[#C44A68]"
                       >
-
                         Back to subcategories
-
                       </button>
-
                     </div>
-
                   </motion.div>
-
                 )}
 
-
-
-                {/* =================================================
-
-                    LOCATION
-
-                ================================================= */}
-
-
-
+                {/* LOCATION */}
                 {step === "location" && (
-
                   <motion.div
-
                     key="location"
-
-                    initial={{
-
-                      opacity: 0,
-
-                      x: 20,
-
-                    }}
-
-                    animate={{
-
-                      opacity: 1,
-
-                      x: 0,
-
-                    }}
-
-                    exit={{
-
-                      opacity: 0,
-
-                      x: -20,
-
-                    }}
-
-                    className="p-5"
-
-                  >
-
-                    <BackButton onClick={handleBack} />
-
-
-
-                    <CompactEveHeader
-
-                      image={eveAvatar}
-
-                      title="Where is your event?"
-
-                      subtitle="I'll use your city to find relevant verified vendors near you."
-
-                    />
-
-
-
-                    <div className="mt-7">
-
-                      <label
-
-                        className="
-
-                          text-[10px]
-
-                          uppercase
-
-                          tracking-[0.18em]
-
-                          text-white/40
-
-                        "
-
-                      >
-
-                        Event City
-
-                      </label>
-
-
-
-                      <div
-
-                        className="
-
-                          mt-2
-
-                          flex
-
-                          items-center
-
-                          gap-2
-
-
-
-                          h-12
-
-                          px-4
-
-
-
-                          rounded-xl
-
-
-
-                          border
-
-                          border-white/10
-
-
-
-                          bg-[#181b20]
-
-
-
-                          focus-within:border-[#d4af37]/60
-
-                        "
-
-                      >
-
-                        <MapPin className="w-4 h-4 text-[#d4af37]" />
-
-
-
-                        <input
-
-                          value={city}
-
-                          onChange={(e) =>
-
-                            setCity(e.target.value)
-
-                          }
-
-                          placeholder="Delhi, Mumbai, Jaipur..."
-
-                          className="
-
-                            flex-1
-
-                            bg-transparent
-
-                            outline-none
-
-                            text-xs
-
-                            text-white
-
-                            placeholder:text-white/25
-
-                          "
-
-                        />
-
-                      </div>
-
-
-
-                      <button
-
-                        onClick={handleLocationNext}
-
-                        disabled={!city.trim()}
-
-                        className="
-
-                          w-full
-
-                          mt-4
-
-                          h-11
-
-                          rounded-xl
-
-
-
-                          bg-gradient-to-r
-
-                          from-[#d4af37]
-
-                          to-[#e5c45a]
-
-
-
-                          text-[#111]
-
-                          font-bold
-
-                          text-xs
-
-
-
-                          disabled:opacity-30
-
-
-
-                          transition
-
-
-
-                          flex
-
-                          items-center
-
-                          justify-center
-
-                          gap-2
-
-                        "
-
-                      >
-
-                        Continue
-
-                        <ArrowRight className="w-4 h-4" />
-
-                      </button>
-                      <button
-                        onClick={() => {
-                          setMessages((prev) => [...prev, {
-                            id: `${Date.now()}-planner`,
-                            role: "assistant",
-                            content: "Of course! Ask me anything about your event, or choose an event category to continue planning.",
-                          }]);
-                          setStep("event");
-                        }}
-                        className="w-full mt-3 h-10 rounded-xl border border-dashed border-white/20 text-xs text-white/50 hover:border-[#d4af37]/50 hover:text-[#d4af37] transition-colors"
-                      >Ask Eve something else</button>
-
-
-                    </div>
-
-                  </motion.div>
-
-                )}
-
-
-
-                {/* =================================================
-
-                    DATE
-
-                ================================================= */}
-
-
-
-                {step === "date" && (
-
-                  <motion.div
-
-                    key="date"
-
-                    initial={{
-
-                      opacity: 0,
-
-                      x: 20,
-
-                    }}
-
-                    animate={{
-
-                      opacity: 1,
-
-                      x: 0,
-
-                    }}
-
-                    exit={{
-
-                      opacity: 0,
-
-                      x: -20,
-
-                    }}
-
-                    className="p-5"
-
-                  >
-
-                    <BackButton onClick={handleBack} />
-
-
-
-                    <CompactEveHeader
-
-                      image={eveAvatar}
-
-                      title="When is your event?"
-
-                      subtitle="Knowing the date helps me find vendors who are available around your event."
-
-                    />
-
-
-
-                    <div className="mt-7">
-
-                      <label
-
-                        className="
-
-                          text-[10px]
-
-                          uppercase
-
-                          tracking-[0.18em]
-
-                          text-white/40
-
-                        "
-
-                      >
-
-                        Event Date
-
-                      </label>
-
-
-
-                      <div
-
-                        className="
-
-                          mt-2
-
-                          flex
-
-                          items-center
-
-                          gap-2
-
-
-
-                          h-12
-
-                          px-4
-
-
-
-                          rounded-xl
-
-
-
-                          border
-
-                          border-white/10
-
-
-
-                          bg-[#181b20]
-
-
-
-                          focus-within:border-[#d4af37]/60
-
-                        "
-
-                      >
-
-                        <CalendarDays className="w-4 h-4 text-[#d4af37]" />
-
-
-
-                        <input
-
-                          type="date"
-
-                          value={date}
-
-                          onChange={(e) =>
-
-                            setDate(e.target.value)
-
-                          }
-
-                          className="
-
-                            flex-1
-
-                            bg-transparent
-
-                            outline-none
-
-                            text-xs
-
-                            text-white
-
-                          "
-
-                        />
-
-                      </div>
-
-
-
-                      <div className="flex items-center gap-2 mt-3">
-
-                        <Clock3 className="w-3.5 h-3.5 text-[#d4af37]" />
-
-
-
-                        <span className="text-[10px] text-white/35">
-
-                          You can change this later.
-
-                        </span>
-
-                      </div>
-
-
-
-                      <button
-
-                        onClick={handleDateNext}
-
-                        disabled={!date}
-
-                        className="
-
-                          w-full
-
-                          mt-5
-
-                          h-11
-
-                          rounded-xl
-
-
-
-                          bg-gradient-to-r
-
-                          from-[#d4af37]
-
-                          to-[#e5c45a]
-
-
-
-                          text-[#111]
-
-                          font-bold
-
-                          text-xs
-
-
-
-                          disabled:opacity-30
-
-
-
-                          transition
-
-
-
-                          flex
-
-                          items-center
-
-                          justify-center
-
-                          gap-2
-
-                        "
-
-                      >
-
-                        Find My Vendors
-
-                        <Sparkles className="w-4 h-4" />
-
-                      </button>
-                      <button
-                        onClick={() => {
-                          setMessages((prev) => [...prev, {
-                            id: `${Date.now()}-planner`,
-                            role: "assistant",
-                            content: "Of course! Ask me anything about your event, or choose an event category to continue planning.",
-                          }]);
-                          setStep("event");
-                        }}
-                        className="w-full mt-3 h-10 rounded-xl border border-dashed border-white/20 text-xs text-white/50 hover:border-[#d4af37]/50 hover:text-[#d4af37] transition-colors"
-                      >Ask Eve something else</button>
-
-
-                    </div>
-
-                  </motion.div>
-
-                )}
-
-
-
-                {/* =================================================
-
-                    BUDGET
-
-                ================================================= */}
-
-
-
-                {step === "budget" && (
-
-                  <motion.div
-
-                    key="budget"
-
                     initial={{ opacity: 0, x: 20 }}
-
                     animate={{ opacity: 1, x: 0 }}
-
                     exit={{ opacity: 0, x: -20 }}
-
                     className="p-5"
-
                   >
-
                     <BackButton onClick={handleBack} />
 
-
-
                     <CompactEveHeader
-
                       image={eveAvatar}
-
-                      title="What's your budget?"
-
-                      subtitle="This helps me personalise the vendors and options I show you."
-
+                      title="Where is your event?"
+                      subtitle="I'll use your city to find relevant verified vendors near you."
                     />
 
+                    <div className="mt-7">
+                      <label className={FIELD_LABEL}>Event City</label>
 
+                      <div className={FIELD_BOX}>
+                        <MapPin className="h-4 w-4 text-[#C44A68]" />
+                        <input
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          placeholder="Delhi, Mumbai, Jaipur..."
+                          className="flex-1 bg-transparent text-xs text-[#4A3440] outline-none placeholder:text-[#4A3440]/40"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleLocationNext}
+                        disabled={!city.trim()}
+                        className={`mt-4 h-11 ${PRIMARY_BTN}`}
+                      >
+                        Continue
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+
+                      <button onClick={askEveSomethingElse} className={DASHED_BTN}>
+                        Ask Eve something else
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* DATE */}
+                {step === "date" && (
+                  <motion.div
+                    key="date"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="p-5"
+                  >
+                    <BackButton onClick={handleBack} />
+
+                    <CompactEveHeader
+                      image={eveAvatar}
+                      title="When is your event?"
+                      subtitle="Knowing the date helps me find vendors who are available around your event."
+                    />
 
                     <div className="mt-7">
+                      <label className={FIELD_LABEL}>Event Date</label>
 
-                      <label
+                      <div className={FIELD_BOX}>
+                        <CalendarDays className="h-4 w-4 text-[#C44A68]" />
+                        <input
+                          type="date"
+                          value={date}
+                          onChange={(e) => setDate(e.target.value)}
+                          className="flex-1 bg-transparent text-xs text-[#4A3440] outline-none [color-scheme:light]"
+                        />
+                      </div>
 
-                        className="
+                      <div className="mt-3 flex items-center gap-2">
+                        <Clock3 className="h-3.5 w-3.5 text-[#C44A68]" />
+                        <span className="text-[10px] text-[#4A3440]/60">You can change this later.</span>
+                      </div>
 
-                          text-[10px]
-
-                          uppercase
-
-                          tracking-[0.18em]
-
-                          text-white/40
-
-                        "
-
+                      <button
+                        onClick={handleDateNext}
+                        disabled={!date}
+                        className={`mt-5 h-11 ${PRIMARY_BTN}`}
                       >
+                        Find My Vendors
+                        <Sparkles className="h-4 w-4" />
+                      </button>
 
-                        Select your budget
+                      <button onClick={askEveSomethingElse} className={DASHED_BTN}>
+                        Ask Eve something else
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
 
-                      </label>
+                {/* BUDGET */}
+                {step === "budget" && (
+                  <motion.div
+                    key="budget"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="p-5"
+                  >
+                    <BackButton onClick={handleBack} />
 
+                    <CompactEveHeader
+                      image={eveAvatar}
+                      title="What's your budget?"
+                      subtitle="This helps me personalise the vendors and options I show you."
+                    />
 
+                    <div className="mt-7">
+                      <label className={FIELD_LABEL}>Select your budget</label>
 
                       <div className="mt-3 grid grid-cols-2 gap-3">
-
-                        {[
-
-                          "₹1–5 Lakh",
-
-                          "₹5–10 Lakh",
-
-                          "₹10–25 Lakh",
-
-                          "₹25 Lakh+",
-
-                        ].map((amount) => (
-
+                        {["₹1–5 Lakh", "₹5–10 Lakh", "₹10–25 Lakh", "₹25 Lakh+"].map((amount) => (
                           <button
-
                             key={amount}
-
                             onClick={() => {
-
                               setBudget(amount);
-
                               setStep("recommendations");
-
                             }}
-
-                            className="
-
-                              rounded-xl
-
-                              border
-
-                              border-white/[0.08]
-
-                              bg-[#181b20]
-
-                              px-3
-
-                              py-4
-
-                              text-xs
-
-                              font-medium
-
-                              text-white
-
-                              transition
-
-                              hover:border-[#d4af37]/50
-
-                              hover:bg-[#d4af37]/[0.06]
-
-                            "
-
+                            className={`px-3 py-4 text-xs font-medium ${CHOICE_CARD}`}
                           >
-
                             {amount}
-
                           </button>
-
                         ))}
-
                       </div>
 
-
-
                       <button
-
                         onClick={() => {
-
                           setBudget("Flexible");
-
                           setStep("recommendations");
-
                         }}
-
-                        className="
-
-                          w-full
-
-                          mt-3
-
-                          h-10
-
-                          rounded-xl
-
-                          border
-
-                          border-dashed
-
-                          border-white/20
-
-                          text-[11px]
-
-                          text-white/40
-
-                          hover:border-[#d4af37]/40
-
-                          hover:text-[#d4af37]
-
-                          transition
-
-                        "
-
+                        className="mt-3 h-10 w-full rounded-xl border border-dashed border-[#C44A68]/30 text-[11px] text-[#4A3440]/60 transition hover:border-[#C44A68]/60 hover:text-[#C44A68]"
                       >
-
                         My budget is flexible
-
                       </button>
-                      <button
-                        onClick={() => {
-                          setMessages((prev) => [...prev, {
-                            id: `${Date.now()}-planner`,
-                            role: "assistant",
-                            content: "Of course! Ask me anything about your event, or choose an event category to continue planning.",
-                          }]);
-                          setStep("event");
-                        }}
-                        className="w-full mt-3 h-10 rounded-xl border border-dashed border-white/20 text-xs text-white/50 hover:border-[#d4af37]/50 hover:text-[#d4af37] transition-colors"
-                      >Ask Eve something else</button>
 
-
+                      <button onClick={askEveSomethingElse} className={DASHED_BTN}>
+                        Ask Eve something else
+                      </button>
                     </div>
-
                   </motion.div>
-
                 )}
 
-
-
-                {/* =================================================
-
-                    RECOMMENDATIONS
-
-                ================================================= */}
-
-
-
+                {/* RECOMMENDATIONS */}
                 {step === "recommendations" && (
-
                   <motion.div
-
                     key="recommendations"
-
-                    initial={{
-
-                      opacity: 0,
-
-                      y: 15,
-
-                    }}
-
-                    animate={{
-
-                      opacity: 1,
-
-                      y: 0,
-
-                    }}
-
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
                     className="p-5"
-
                   >
-
                     <CompactEveHeader
-
                       image={eveAvatar}
-
                       title="I've got your plan ✨"
-
                       subtitle="Here's what I'll use to personalise your vendor recommendations."
-
                     />
-
-
 
                     <div className="mt-5 space-y-2">
-
-                      <SummaryRow
-
-                        label="Event"
-
-                        value={eventType ?? "Event"}
-
-                      />
-
-
-
-                      <SummaryRow
-
-                        label="Service"
-
-                        value={
-
-                          selectedOption ??
-
-                          "General Event Planning"
-
-                        }
-
-                      />
-
-
-
-                      <SummaryRow
-
-                        label="City"
-
-                        value={city || "Not specified"}
-
-                      />
-
-
-
-                      <SummaryRow
-
-                        label="Date"
-
-                        value={date || "Flexible"}
-
-                      />
-
-
-
-                      <SummaryRow
-
-                        label="Budget"
-
-                        value={budget || "Flexible"}
-
-                      />
-
+                      <SummaryRow label="Event" value={eventType ?? "Event"} />
+                      <SummaryRow label="Service" value={selectedOption ?? "General Event Planning"} />
+                      <SummaryRow label="City" value={city || "Not specified"} />
+                      <SummaryRow label="Date" value={date || "Flexible"} />
+                      <SummaryRow label="Budget" value={budget || "Flexible"} />
                     </div>
 
-
-
-                    <button
-
-                      onClick={() => setStep("complete")}
-
-                      className="
-
-                        w-full
-
-                        mt-5
-
-                        h-11
-
-                        rounded-xl
-
-
-
-                        bg-gradient-to-r
-
-                        from-[#d4af37]
-
-                        to-[#e5c45a]
-
-
-
-                        text-[#111]
-
-                        font-bold
-
-                        text-xs
-
-
-
-                        hover:brightness-110
-
-                        transition
-
-
-
-                        flex
-
-                        items-center
-
-                        justify-center
-
-                        gap-2
-
-                      "
-
-                    >
-
+                    <button onClick={() => setStep("complete")} className={`mt-5 h-11 ${PRIMARY_BTN}`}>
                       Show My Recommendations
-
-                      <ArrowRight className="w-4 h-4" />
-
+                      <ArrowRight className="h-4 w-4" />
                     </button>
-
                   </motion.div>
-
                 )}
 
-
-
-                {/* =================================================
-
-                    COMPLETE
-
-                ================================================= */}
-
-
-
+                {/* COMPLETE */}
                 {step === "complete" && (
-
                   <motion.div
-
                     key="complete"
-
-                    initial={{
-
-                      opacity: 0,
-
-                      scale: 0.97,
-
-                    }}
-
-                    animate={{
-
-                      opacity: 1,
-
-                      scale: 1,
-
-                    }}
-
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
                     className="p-5"
-
                   >
-
                     <CompactEveHeader
-
                       image={eveAvatar}
-
                       title="Let's make it happen 🎉"
-
                       subtitle="Your event profile is ready. Eve can now help you discover the right vendors."
-
                     />
 
-
-
-                    <div
-
-                      className="
-
-                        mt-6
-
-                        p-4
-
-                        rounded-2xl
-
-
-
-                        border
-
-                        border-[#d4af37]/20
-
-
-
-                        bg-[#d4af37]/[0.04]
-
-                      "
-
-                    >
-
+                    <div className="mt-6 rounded-2xl border border-[#C44A68]/20 bg-[#C44A68]/[0.05] p-4">
                       <div className="flex items-center gap-3">
-
-                        <div
-
-                          className="
-
-                            w-10
-
-                            h-10
-
-                            rounded-full
-
-
-
-                            bg-[#d4af37]/10
-
-
-
-                            flex
-
-                            items-center
-
-                            justify-center
-
-                          "
-
-                        >
-
-                          <Sparkles className="w-5 h-5 text-[#d4af37]" />
-
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#C44A68]/10">
+                          <Sparkles className="h-5 w-5 text-[#C44A68]" />
                         </div>
-
-
-
                         <div>
-
-                          <p className="text-xs font-semibold text-white">
-
-                            Personalised vendor discovery
-
-                          </p>
-
-
-
-                          <p className="text-[10px] text-white/40 mt-1">
-
-                            Based on your event preferences
-
-                          </p>
-
+                          <p className="text-xs font-semibold text-[#4A3440]">Personalised vendor discovery</p>
+                          <p className="mt-1 text-[10px] text-[#4A3440]/60">Based on your event preferences</p>
                         </div>
-
                       </div>
-
                     </div>
-
-
 
                     <button
-
                       onClick={resetPlanner}
-
-                      className="
-
-                        w-full
-
-                        mt-4
-
-                        h-10
-
-                        rounded-xl
-
-
-
-                        border
-
-                        border-[#d4af37]/35
-
-
-
-                        text-[#d4af37]
-
-                        text-xs
-
-                        font-semibold
-
-
-
-                        hover:bg-[#d4af37]/10
-
-
-
-                        transition
-
-                      "
-
+                      className="mt-4 h-10 w-full rounded-xl border border-[#C44A68]/40 text-xs font-semibold text-[#C44A68] transition hover:bg-[#C44A68]/10"
                     >
-
                       Start Another Plan
-
                     </button>
-
                   </motion.div>
-
                 )}
-
               </AnimatePresence>
 
-              
-
-
-
-
-
-                <div className="flex flex-col gap-4 px-4 py-5">
-
-                  {messages.map((chatMessage) => (
-
+              {/* CHAT MESSAGES */}
+              <div className="flex flex-col gap-4 px-4 py-5">
+                {messages.map((chatMessage) => (
+                  <div
+                    key={chatMessage.id}
+                    className={`flex ${chatMessage.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
                     <div
-
-                      key={chatMessage.id}
-
-                      className={`flex ${
-
+                      className={`max-w-[88%] rounded-2xl px-4 py-3 ${
                         chatMessage.role === "user"
-
-                          ? "justify-end"
-
-                          : "justify-start"
-
+                          ? "rounded-br-sm bg-[#C44A68] text-white"
+                          : "rounded-bl-sm border border-[#C44A68]/25 bg-[#FFFBF8] text-[#4A3440]"
                       }`}
-
                     >
-
-                      <div
-
-                        className={`max-w-[88%] rounded-2xl px-4 py-3 ${
-
-                          chatMessage.role === "user"
-
-                            ? "rounded-br-sm bg-[#d4af37] text-black"
-
-                            : "rounded-bl-sm border border-[#d4af37]/25 bg-[#171a1f] text-white"
-
-                        }`}
-
-                      >
-
-                        {chatMessage.role === "assistant" && (
-
-                          <p className="mb-2 text-xs font-bold text-[#d4af37]">
-
-                            ✨ EveBuddy AI
-
-                          </p>
-
-                        )}
-
-
-
-                        <p className="whitespace-pre-wrap text-base leading-relaxed">
-
-                          {chatMessage.content}
-
-                        </p>
-
-                      </div>
-
+                      {chatMessage.role === "assistant" && (
+                        <p className="mb-2 text-xs font-bold text-[#C44A68]">✨ EveBuddy AI</p>
+                      )}
+                      <p className="whitespace-pre-wrap text-base leading-relaxed">{chatMessage.content}</p>
                     </div>
-
-                  ))}
-
-
-
-                  {isAiLoading && (
-
-                    <div className="self-start rounded-xl border border-[#d4af37]/25 bg-[#171a1f] px-4 py-3 text-sm text-[#d4af37]">
-
-                      Eve is thinking...
-
-                    </div>
-
-                  )}
-
-                  <div ref={chatEndRef} />
-
-                </div>
-
-
-
-
-
-              {/* GEMINI RESPONSE */}
-
-              {aiError && (
-
-                <div className="mx-5 mb-3 rounded-xl border border-red-500/30 bg-red-950/30 p-3 text-sm text-red-300">
-
-                  Error: {aiError}
-
-                </div>
-
-              )}
-
-
-
-            </main>
-
-
-
-            {/* ==================================================
-
-                MESSAGE BAR
-
-            ================================================== */}
-
-
-
-            <div
-
-              className="
-
-                shrink-0
-
-
-
-                px-4
-
-                py-3
-
-
-
-               border-t
-
-              border-[#d4af37]/10
-
-
-
-                bg-gradient-to-t
-
-                from-[#08090b]
-
-                to-[#0d0f13]
-
-              "
-
-            >
-
-              <div
-
-                className="
-
-                  flex
-
-                  items-center
-
-                  gap-2
-
-
-
-                  h-[46px]
-
-                  px-2
-
-
-
-                  rounded-xl
-
-
-
-                  border
-
-                  border-white/[0.08]
-
-
-
-                  bg-[#171a1f]
-
-
-
-                  focus-within:border-[#d4af37]/40
-
-
-
-                  transition
-
-                "
-
-              >
-
-                <button
-
-                  className="
-
-                    w-8
-
-                    h-8
-
-                    rounded-full
-
-                    flex
-
-                    items-center
-
-                    justify-center
-
-                    text-white/35
-
-                    hover:text-[#d4af37]
-
-                    transition
-
-                  "
-
-                >
-
-                  <Mic className="w-4 h-4" />
-
-                </button>
-
-
-
-                <input
-
-                  value={message}
-
-                  onChange={(e) =>
-
-                    setMessage(e.target.value)
-
-                  }
-
-                  onKeyDown={(e) => {
-
-                    if (e.key === "Enter") {
-
-                      handleSendMessage();
-
-                    }
-
-                  }}
-
-                  placeholder="Ask Eve anything about your event..."
-
-                  className="
-
-                    flex-1
-
-                    min-w-0
-
-
-
-                    bg-transparent
-
-                    outline-none
-
-
-
-                    text-[13px]
-
-                    text-white
-
-
-
-                    placeholder:text-white/25
-
-                  "
-
-                />
-
-
-
-                <button
-
-                  onClick={handleSendMessage}
-
-                  disabled={!message.trim()}
-
-                  className="
-
-                    w-9
-
-                    h-9
-
-                    rounded-lg
-
-
-
-                    bg-gradient-to-br
-
-                    from-[#d4af37]
-
-                    to-[#e5c45a]
-
-
-
-                    text-[#111]
-
-
-
-                    flex
-
-                    items-center
-
-                    justify-center
-
-
-
-                    disabled:opacity-25
-
-
-
-                    transition
-
-                  "
-
-                >
-
-                  <Send className="w-4 h-4" />
-
-                </button>
-
+                  </div>
+                ))}
+
+                {isAiLoading && (
+                  <div className="self-start rounded-xl border border-[#C44A68]/25 bg-[#FFFBF8] px-4 py-3 text-sm text-[#C44A68]">
+                    Eve is thinking...
+                  </div>
+                )}
+                <div ref={chatEndRef} />
               </div>
 
+              {aiError && (
+                <div className="mx-5 mb-3 rounded-xl border border-red-300 bg-red-100 p-3 text-sm text-red-700">
+                  Error: {aiError}
+                </div>
+              )}
+            </main>
+
+            {/* MESSAGE BAR */}
+            <div className="shrink-0 border-t border-[#C44A68]/15 bg-gradient-to-t from-[#FFF1EC] to-[#FFF6F2] px-4 py-3">
+              <div className="flex h-[46px] items-center gap-2 rounded-xl border border-[#C44A68]/20 bg-[#FFFBF8] px-2 transition focus-within:border-[#C44A68]/50">
+                <button className="flex h-8 w-8 items-center justify-center rounded-full text-[#4A3440]/50 transition hover:text-[#C44A68]">
+                  <Mic className="h-4 w-4" />
+                </button>
+
+                <input
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSendMessage();
+                  }}
+                  placeholder="Ask Eve anything about your event..."
+                  className="min-w-0 flex-1 bg-transparent text-[13px] text-[#4A3440] outline-none placeholder:text-[#4A3440]/40"
+                />
+
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!message.trim()}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#C44A68] to-[#E0708A] text-white transition disabled:opacity-25"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
-
-
-            {/* ==================================================
-
-                FOOTER
-
-            ================================================== */}
-
-
-
-            <div
-
-              className="
-
-                shrink-0
-
-
-
-                h-[25px]
-
-
-
-                flex
-
-                items-center
-
-                justify-center
-
-
-
-                bg-[#090a0c]
-
-
-
-                border-t
-
-                border-white/[0.04]
-
-              "
-
-            >
-
-              <p
-
-                className="
-
-                  text-[8px]
-
-                  tracking-[0.18em]
-
-                  text-white/20
-
-                "
-
-              >
-
+            {/* FOOTER */}
+            <div className="flex h-[25px] shrink-0 items-center justify-center border-t border-[#C44A68]/10 bg-[#FFE9E3]">
+              <p className="text-[8px] tracking-[0.18em] text-[#4A3440]/50">
                 EVE BUDDY AI • PERSONAL EVENT PLANNER
-
               </p>
-
             </div>
-
           </motion.aside>
-
         </>
-
       )}
-
     </AnimatePresence>
-
   );
-
 };
 
-
-
-// ============================================================
-
-// COMPACT EVE HEADER
-
-// ============================================================
-
-
+/* ---------------- COMPACT EVE HEADER ---------------- */
 
 interface CompactEveHeaderProps {
-
   image: string;
-
   title: string;
-
   subtitle: string;
-
 }
 
-
-
-const CompactEveHeader = ({
-
-  image,
-
-  title,
-
-  subtitle,
-
-}: CompactEveHeaderProps) => {
-
-  return (
-
-    <div className="flex items-start gap-3">
-
-      <div
-
-        className="
-
-          relative
-
-          shrink-0
-
-
-
-          w-[82px]
-
-          h-[100px]
-
-
-
-          overflow-hidden
-
-
-
-          rounded-2xl
-
-
-
-          bg-gradient-to-b
-
-          from-[#17191e]
-
-          to-[#0b0d10]
-
-
-
-          border
-
-          border-[#d4af37]/20
-
-        "
-
-      >
-
-        <motion.img
-
-          key={image}
-
-          initial={{
-
-            opacity: 0,
-
-            scale: 1.05,
-
-          }}
-
-          animate={{
-
-            opacity: 1,
-
-            scale: 1,
-
-          }}
-
-          transition={{
-
-            duration: 0.25,
-
-          }}
-
-          src={image}
-
-          alt="Eve Buddy"
-
-          className="
-
-            w-full
-
-            h-full
-
-            object-contain
-
-          "
-
-        />
-
-      </div>
-
-
-
-      <div className="pt-1">
-
-        <h3
-
-          className="
-
-            font-display
-
-            text-[18px]
-
-            font-bold
-
-            leading-tight
-
-            text-white
-
-          "
-
-        >
-
-          {title}
-
-        </h3>
-
-
-
-        <p
-
-          className="
-
-            mt-2
-
-            text-[10px]
-
-            leading-relaxed
-
-            text-white/45
-
-          "
-
-        >
-
-          {subtitle}
-
-        </p>
-
-      </div>
-
+const CompactEveHeader = ({ image, title, subtitle }: CompactEveHeaderProps) => (
+  <div className="flex items-start gap-3">
+    <div className="relative h-[100px] w-[82px] shrink-0 overflow-hidden rounded-2xl border border-[#C44A68]/25 bg-gradient-to-b from-[#FFE3D6] to-[#FBD3DC]">
+      <motion.img
+        key={image}
+        initial={{ opacity: 0, scale: 1.05 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.25 }}
+        src={image}
+        alt="Eve Buddy"
+        className="h-full w-full object-contain"
+      />
     </div>
 
-  );
-
-};
-
-
-
-// ============================================================
-
-// BACK BUTTON
-
-// ============================================================
-
-
-
-const BackButton = ({
-
-  onClick,
-
-}: {
-
-  onClick: () => void;
-
-}) => {
-
-  return (
-
-    <button
-
-      onClick={onClick}
-
-      className="
-
-        mb-4
-
-
-
-        flex
-
-        items-center
-
-        gap-1.5
-
-
-
-        text-[10px]
-
-        text-white/40
-
-
-
-        hover:text-[#d4af37]
-
-
-
-        transition
-
-      "
-
-    >
-
-      <ArrowLeft className="w-3.5 h-3.5" />
-
-      Back
-
-    </button>
-
-  );
-
-};
-
-
-
-// ============================================================
-
-// SUMMARY ROW
-
-// ============================================================
-
-
-
-const SummaryRow = ({
-
-  label,
-
-  value,
-
-}: {
-
-  label: string;
-
-  value: string;
-
-}) => {
-
-  return (
-
-    <div
-
-      className="
-
-        flex
-
-        items-center
-
-        justify-between
-
-        gap-4
-
-
-
-        px-4
-
-        py-3
-
-
-
-        rounded-xl
-
-
-
-        bg-[#181b20]
-
-
-
-        border
-
-        border-white/[0.06]
-
-      "
-
-    >
-
-      <span className="text-[10px] text-white/40">
-
-        {label}
-
-      </span>
-
-
-
-      <span
-
-        className="
-
-          text-[10px]
-
-          font-semibold
-
-          text-white
-
-          text-right
-
-        "
-
-      >
-
-        {value}
-
-      </span>
-
+    <div className="pt-1">
+      <h3 className="font-display text-[18px] font-bold leading-tight text-[#4A1230]">{title}</h3>
+      <p className="mt-2 text-[10px] leading-relaxed text-[#4A3440]/70">{subtitle}</p>
     </div>
+  </div>
+);
 
-  );
+/* ---------------- BACK BUTTON ---------------- */
 
-};
+const BackButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="mb-4 flex items-center gap-1.5 text-[10px] text-[#4A3440]/60 transition hover:text-[#C44A68]"
+  >
+    <ArrowLeft className="h-3.5 w-3.5" />
+    Back
+  </button>
+);
+
+/* ---------------- SUMMARY ROW ---------------- */
+
+const SummaryRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex items-center justify-between gap-4 rounded-xl border border-[#C44A68]/15 bg-[#FFFBF8] px-4 py-3">
+    <span className="text-[10px] text-[#4A3440]/60">{label}</span>
+    <span className="text-right text-[10px] font-semibold text-[#4A3440]">{value}</span>
+  </div>
+);

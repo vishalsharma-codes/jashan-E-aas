@@ -63,7 +63,7 @@ export function StoriesStrip({ stories }: { stories: Story[] }) {
             <motion.div
               animate={{ opacity: isActive ? 1 : 0.55 }}
               transition={{ duration: 0.4 }}
-              className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/10"
+              className="absolute inset-0 bg-gradient-to-t from-[#4A3440] via-[#4A3440]/70 to-[#4A3440]/10"
             />
 
             <div className="relative flex h-full flex-col justify-end p-5">

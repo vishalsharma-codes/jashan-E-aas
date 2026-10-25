@@ -134,10 +134,10 @@ export const AccountTab = ({ isOpen, onClose }: AccountTabProps) => {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Trophy className="w-5 h-5 text-gold" />
+                      <Trophy className="w-5 h-5 text-[#FFC9B0]" />
                       <span className="text-white font-semibold">Discount Credits</span>
                     </div>
-                    <span className="text-gold font-bold text-2xl">{profile?.discount_credits || 0}</span>
+                    <span className="text-[#FFC9B0] font-bold text-2xl">{profile?.discount_credits || 0}</span>
                   </div>
                   <Progress value={(profile?.discount_credits || 0) * 10} className="h-2 bg-white/20" />
                   <p className="text-white/70 text-xs mt-2">

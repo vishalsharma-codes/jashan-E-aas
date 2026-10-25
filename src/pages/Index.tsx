@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   CheckCircle,
@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Star,
   MapPin,
-  Quote,
   Zap,
   Shield,
   Clock,
@@ -30,83 +29,96 @@ import { getFeaturedVendors, getTopRatedVendors } from "@/lib/vendorData";
 import { StackSection } from "@/components/StackSection";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import { HowItWorksTimeline } from "@/components/HowItWorksTimeline";
-import { TopRatedStack } from "@/components/TopRatedStack"; // ← NEW
+import { TopRatedStack } from "@/components/TopRatedStack";
 import { StoriesStrip } from "@/components/StoriesStrip";
 
 const featuredVendors = getFeaturedVendors();
 const topVendors = getTopRatedVendors();
 
-/* ── Profession themes (matched by keyword in vendor.category) ── */
+/* ── Profession themes (matched by keyword in vendor.category) ──
+   Softer, warmer gradients so they sit well on the Blush Peach page. */
 const professionThemes = [
-  { match: /photo|video|cinema|film/i, emoji: "📸", gradient: "from-rose-700 to-pink-900", badge: "bg-rose-100 text-rose-700" },
-  { match: /design|decor|floral|light/i, emoji: "🎨", gradient: "from-fuchsia-700 to-purple-900", badge: "bg-fuchsia-100 text-fuchsia-700" },
-  { match: /cater|food|chef|cake/i, emoji: "🍛", gradient: "from-orange-600 to-red-900", badge: "bg-orange-100 text-orange-700" },
-  { match: /dj|music|band|singer|sound/i, emoji: "🎧", gradient: "from-indigo-600 to-blue-900", badge: "bg-indigo-100 text-indigo-700" },
-  { match: /makeup|beauty|mehndi|bridal/i, emoji: "💄", gradient: "from-pink-600 to-rose-900", badge: "bg-pink-100 text-pink-700" },
-  { match: /venue|hall|resort|banquet/i, emoji: "🏰", gradient: "from-amber-600 to-yellow-900", badge: "bg-amber-100 text-amber-700" },
-  { match: /plan|corporate|manage/i, emoji: "🗂️", gradient: "from-emerald-600 to-teal-900", badge: "bg-emerald-100 text-emerald-700" },
+  { match: /photo|video|cinema|film/i, emoji: "📸", gradient: "from-rose-400 to-pink-600", badge: "bg-rose-100 text-rose-700" },
+  { match: /design|decor|floral|light/i, emoji: "🎨", gradient: "from-fuchsia-400 to-purple-600", badge: "bg-fuchsia-100 text-fuchsia-700" },
+  { match: /cater|food|chef|cake/i, emoji: "🍛", gradient: "from-orange-400 to-red-500", badge: "bg-orange-100 text-orange-700" },
+  { match: /dj|music|band|singer|sound/i, emoji: "🎧", gradient: "from-indigo-400 to-blue-600", badge: "bg-indigo-100 text-indigo-700" },
+  { match: /makeup|beauty|mehndi|bridal/i, emoji: "💄", gradient: "from-pink-400 to-rose-600", badge: "bg-pink-100 text-pink-700" },
+  { match: /venue|hall|resort|banquet/i, emoji: "🏰", gradient: "from-amber-400 to-orange-600", badge: "bg-amber-100 text-amber-700" },
+  { match: /plan|corporate|manage/i, emoji: "🗂️", gradient: "from-emerald-400 to-teal-600", badge: "bg-emerald-100 text-emerald-700" },
 ];
 const defaultTheme = {
   emoji: "🎉",
-  gradient: "from-neutral-600 to-neutral-900",
-  badge: "bg-neutral-200 text-neutral-700",
+  gradient: "from-rose-300 to-orange-400",
+  badge: "bg-rose-100 text-rose-700",
 };
 const getTheme = (category: string) =>
   professionThemes.find((t) => t.match.test(category)) ?? defaultTheme;
 
-// group vendors by profession so same-work vendors sit together
 const sortedFeatured = [...featuredVendors].sort((a, b) =>
   a.category.localeCompare(b.category)
 );
 
 const liveActivity = [
-  { time: "2 min ago", action: "Wedding booked", vendor: "Royal Celebrations", city: "Mumbai", emoji: "💍" },
-  { time: "5 min ago", action: "Payment confirmed", vendor: "Pixel Perfect Studios", city: "Bangalore", emoji: "📸" },
-  { time: "9 min ago", action: "Enquiry sent", vendor: "Spice Route Catering", city: "Delhi", emoji: "🍛" },
-  { time: "12 min ago", action: "Review posted", vendor: "Sound & Fury DJ", city: "Goa", emoji: "🎧" },
-  { time: "18 min ago", action: "Booking confirmed", vendor: "The Grand Band Project", city: "Chennai", emoji: "🎺" },
-  { time: "24 min ago", action: "Pre-wedding shoot booked", vendor: "Moments That Last", city: "Jaipur", emoji: "🏯" },
-  { time: "31 min ago", action: "Token paid (UPI)", vendor: "Lumiere Light Design", city: "Delhi", emoji: "✨" },
-  { time: "45 min ago", action: "Corporate event booked", vendor: "EventCraft Corporate", city: "Bangalore", emoji: "🏢" },
+  // { time: "2 min ago", action: "Wedding booked", vendor: "Royal Celebrations", city: "Mumbai", emoji: "💍" },
+  // { time: "5 min ago", action: "Payment confirmed", vendor: "Pixel Perfect Studios", city: "Bangalore", emoji: "📸" },
+  // { time: "9 min ago", action: "Enquiry sent", vendor: "Spice Route Catering", city: "Delhi", emoji: "🍛" },
+  // { time: "12 min ago", action: "Review posted", vendor: "Sound & Fury DJ", city: "Goa", emoji: "🎧" },
+  // { time: "18 min ago", action: "Booking confirmed", vendor: "The Grand Band Project", city: "Chennai", emoji: "🎺" },
+  // { time: "24 min ago", action: "Pre-wedding shoot booked", vendor: "Moments That Last", city: "Jaipur", emoji: "🏯" },
+  // { time: "31 min ago", action: "Token paid (UPI)", vendor: "Lumiere Light Design", city: "Delhi", emoji: "✨" },
+  // { time: "45 min ago", action: "Corporate event booked", vendor: "EventCraft Corporate", city: "Bangalore", emoji: "🏢" },
 ];
 
-const cityData = [
-  { city: "Mumbai", events: "4,200+", emoji: "🌊", color: "from-blue-900/60 to-blue-800/40", vendors: 312 },
-  { city: "Delhi", events: "3,800+", emoji: "🏛️", color: "from-orange-900/60 to-red-800/40", vendors: 289 },
-  { city: "Bangalore", events: "2,900+", emoji: "🌿", color: "from-green-900/60 to-teal-800/40", vendors: 245 },
-  { city: "Hyderabad", events: "1,800+", emoji: "🕌", color: "from-purple-900/60 to-violet-800/40", vendors: 178 },
-  { city: "Chennai", events: "1,600+", emoji: "🛕", color: "from-amber-900/60 to-orange-800/40", vendors: 156 },
-  { city: "Jaipur", events: "1,400+", emoji: "🏯", color: "from-rose-900/60 to-pink-800/40", vendors: 134 },
-  { city: "Goa", events: "1,200+", emoji: "🌴", color: "from-cyan-900/60 to-teal-800/40", vendors: 112 },
-  { city: "Kolkata", events: "1,100+", emoji: "🎭", color: "from-yellow-900/60 to-amber-800/40", vendors: 98 },
+const COMING_SOON_TINT = "from-[#4A3440]/60 to-[#4A3440]/40";
+
+const cityData: {
+  city: string;
+  image: string;
+  color?: string;
+  comingSoon?: boolean;
+}[] = [
+  { city: "Mumbai", image: "/city/mumbai.jpeg", color: COMING_SOON_TINT, comingSoon: true },
+  { city: "Delhi", image: "/city/delhi.jpeg" },
+  { city: "Bangalore", image: "/city/bangalore.jpeg", color: COMING_SOON_TINT, comingSoon: true },
+  { city: "Hyderabad", image: "/city/hyderabad.jpeg", color: COMING_SOON_TINT, comingSoon: true },
+  { city: "Lucknow", image: "/city/lucknow.jpg", color: COMING_SOON_TINT, comingSoon: true },
+  { city: "Jaipur", image: "/city/jaipur.jpeg", color: COMING_SOON_TINT, comingSoon: true },
+  { city: "Goa", image: "/city/goa.jpeg", color: COMING_SOON_TINT, comingSoon: true },
+  { city: "Kolkata", image: "/city/kolkata.jpeg", color: COMING_SOON_TINT, comingSoon: true },
 ];
 
-/* Add  image: "/images/step1.jpg"  to any step to show a real photo
-   instead of the gradient + icon panel. */
 const howItWorks = [
   {
     step: "01",
     title: "Tell Us Your Vision",
     desc: "Share your event type, date, location & budget. Our smart matching does the rest.",
     icon: ClipboardPenLine,
+    image: "/HowItWorks/vision.jpg",
+    imageFit: "cover",
   },
   {
     step: "02",
     title: "Browse Curated Vendors",
     desc: "Get a personalised list of verified vendors with portfolios, reviews & pricing.",
     icon: Search,
+    image: "/HowItWorks/vendor.jpg",
+    imageFit: "cover",
   },
   {
     step: "03",
     title: "Compare & Connect",
     desc: "Chat directly, request quotes, and compare side-by-side on every metric.",
     icon: MessagesSquare,
+    image: "/HowItWorks/compare.jpg",
+    imageFit: "cover",
   },
   {
     step: "04",
     title: "Book With Confidence",
     desc: "Secure your vendor with our protected booking system & event guarantee.",
     icon: ShieldCheck,
+    image: "/HowItWorks/book.jpg",
+    imageFit: "cover",
   },
 ];
 
@@ -140,21 +152,19 @@ const testimonials = [
   },
 ];
 
-const quickLinks = [
-  { label: "How It Works", href: "/how-it-works", icon: "🎯" },
-  { label: "Trust & Safety", href: "/trust-safety", icon: "🛡️" },
-  { label: "Rewards", href: "/rewards", icon: "🎁" },
-  { label: "Community", href: "/community", icon: "👥" },
-  { label: "Ultra Gold", href: "/ultra-gold", icon: "👑" },
-  { label: "Compare Vendors", href: "/compare", icon: "⚖️" },
-];
+const quickLinks: { label: string; href: string; icon: string }[] = [];
+
+/* Wavy edge path + the page cream so the waves blend into the background */
+const WAVE =
+  "M0,0 H1440 V30 C1260,80 1140,0 960,30 C780,60 660,70 480,40 C300,10 160,60 0,30 Z";
+const CREAM = "#FFF6F2";
 
 export default function Index() {
+  const navigate = useNavigate();
   const [demoPayOpen, setDemoPayOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const activeRef = useRef(0);
 
-  /* ── Featured vendors auto-scroll + active profession detection ── */
   const scrollRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
 
@@ -173,7 +183,6 @@ export default function Index() {
       const left = el.getBoundingClientRect().left;
       for (let i = 0; i < el.children.length; i++) {
         const r = (el.children[i] as HTMLElement).getBoundingClientRect();
-        // first card whose centre is still on screen
         if (r.left + r.width / 2 > left + 10) {
           const idx = i % n;
           if (idx !== activeRef.current) {
@@ -194,14 +203,13 @@ export default function Index() {
         const clone = el.children[n] as HTMLElement | undefined;
 
         if (first && clone) {
-          // width of one full set of cards
           const period = clone.offsetLeft - first.offsetLeft;
           pos += SPEED * dt;
-          if (pos >= period) pos -= period; // seamless loop
+          if (pos >= period) pos -= period;
           el.scrollLeft = pos;
         }
       } else {
-        pos = el.scrollLeft; // stay in sync while user scrolls / uses arrows
+        pos = el.scrollLeft;
       }
       detectActive();
       raf = requestAnimationFrame(tick);
@@ -222,32 +230,33 @@ export default function Index() {
           <Hero />
         </StackSection>
 
-        <div className="relative z-20 bg-black">
+        {/* was bg-black */}
+        <div className="relative z-20 bg-background">
           {/* 2 ── CATEGORIES */}
           <CategoryCarousel />
 
           {/* 3 ── FEATURED VENDORS */}
-          <section className="relative overflow-hidden bg-[#E9DFFB] py-28">
-            {/* wavy top edge */}
+          <section className="relative overflow-hidden bg-[#FFE3D6] py-28">
             <svg
               viewBox="0 0 1440 80"
               preserveAspectRatio="none"
-              className="pointer-events-none absolute inset-x-0 top-0 h-14 w-full fill-black"
+              className="pointer-events-none absolute inset-x-0 top-0 h-14 w-full"
+              style={{ fill: CREAM }}
             >
-              <path d="M0,0 H1440 V30 C1260,80 1140,0 960,30 C780,60 660,70 480,40 C300,10 160,60 0,30 Z" />
+              <path d={WAVE} />
             </svg>
-            {/* wavy bottom edge */}
             <svg
               viewBox="0 0 1440 80"
               preserveAspectRatio="none"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-14 w-full -scale-y-100 fill-black"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-14 w-full -scale-y-100"
+              style={{ fill: CREAM }}
             >
-              <path d="M0,0 H1440 V30 C1260,80 1140,0 960,30 C780,60 660,70 480,40 C300,10 160,60 0,30 Z" />
+              <path d={WAVE} />
             </svg>
 
             <div className="container relative mx-auto px-4">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
-                {/* LEFT: big feature card (changes with the profession on screen) */}
+                {/* LEFT: big feature card */}
                 {sortedFeatured[activeIdx] &&
                   (() => {
                     const v = sortedFeatured[activeIdx];
@@ -272,14 +281,14 @@ export default function Index() {
                           </motion.div>
                         </AnimatePresence>
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                        <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-black">
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#4A3440]/60 via-transparent to-transparent" />
+                        <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#4A3440]">
                           {v.category}
                         </span>
                         <p className="absolute bottom-4 left-4 font-display text-lg leading-tight text-white">
                           Explore<br />{v.category}
                         </p>
-                        <span className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center bg-white/90 text-black">
+                        <span className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center bg-white/90 text-[#C44A68]">
                           <ArrowRight className="h-4 w-4" />
                         </span>
                       </Link>
@@ -336,7 +345,7 @@ export default function Index() {
                         <div
                           key={`${vendor.id}-${i}`}
                           aria-hidden={isClone}
-                          className="w-[220px] shrink-0 rounded-md bg-[#f6f1e7] p-2 text-neutral-900 shadow-lg"
+                          className="w-[220px] shrink-0 rounded-md bg-[#FFFBF8] p-2 text-[#4A3440] shadow-[0_8px_24px_-8px_rgba(196,74,104,0.35)]"
                         >
                           <div
                             className={`relative flex h-[200px] items-center justify-center rounded-sm bg-gradient-to-br ${
@@ -355,23 +364,23 @@ export default function Index() {
                             <div className="flex items-center gap-1.5">
                               <h3 className="truncate font-display text-sm font-bold">{vendor.name}</h3>
                               {vendor.isVerified && (
-                                <CheckCircle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                                <CheckCircle className="h-3.5 w-3.5 shrink-0 text-[#C44A68]" />
                               )}
                             </div>
-                            <p className="truncate text-xs text-neutral-500">
+                            <p className="truncate text-xs text-[#4A3440]/70">
                               {vendor.category} · {vendor.location}
                             </p>
                             <div className="mt-1 flex items-center gap-1 text-xs">
                               <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
                               <span className="font-semibold">{vendor.rating}</span>
-                              <span className="text-neutral-500">({vendor.reviews})</span>
+                              <span className="text-[#4A3440]/70">({vendor.reviews})</span>
                             </div>
-                            <p className="mt-2 text-sm font-bold text-amber-700">{vendor.price}</p>
+                            <p className="mt-2 text-sm font-bold text-[#C44A68]">{vendor.price}</p>
                             <Link
                               to={`/vendors?vendor=${vendor.id}`}
                               draggable={false}
                               tabIndex={isClone ? -1 : 0}
-                              className="mt-3 block rounded-sm bg-gold py-2 text-center text-xs font-semibold uppercase tracking-wide text-background hover:bg-gold-dark"
+                              className="mt-3 block rounded-sm bg-gold py-2 text-center text-xs font-semibold uppercase tracking-wide text-white hover:bg-gold-dark"
                             >
                               View Profile
                             </Link>
@@ -391,10 +400,10 @@ export default function Index() {
             </div>
           </section>
 
-          {/* 4 ── HOW IT WORKS  (REPLACED: sage-green scroll timeline) */}
+          {/* 4 ── HOW IT WORKS */}
           <HowItWorksTimeline steps={howItWorks} quickLinks={quickLinks} />
 
-          {/* 5 ── TOP RATED VENDORS  (REPLACED: sticky tilted stack) */}
+          {/* 5 ── TOP RATED VENDORS */}
           <TopRatedStack vendors={topVendors} />
 
           {/* 6 ── TESTIMONIALS */}
@@ -407,17 +416,17 @@ export default function Index() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className="flex items-center gap-3 mb-6"
+                className="mb-6 flex items-center gap-3"
               >
                 <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 </span>
                 <h3 className="font-semibold text-foreground">Live Activity</h3>
                 <span className="text-xs text-muted-foreground">Real-time bookings across India</span>
               </motion.div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {liveActivity.map((item, i) => (
                   <motion.div
                     key={i}
@@ -425,18 +434,18 @@ export default function Index() {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.06 }}
-                    className="bg-card border border-border rounded-xl p-3 flex items-start gap-3 hover:border-emerald-500/30 transition-all"
+                    className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 transition-all hover:border-emerald-500/40"
                   >
-                    <span className="text-xl mt-0.5">{item.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-foreground truncate">{item.action}</p>
-                      <p className="text-xs text-muted-foreground truncate">{item.vendor}</p>
-                      <div className="flex items-center gap-2 mt-1">
+                    <span className="mt-0.5 text-xl">{item.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-foreground">{item.action}</p>
+                      <p className="truncate text-xs text-muted-foreground">{item.vendor}</p>
+                      <div className="mt-1 flex items-center gap-2">
                         <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                          <MapPin className="w-2.5 h-2.5" />
+                          <MapPin className="h-2.5 w-2.5" />
                           {item.city}
                         </span>
-                        <span className="text-[10px] text-emerald-500">{item.time}</span>
+                        <span className="text-[10px] font-medium text-emerald-700">{item.time}</span>
                       </div>
                     </div>
                   </motion.div>
@@ -452,33 +461,56 @@ export default function Index() {
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className="text-center mb-12"
+                className="mb-12 text-center"
               >
-                <p className="text-gold text-sm font-medium uppercase tracking-wider mb-3">Events Everywhere</p>
-                <h2 className="font-display text-3xl md:text-4xl text-foreground">
+                <p className="mb-3 text-sm font-medium uppercase tracking-wider text-gold">Events Everywhere</p>
+                <h2 className="font-display text-3xl text-foreground md:text-4xl">
                   Explore by <span className="text-gradient-gold">City</span>
                 </h2>
               </motion.div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {cityData.map((c, i) => (
                   <motion.div
                     key={c.city}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: i * 0.06, type: "spring", stiffness: 200, damping: 18 }}
-                    whileHover={{ scale: 1.04, y: -4 }}
+                    transition={{ delay: i * 0.05 }}
+                    whileHover={c.comingSoon ? undefined : { y: -6, scale: 1.02 }}
+                    onClick={c.comingSoon ? undefined : () => navigate(`/vendors?city=${c.city}`)}
+                    className={`group relative h-48 overflow-hidden rounded-2xl border border-[#C44A68]/20 ${
+                      c.comingSoon ? "cursor-default" : "cursor-pointer hover:border-gold/60"
+                    }`}
                   >
-                    <Link
-                      to={`/vendors?city=${encodeURIComponent(c.city)}`}
-                      className={`block bg-gradient-to-br ${c.color} border border-white/10 rounded-2xl p-5 text-center hover:border-gold/40 transition-all group`}
-                    >
-                      <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">{c.emoji}</div>
-                      <h3 className="font-bold text-foreground text-sm mb-1">{c.city}</h3>
-                      <p className="text-[11px] text-gold font-medium">{c.events} events</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{c.vendors} vendors</p>
-                    </Link>
+                    <img
+                      src={c.image}
+                      alt={c.city}
+                      loading="lazy"
+                      className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ${
+                        c.comingSoon ? "" : "group-hover:scale-110"
+                      }`}
+                    />
+
+                    {/* City colour tint (only for coming-soon cards) */}
+                    {c.color && <div className={`absolute inset-0 bg-gradient-to-t ${c.color}`} />}
+
+                    {/* Plum fade so the white city name is readable */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#4A3440]/80 via-[#4A3440]/15 to-transparent" />
+
+                    {c.comingSoon && (
+                      <div className="pointer-events-none absolute inset-0 bg-[#4A3440]/30" />
+                    )}
+
+                    <div className="absolute bottom-0 p-4">
+                      <h3 className="font-display text-xl text-white">{c.city}</h3>
+                    </div>
+
+                    {c.comingSoon && (
+                      <span className="absolute right-3 top-3 rounded-full bg-white/85 px-3 py-1 text-xs font-medium text-[#C44A68] backdrop-blur">
+                        Coming Soon
+                      </span>
+                    )}
                   </motion.div>
                 ))}
               </div>
@@ -492,28 +524,28 @@ export default function Index() {
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className="bg-gradient-to-br from-emerald-950/60 via-card to-teal-950/40 border border-emerald-500/25 rounded-3xl p-10 flex flex-col md:flex-row items-center gap-8"
+                className="flex flex-col items-center gap-8 rounded-3xl border border-emerald-600/25 bg-gradient-to-br from-emerald-100 via-card to-teal-100 p-10 md:flex-row"
               >
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Shield className="w-5 h-5 text-emerald-400" />
-                    <span className="text-emerald-400 text-sm font-semibold uppercase tracking-wider">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-emerald-700" />
+                    <span className="text-sm font-semibold uppercase tracking-wider text-emerald-700">
                       Secured by UPI Escrow
                     </span>
                   </div>
-                  <h2 className="font-display text-2xl md:text-3xl text-foreground mb-3">
-                    Pay with <span className="text-emerald-400">Confidence</span>
+                  <h2 className="mb-3 font-display text-2xl text-foreground md:text-3xl">
+                    Pay with <span className="text-emerald-700">Confidence</span>
                   </h2>
-                  <p className="text-muted-foreground text-sm mb-5 max-w-md leading-relaxed">
+                  <p className="mb-5 max-w-md text-sm leading-relaxed text-muted-foreground">
                     All vendor payments are held in escrow and released only after your event is successfully
                     delivered. Every rupee is protected via UPI — instant, traceable, and safe.
                   </p>
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-6">
+                  <div className="mb-6 flex flex-wrap gap-4 text-sm text-muted-foreground">
                     {[
-                      { icon: <Zap className="w-4 h-4 text-gold" />, text: "Instant UPI payments" },
-                      { icon: <Shield className="w-4 h-4 text-emerald-400" />, text: "Escrow-protected" },
-                      { icon: <Clock className="w-4 h-4 text-blue-400" />, text: "Refund in 24h if cancelled" },
-                      { icon: <CreditCard className="w-4 h-4 text-purple-400" />, text: "No card needed" },
+                      { icon: <Zap className="h-4 w-4 text-gold" />, text: "Instant UPI payments" },
+                      { icon: <Shield className="h-4 w-4 text-emerald-700" />, text: "Escrow-protected" },
+                      { icon: <Clock className="h-4 w-4 text-blue-600" />, text: "Refund in 24h if cancelled" },
+                      { icon: <CreditCard className="h-4 w-4 text-purple-600" />, text: "No card needed" },
                     ].map((f, j) => (
                       <span key={j} className="flex items-center gap-1.5">
                         {f.icon}
@@ -524,26 +556,26 @@ export default function Index() {
                   <Button
                     onClick={() => setDemoPayOpen(true)}
                     size="lg"
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white h-12 px-8 font-semibold"
+                    className="h-12 bg-emerald-600 px-8 font-semibold text-white hover:bg-emerald-700"
                   >
-                    <Zap className="w-4 h-4 mr-2" />
+                    <Zap className="mr-2 h-4 w-4" />
                     Try Demo Payment
                   </Button>
                 </div>
 
-                <div className="flex-shrink-0 flex flex-col items-center gap-3 bg-card border border-emerald-500/20 rounded-2xl p-6 min-w-[200px]">
-                  <div className="w-16 h-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center text-3xl">
+                <div className="flex min-w-[200px] flex-shrink-0 flex-col items-center gap-3 rounded-2xl border border-emerald-600/20 bg-card p-6">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-600/30 bg-emerald-500/10 text-3xl">
                     🔒
                   </div>
                   <div className="text-center">
-                    <p className="font-bold text-foreground text-sm">UPI Escrow Active</p>
-                    <p className="text-xs text-muted-foreground mt-1">8373901813@fam</p>
-                    <div className="mt-2 flex items-center gap-1 justify-center">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[10px] text-emerald-400 font-medium">Always Online</span>
+                    <p className="text-sm font-bold text-foreground">UPI Escrow Active</p>
+                    <p className="mt-1 text-xs text-muted-foreground">8373901813@fam</p>
+                    <div className="mt-2 flex items-center justify-center gap-1">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                      <span className="text-[10px] font-medium text-emerald-700">Always Online</span>
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground text-center">₹120 Cr+ processed safely</p>
+                  <p className="text-center text-[10px] text-muted-foreground">₹120 Cr+ processed safely</p>
                 </div>
               </motion.div>
             </div>
@@ -556,20 +588,20 @@ export default function Index() {
                 initial={{ opacity: 0, scale: 0.97 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                className="bg-gradient-to-br from-gold/15 via-card to-crimson/10 border border-gold/30 rounded-3xl p-12 text-center"
+                className="rounded-3xl border border-gold/30 bg-gradient-to-br from-[#FFD9C7] via-card to-[#FBD3DC] p-12 text-center"
               >
-                <h2 className="font-display text-3xl md:text-5xl text-foreground mb-4">
+                <h2 className="mb-4 font-display text-3xl text-foreground md:text-5xl">
                   Ready to Plan Your <span className="text-gradient-gold">Dream Event?</span>
                 </h2>
-                <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
+                <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground">
                   Join 50,000+ event hosts who trust Jashan-E-Aas to find the best vendors across India. Zero
                   fraud. Every rupee protected.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <div className="flex flex-col justify-center gap-4 sm:flex-row">
                   <Button
                     asChild
                     size="lg"
-                    className="h-14 px-8 bg-gold hover:bg-gold-dark text-background font-semibold text-lg glow-gold"
+                    className="glow-gold h-14 bg-gold px-8 text-lg font-semibold text-white hover:bg-gold-dark"
                   >
                     <Link to="/vendors">Find Vendors Now</Link>
                   </Button>
@@ -577,7 +609,7 @@ export default function Index() {
                     asChild
                     size="lg"
                     variant="outline"
-                    className="h-14 px-8 border-gold/50 hover:bg-gold/10"
+                    className="h-14 border-gold/50 px-8 hover:bg-gold/10"
                   >
                     <Link to="/for-partners">List Your Business</Link>
                   </Button>

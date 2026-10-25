@@ -99,9 +99,9 @@ export const Navbar = () => {
                   <Link
                     to={link.href}
                     onClick={(e) => handleLinkClick(e, link)}
-                    className={`text-muted-foreground hover:text-foreground transition-colors font-medium text-sm ${
-                      link.label === "Ultra Gold" ? "text-gold hover:text-gold-dark" : ""
-                    }`}
+                    className={`font-display text-base font-semibold tracking-tight text-[#4A1230] hover:text-[#C44A68] transition-colors ${
+  link.label === "Ultra Gold" ? "text-gold hover:text-gold-dark" : ""
+}`}
                   >
                     {renderLabel(link)}
                   </Link>
@@ -128,7 +128,7 @@ export const Navbar = () => {
               ) : (
                 <Link
                   to="/auth"
-                  className="text-muted-foreground hover:text-foreground transition-colors font-medium text-sm"
+                  className="font-serif font-semibold text-[#702238] text-base tracking-wide hover:text-[#A52A4A] transition-colors"
                 >
                   Sign In
                 </Link>
@@ -162,9 +162,9 @@ export const Navbar = () => {
                 <Link
                   key={link.label}
                   to={link.href}
-                  className={`block text-muted-foreground hover:text-foreground transition-colors font-medium ${
-                    link.label === "Ultra Gold" ? "text-gold" : ""
-                  }`}
+                  className={`block font-display text-base font-semibold text-[#4A1230] hover:text-[#C44A68] transition-colors ${
+  link.label === "Ultra Gold" ? "text-gold" : ""
+}`}
                   onClick={(e) => {
                     setIsMobileMenuOpen(false);
                     handleLinkClick(e, link);

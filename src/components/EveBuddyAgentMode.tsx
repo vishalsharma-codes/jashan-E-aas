@@ -99,7 +99,7 @@ const PERMISSIONS = [
 ];
 
 const DEFAULT_BUDGET: BudgetLine[] = [
-  { category: "Photography",     emoji: "📸", allocated: 120000, spent: 85000,  color: "#D4AF37" },
+  { category: "Photography",     emoji: "📸", allocated: 120000, spent: 85000,  color: "#C44A68" },
   { category: "Catering",        emoji: "🍛", allocated: 200000, spent: 160000, color: "#E88C3A" },
   { category: "Venue",           emoji: "🏛️", allocated: 350000, spent: 320000, color: "#8B0000" },
   { category: "Music & DJ",      emoji: "🎧", allocated: 80000,  spent: 40000,  color: "#7B2FBE" },
@@ -113,7 +113,7 @@ const iconFor = (type: string) => {
   if (type === "search")    return <Search className="w-3.5 h-3.5" />;
   if (type === "contact")   return <MessageSquare className="w-3.5 h-3.5" />;
   if (type === "schedule")  return <Calendar className="w-3.5 h-3.5" />;
-  if (type === "alert")     return <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />;
+  if (type === "alert")     return <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />;
   if (type === "analyse")   return <Eye className="w-3.5 h-3.5" />;
   if (type === "negotiate") return <TrendingUp className="w-3.5 h-3.5" />;
   return <Zap className="w-3.5 h-3.5" />;
@@ -121,9 +121,9 @@ const iconFor = (type: string) => {
 
 const priorityColor: Record<string, string> = {
   low:    "text-muted-foreground border-muted",
-  medium: "text-blue-400 border-blue-500/30",
-  high:   "text-amber-400 border-amber-500/30",
-  urgent: "text-red-400 border-red-500/40",
+  medium: "text-blue-700 border-blue-500/40",
+  high:   "text-amber-700 border-amber-500/40",
+  urgent: "text-red-600 border-red-500/50",
 };
 
 const fmtElapsed = (ms: number) => {
@@ -254,22 +254,22 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
           exit={{ opacity: 0, y: 40, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 300, damping: 28 }}
           className="fixed bottom-24 right-4 w-[440px] max-w-[calc(100vw-2rem)] h-[640px] bg-card border border-gold/40 rounded-2xl shadow-2xl overflow-hidden z-50 flex flex-col"
-          style={{ boxShadow: "0 0 40px rgba(212,175,55,0.18)" }}
+          style={{ boxShadow: "0 20px 60px -15px rgba(196,74,104,0.4)" }}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-[#1a0a0a] to-[#0a0a1a] border-b border-gold/30 px-4 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="bg-gradient-to-r from-[#FFE3D6] via-[#FFD9C7] to-[#FBD3DC] border-b border-gold/30 px-4 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-white/60 border border-gold/40 flex items-center justify-center">
                 <Zap className="w-4 h-4 text-gold" />
               </div>
               <div>
-                <p className="font-bold text-sm text-gold">Agent Eve</p>
+                <p className="font-bold text-sm text-[#4A1230]">Agent Eve</p>
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${agentRunning ? "bg-emerald-400 animate-pulse" : "bg-muted"}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${agentRunning ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"}`} />
                   <span className="text-xs text-muted-foreground">
                     {agentRunning ? `Active · ${fmtElapsed(elapsed)}` : "Paused"}
                   </span>
-                  {testMode && <Badge className="text-[9px] py-0 px-1.5 bg-purple-500/20 text-purple-400 border-purple-500/30">TEST</Badge>}
+                  {testMode && <Badge className="text-[9px] py-0 px-1.5 bg-purple-500/20 text-purple-700 border-purple-500/30">TEST</Badge>}
                 </div>
               </div>
             </div>
@@ -280,20 +280,20 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                   setVoiceEnabled(!voiceEnabled);
                 }}
                 title={voiceEnabled ? "Disable agent voice" : "Enable agent voice narration"}
-                className={`text-xs px-2 py-1 rounded-lg border transition-colors flex items-center gap-1 ${voiceEnabled ? "border-gold/40 text-gold bg-gold/10" : "border-border text-muted-foreground hover:text-foreground"}`}
+                className={`text-xs px-2 py-1 rounded-lg border transition-colors flex items-center gap-1 ${voiceEnabled ? "border-gold/50 text-gold bg-white/60" : "border-border text-muted-foreground hover:text-foreground"}`}
               >
                 {voiceEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
               </button>
               <button
                 onClick={() => setTestMode(!testMode)}
                 title="Test mode"
-                className={`text-xs px-2 py-1 rounded-lg border transition-colors flex items-center gap-1 ${testMode ? "border-purple-500/40 text-purple-400 bg-purple-500/10" : "border-border text-muted-foreground hover:text-foreground"}`}
+                className={`text-xs px-2 py-1 rounded-lg border transition-colors flex items-center gap-1 ${testMode ? "border-purple-500/50 text-purple-700 bg-purple-500/10" : "border-border text-muted-foreground hover:text-foreground"}`}
               >
                 <FlaskConical className="w-3 h-3" /> Test
               </button>
               <button
                 onClick={() => setAgentRunning(!agentRunning)}
-                className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${agentRunning ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10" : "border-border text-muted-foreground hover:text-foreground"}`}
+                className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${agentRunning ? "border-emerald-600/50 text-emerald-700 hover:bg-emerald-500/10" : "border-border text-muted-foreground hover:text-foreground"}`}
               >
                 {agentRunning ? "Pause" : "Resume"}
               </button>
@@ -332,8 +332,8 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                         : "Agent is paused. Resume to continue automated tasks."}
                     </p>
                     {agentRunning && (
-                      <span className="flex items-center gap-1 text-[10px] text-emerald-400 flex-shrink-0 ml-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="flex items-center gap-1 text-[10px] text-emerald-700 flex-shrink-0 ml-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         Live
                       </span>
                     )}
@@ -341,7 +341,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
 
                   {testMode && (
                     <div className="mb-3 p-3 bg-purple-500/10 border border-purple-500/25 rounded-xl">
-                      <p className="text-xs text-purple-300 font-semibold mb-1 flex items-center gap-1.5">
+                      <p className="text-xs text-purple-700 font-semibold mb-1 flex items-center gap-1.5">
                         <FlaskConical className="w-3.5 h-3.5" /> Test Mode Active
                       </p>
                       <p className="text-xs text-muted-foreground">Click "Run Test" on any action to simulate it.</p>
@@ -349,7 +349,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                   )}
 
                   <div className="space-y-2">
-                    {liveLogs.map((log, i) => (
+                    {liveLogs.map((log) => (
                       <motion.div
                         key={log.id}
                         initial={log.isNew ? { opacity: 0, y: -12, scale: 0.97 } : { opacity: 1 }}
@@ -366,9 +366,9 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                         }`}
                       >
                         <div className={`mt-0.5 flex-shrink-0 ${
-                          log.status === "done"    ? "text-emerald-400"
-                          : log.status === "alert" ? "text-orange-400"
-                          : "text-amber-400"
+                          log.status === "done"    ? "text-emerald-700"
+                          : log.status === "alert" ? "text-orange-700"
+                          : "text-amber-700"
                         }`}>
                           {log.status === "done"
                             ? <CheckCircle className="w-3.5 h-3.5" />
@@ -382,7 +382,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                         </div>
                         <div className="flex items-center gap-2">
                           {testMode && (
-                            <button className="text-[10px] text-purple-400 border border-purple-500/30 rounded px-1.5 py-0.5 hover:bg-purple-500/10 flex items-center gap-0.5">
+                            <button className="text-[10px] text-purple-700 border border-purple-500/30 rounded px-1.5 py-0.5 hover:bg-purple-500/10 flex items-center gap-0.5">
                               <Play className="w-2.5 h-2.5" /> Run
                             </button>
                           )}
@@ -392,7 +392,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                     ))}
                   </div>
 
-                  <Button className="w-full mt-4 bg-gold hover:bg-gold-dark text-background text-xs">
+                  <Button className="w-full mt-4 bg-gold hover:bg-gold-dark text-white text-xs">
                     Review Agent's Full Shortlist
                   </Button>
                 </motion.div>
@@ -426,7 +426,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                     {SMART_SUGGESTIONS[taskType] && (
                       <button
                         onClick={() => setTaskDesc(SMART_SUGGESTIONS[taskType])}
-                        className="w-full text-left text-[10px] text-gold/80 bg-gold/5 border border-gold/20 rounded-lg p-2 mb-2 hover:bg-gold/10 transition-colors"
+                        className="w-full text-left text-[10px] text-gold bg-gold/5 border border-gold/20 rounded-lg p-2 mb-2 hover:bg-gold/10 transition-colors"
                       >
                         <span className="text-gold font-semibold">✨ Suggestion: </span>
                         {SMART_SUGGESTIONS[taskType]}
@@ -438,7 +438,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                       value={taskDesc}
                       onChange={e => setTaskDesc(e.target.value)}
                       placeholder={`e.g. "${SMART_SUGGESTIONS[taskType] ?? "Describe the task for Agent Eve..."}"`}
-                      className="w-full h-20 bg-card border border-border rounded-xl p-3 text-xs resize-none focus:outline-none focus:border-gold/50 placeholder:text-muted-foreground/40 mb-3"
+                      className="w-full h-20 bg-card border border-border rounded-xl p-3 text-xs resize-none focus:outline-none focus:border-gold/50 placeholder:text-muted-foreground/60 mb-3"
                     />
 
                     {/* Priority */}
@@ -459,7 +459,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                     <Button
                       onClick={addTask}
                       disabled={!taskDesc.trim()}
-                      className="w-full bg-gold hover:bg-gold-dark text-background text-xs h-9"
+                      className="w-full bg-gold hover:bg-gold-dark text-white text-xs h-9"
                     >
                       <Zap className="w-3.5 h-3.5 mr-1.5" />
                       {agentRunning ? "Assign & Run Now" : "Queue Task"}
@@ -470,7 +470,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                     <div className="text-center py-8 text-muted-foreground">
                       <p className="text-3xl mb-2">🤖</p>
                       <p className="text-xs">No tasks assigned yet. Create one above!</p>
-                      <p className="text-[10px] mt-1 text-muted-foreground/60">The agent will run it automatically.</p>
+                      <p className="text-[10px] mt-1 text-muted-foreground/70">The agent will run it automatically.</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -496,7 +496,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                               )}
                               <button
                                 onClick={() => setTasks(prev => prev.filter(t => t.id !== task.id))}
-                                className="text-muted-foreground hover:text-red-400 transition-colors"
+                                className="text-muted-foreground hover:text-red-600 transition-colors"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -525,7 +525,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                               animate={{ opacity: 1, height: "auto" }}
                               className="mt-2 p-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-lg"
                             >
-                              <p className="text-[10px] text-emerald-400 leading-relaxed">{task.result}</p>
+                              <p className="text-[10px] text-emerald-800 leading-relaxed">{task.result}</p>
                             </motion.div>
                           )}
                         </div>
@@ -541,8 +541,8 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {[
                       { label: "Total Budget",  val: `₹${(totalAllocated / 100000).toFixed(1)}L`, color: "text-gold" },
-                      { label: "Spent So Far",  val: `₹${(totalSpent / 100000).toFixed(1)}L`,     color: "text-amber-400" },
-                      { label: "Remaining",     val: `₹${(remaining / 100000).toFixed(1)}L`,      color: remaining > 0 ? "text-emerald-400" : "text-red-400" },
+                      { label: "Spent So Far",  val: `₹${(totalSpent / 100000).toFixed(1)}L`,     color: "text-amber-700" },
+                      { label: "Remaining",     val: `₹${(remaining / 100000).toFixed(1)}L`,      color: remaining > 0 ? "text-emerald-700" : "text-red-600" },
                     ].map(s => (
                       <div key={s.label} className="bg-muted/40 border border-border rounded-xl p-2.5 text-center">
                         <p className={`font-bold text-sm ${s.color}`}>{s.val}</p>
@@ -561,8 +561,8 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                             <div className="flex items-center gap-2">
                               <span className="text-lg">{line.emoji}</span>
                               <span className="text-xs font-semibold">{line.category}</span>
-                              {isOver && <Badge className="text-[9px] py-0 px-1.5 bg-red-500/20 text-red-400 border-red-500/30">Over</Badge>}
-                              {!isOver && pct > 80 && <Badge className="text-[9px] py-0 px-1.5 bg-amber-500/20 text-amber-400 border-amber-500/30">High</Badge>}
+                              {isOver && <Badge className="text-[9px] py-0 px-1.5 bg-red-500/20 text-red-600 border-red-500/30">Over</Badge>}
+                              {!isOver && pct > 80 && <Badge className="text-[9px] py-0 px-1.5 bg-amber-500/20 text-amber-700 border-amber-500/30">High</Badge>}
                             </div>
                             {editingBudget === line.category ? (
                               <div className="flex items-center gap-1">
@@ -603,7 +603,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
 
                           <div className="flex justify-between text-[10px] text-muted-foreground">
                             <span>Spent: ₹{(line.spent / 1000).toFixed(0)}K</span>
-                            <span className={isOver ? "text-red-400" : pct > 80 ? "text-amber-400" : "text-emerald-400"}>
+                            <span className={isOver ? "text-red-600" : pct > 80 ? "text-amber-700" : "text-emerald-700"}>
                               {pct.toFixed(0)}% used
                             </span>
                           </div>
@@ -621,7 +621,7 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                       <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Refresh quotes
                     </Button>
                     <Button
-                      className="flex-1 text-xs h-9 bg-gold hover:bg-gold-dark text-background"
+                      className="flex-1 text-xs h-9 bg-gold hover:bg-gold-dark text-white"
                       onClick={() => setBudget(DEFAULT_BUDGET)}
                     >
                       <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Category
@@ -736,12 +736,12 @@ export const EveBuddyAgentMode = ({ isOpen, onClose }: AgentModeProps) => {
                           className={`flex items-center gap-3 p-3 rounded-xl border ${step.done ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}
                         >
                           {step.done
-                            ? <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                            : <Clock className="w-4 h-4 text-amber-400 flex-shrink-0 animate-spin" style={{ animationDuration: "2s" }} />}
+                            ? <CheckCircle className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                            : <Clock className="w-4 h-4 text-amber-700 flex-shrink-0 animate-spin" style={{ animationDuration: "2s" }} />}
                           <p className="text-xs">{step.action}</p>
                         </motion.div>
                       ))}
-                      <Badge className="w-full justify-center py-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
+                      <Badge className="w-full justify-center py-2 bg-amber-500/20 text-amber-700 border-amber-500/30 text-xs">
                         ⏱ Est. replacement confirmed in: ~35 minutes
                       </Badge>
                       <Button
