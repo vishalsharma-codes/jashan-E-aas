@@ -31,6 +31,7 @@ import CategoryCarousel from "@/components/CategoryCarousel";
 import { HowItWorksTimeline } from "@/components/HowItWorksTimeline";
 import { TopRatedStack } from "@/components/TopRatedStack";
 import { StoriesStrip } from "@/components/StoriesStrip";
+import LogoBackground from "@/components/LogoBackground";
 
 const featuredVendors = getFeaturedVendors();
 const topVendors = getTopRatedVendors();
@@ -221,6 +222,12 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Faint logo overlay across the WHOLE page (above sections, ignores clicks) */}
+      <LogoBackground
+        variant="depth"
+        opacity={0.22}
+        className="!z-30 mix-blend-multiply"
+      />
       <Navbar />
 
       <main>
@@ -230,7 +237,6 @@ export default function Index() {
           <Hero />
         </StackSection>
 
-        {/* was bg-black */}
         <div className="relative z-20 bg-background">
           {/* 2 ── CATEGORIES */}
           <CategoryCarousel />
@@ -410,7 +416,7 @@ export default function Index() {
           <StoriesStrip stories={testimonials} />
 
           {/* 7 ── LIVE ACTIVITY */}
-          <section className="py-14">
+          {/* <section className="py-14">
             <div className="container mx-auto px-4">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -452,7 +458,7 @@ export default function Index() {
                 ))}
               </div>
             </div>
-          </section>
+          </section> */}
 
           {/* 8 ── CITY EXPLORER */}
           <section className="py-10">
