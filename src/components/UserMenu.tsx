@@ -73,15 +73,13 @@ export default function UserMenu({ variant = "desktop", onNavigate }: Props) {
         { label: "My Profile", to: "/account", icon: User, action: "profile" },
         { label: "My Bookings", to: "/booking-system", icon: CalendarCheck },
         { label: "Baatein: Messages", to: "/chat", icon: MessageCircle, badge: unread },
+        { label: "Jhalak: My Reels", to: "/my-reels", icon: Clapperboard },
         { label: "Saved Vendors", to: "/account?tab=saved", icon: Heart },
       ],
       [
         // { label: "Rewards & Points", to: "/rewards", icon: Gift },
-        { label: "Compare Vendors", to: "/compare", icon: GitCompare },
+        // { label: "Compare Vendors", to: "/compare", icon: GitCompare },
         { label: "Ultra Gold Membership", to: "/ultra-gold", icon: Crown, premium: true },
-        { label: "Jhalak: My Reels", to: "/my-reels", icon: Clapperboard },
-      ],
-      [
         isVendor
           ? { label: "Vendor Dashboard", to: "/vendor-dashboard", icon: LayoutDashboard }
           : { label: "Become a Vendor", sub: "List Your Business", to: "/for-partners", icon: Store },
