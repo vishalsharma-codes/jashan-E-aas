@@ -13,7 +13,7 @@ import {
   ChevronDown, ChevronUp, Star, MapPin, CalendarDays, Users,
   ArrowRight, ArrowLeft, Sparkles, Lock, Zap, CheckSquare, CalendarX, Trophy
 } from "lucide-react";
-import { vendors } from "@/lib/vendorData";
+import { useLiveVendors } from "@/lib/liveVedors";
 
 const bookingTimelines = [
   { type: "Royal/Luxury Wedding", min: "6 months", rec: "12–18 months", urgency: "high" },
@@ -98,6 +98,7 @@ const GUEST_OPTIONS = ["< 50", "50–100", "100–200", "200–500", "500–1000
 const inr = (n: number) => new Intl.NumberFormat("en-IN").format(n);
 
 export default function BookingSystem() {
+  const { vendors, loading: vendorsLoading } = useLiveVendors();
   const [expandedTimeline, setExpandedTimeline] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"guide" | "wizard">("wizard");
   const [step, setStep] = useState<BookingStep>(0);
@@ -122,7 +123,7 @@ export default function BookingSystem() {
     });
     rows.sort((x, y) => y.score - x.score);
     return { results: rows, usedFallback: inCategory.length === 0 };
-  }, [booking.eventType, booking.dates, booking.city]);
+  }, [vendors, booking.eventType, booking.dates, booking.city]);
 
   const counts = {
     full: results.filter((r) => r.a.status === "full").length,
@@ -369,7 +370,7 @@ export default function BookingSystem() {
                         </p>
                         {usedFallback && (
                           <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                            No specialists listed yet for this event type, so we're showing all verified vendors.
+                            No specialists listed yet for this event type, so we're showing all available vendors.
                           </p>
                         )}
 
@@ -390,7 +391,11 @@ export default function BookingSystem() {
                           ))}
                         </div>
 
-                        {shown.length === 0 ? (
+                        {vendorsLoading || vendors.length === 0 ? (
+                          <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                            {vendorsLoading ? "Loading vendors…" : "No vendors are live yet. Please check back soon."}
+                          </div>
+                        ) : shown.length === 0 ? (
                           <div className="rounded-xl border border-dashed border-border p-8 text-center">
                             <CalendarX className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                             <p className="text-sm font-medium">No vendors in this list for your dates.</p>

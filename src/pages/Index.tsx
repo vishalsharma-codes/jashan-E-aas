@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -25,7 +25,7 @@ import { RopePull } from "@/components/RopePull";
 import { Button } from "@/components/ui/button";
 import { UpiPaymentModal } from "@/components/UpiPayment";
 import { DynamicBackground } from "@/components/DynamicBackground";
-import { getFeaturedVendors, getTopRatedVendors } from "@/lib/vendorData";
+import { useLiveVendors, featuredOf, topRatedOf } from "@/lib/liveVedors";
 import { StackSection } from "@/components/StackSection";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import { HowItWorksTimeline } from "@/components/HowItWorksTimeline";
@@ -33,8 +33,6 @@ import { TopRatedStack } from "@/components/TopRatedStack";
 import { StoriesStrip } from "@/components/StoriesStrip";
 import LogoBackground from "@/components/LogoBackground";
 
-const featuredVendors = getFeaturedVendors();
-const topVendors = getTopRatedVendors();
 
 /* ── Profession themes (matched by keyword in vendor.category) ──
    Softer, warmer gradients so they sit well on the Blush Peach page. */
@@ -55,20 +53,7 @@ const defaultTheme = {
 const getTheme = (category: string) =>
   professionThemes.find((t) => t.match.test(category)) ?? defaultTheme;
 
-const sortedFeatured = [...featuredVendors].sort((a, b) =>
-  a.category.localeCompare(b.category)
-);
 
-const liveActivity = [
-  // { time: "2 min ago", action: "Wedding booked", vendor: "Royal Celebrations", city: "Mumbai", emoji: "💍" },
-  // { time: "5 min ago", action: "Payment confirmed", vendor: "Pixel Perfect Studios", city: "Bangalore", emoji: "📸" },
-  // { time: "9 min ago", action: "Enquiry sent", vendor: "Spice Route Catering", city: "Delhi", emoji: "🍛" },
-  // { time: "12 min ago", action: "Review posted", vendor: "Sound & Fury DJ", city: "Goa", emoji: "🎧" },
-  // { time: "18 min ago", action: "Booking confirmed", vendor: "The Grand Band Project", city: "Chennai", emoji: "🎺" },
-  // { time: "24 min ago", action: "Pre-wedding shoot booked", vendor: "Moments That Last", city: "Jaipur", emoji: "🏯" },
-  // { time: "31 min ago", action: "Token paid (UPI)", vendor: "Lumiere Light Design", city: "Delhi", emoji: "✨" },
-  // { time: "45 min ago", action: "Corporate event booked", vendor: "EventCraft Corporate", city: "Bangalore", emoji: "🏢" },
-];
 
 const COMING_SOON_TINT = "from-[#4A3440]/60 to-[#4A3440]/40";
 
@@ -162,6 +147,12 @@ const CREAM = "#FFF6F2";
 
 export default function Index() {
   const navigate = useNavigate();
+  const { vendors: liveVendors } = useLiveVendors();
+  const sortedFeatured = useMemo(
+    () => [...featuredOf(liveVendors, 6)].sort((a, b) => a.category.localeCompare(b.category)),
+    [liveVendors],
+  );
+  const topVendors = useMemo(() => topRatedOf(liveVendors, 8), [liveVendors]);
   const [demoPayOpen, setDemoPayOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const activeRef = useRef(0);
@@ -171,7 +162,7 @@ export default function Index() {
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || sortedFeatured.length === 0) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const SPEED = 40; // px per second
@@ -218,7 +209,7 @@ export default function Index() {
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [sortedFeatured]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -241,7 +232,8 @@ export default function Index() {
           {/* 2 ── CATEGORIES */}
           <CategoryCarousel />
 
-          {/* 3 ── FEATURED VENDORS */}
+          {/* 3 ── FEATURED VENDORS (hidden until real vendors are approved) */}
+          {sortedFeatured.length > 0 && (
           <section className="relative overflow-hidden bg-[#FFE3D6] py-28">
             <svg
               viewBox="0 0 1440 80"
@@ -405,12 +397,13 @@ export default function Index() {
               </div>
             </div>
           </section>
+          )}
 
           {/* 4 ── HOW IT WORKS */}
           <HowItWorksTimeline steps={howItWorks} quickLinks={quickLinks} />
 
           {/* 5 ── TOP RATED VENDORS */}
-          <TopRatedStack vendors={topVendors} />
+          {topVendors.length > 0 && <TopRatedStack vendors={topVendors} />}
 
           {/* 6 ── TESTIMONIALS */}
           <StoriesStrip stories={testimonials} />
@@ -630,7 +623,7 @@ export default function Index() {
         isOpen={demoPayOpen}
         amount={1}
         description="Demo token booking — Jashan-E-Aas"
-        vendorName="Royal Celebrations"
+        vendorName="Jashan-E-Aas"
         phase="Demo Token Payment (₹1)"
         onSuccess={() => setDemoPayOpen(false)}
         onClose={() => setDemoPayOpen(false)}

@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -16,8 +16,10 @@ import { Footer } from "@/components/Footer";
 import { EveBuddy } from "@/components/EveBuddy";
 import { UpiPaymentModal } from "@/components/UpiPayment";
 import { DynamicBackground } from "@/components/DynamicBackground";
-import { vendors, type Vendor } from "@/lib/vendorData";
+import { emptyProfile, type LiveVendor as Vendor, type VendorProfileRow } from "@/lib/vendorOptions";
+import { useLiveVendors } from "@/lib/liveVedors";
 import { AutoScrollMarquee, type AutoScrollMarqueeHandle } from "@/components/AutoScrollMarquee";
+import { VendorProfileView } from "@/components/vendor/VendorProfileView";
 
 /* Blush Peach theme
    plum text #4A1230 / #4A3440 · rose accent #C44A68 · light rose #E0708A / #F4A6B8
@@ -91,6 +93,8 @@ const priceNumber = (price: string) => {
 };
 
 function getVendorImage(vendor: Vendor, index: number) {
+  const real = vendor.coverUrls?.[0] || (vendor.portfolio?.[0] as any)?.imageUrl || vendor.logoUrl;
+  if (real) return real;
   const category = vendor.category.toLowerCase();
   if (category.includes("photo")) return PHOTO_POOL[1];
   if (category.includes("cater")) return PHOTO_POOL[2];
@@ -99,6 +103,36 @@ function getVendorImage(vendor: Vendor, index: number) {
   if (category.includes("venue")) return PHOTO_POOL[6];
   if (category.includes("event manager") || category.includes("corporate")) return PHOTO_POOL[7];
   return PHOTO_POOL[index % PHOTO_POOL.length];
+}
+
+/** Builds the full public profile the new profile page needs from the card-shaped vendor.
+ *  `raw` (the full database row, added in toLiveVendor) wins when it is present. */
+function profileFromVendor(v: Vendor): VendorProfileRow {
+  const raw = (((v as any).raw ?? {}) as Partial<VendorProfileRow>);
+  const base: VendorProfileRow = {
+    ...emptyProfile(v.id, v.name),
+    category: v.category,
+    category_id: v.categoryId,
+    subcategory: v.subcategory === v.category ? "" : v.subcategory,
+    description: v.description,
+    tags: v.tags,
+    specialties: v.specialties,
+    home_city: v.location,
+    cities: v.cities,
+    price_min: v.priceMin,
+    price_max: v.priceMax,
+    years_experience: v.yearsExperience,
+    events_completed: v.eventsCompleted,
+    response_time: v.responseTime,
+    rating: v.rating,
+    reviews_count: v.reviews,
+    verification_status: v.isVerified ? "verified" : "unverified",
+    logo_url: v.logoUrl ?? "",
+    cover_urls: v.coverUrls ?? [],
+  };
+  // ignore null / undefined columns so the defaults above survive
+  const cleaned = Object.fromEntries(Object.entries(raw).filter(([, value]) => value !== null && value !== undefined));
+  return { ...base, ...cleaned } as VendorProfileRow;
 }
 
 // NOTE: no "relative" here. Callers pass "absolute inset-0", and "relative" would override it
@@ -166,11 +200,16 @@ function VendorCard({
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#4A3440]/70">
-          <span className="inline-flex items-center gap-1 text-[#C44A68]"><Star className="h-3 w-3 fill-current" /> <b>{vendor.rating}</b> <span className="text-[#4A3440]/60">({vendor.reviews})</span></span>
+          <span className="inline-flex items-center gap-1 text-[#C44A68]">
+            <Star className="h-3 w-3 fill-current" />
+            {vendor.reviews > 0
+              ? <><b>{vendor.rating}</b> <span className="text-[#4A3440]/60">({vendor.reviews})</span></>
+              : <b>New</b>}
+          </span>
           <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{vendor.location}</span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#4A3440]/60">
-          <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{vendor.eventsCompleted} events</span>
+          {vendor.eventsCompleted > 0 && <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{vendor.eventsCompleted} events</span>}
           <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{vendor.responseTime}</span>
         </div>
 
@@ -247,6 +286,7 @@ function CarouselSection({
 
 const Vendors = () => {
   const [searchParams] = useSearchParams();
+  const { vendors, loading: vendorsLoading, error: vendorsError } = useLiveVendors();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeEvent, setActiveEvent] = useState("All Events");
@@ -318,10 +358,30 @@ const Vendors = () => {
       default: result = [...result].sort((a, b) => Number(b.isVerified) - Number(a.isVerified) || b.rating - a.rating);
     }
     return result;
-  }, [searchQuery, activeCategory, activeEvent, city, minRating, verifiedOnly, sortBy]);
+  }, [vendors, searchQuery, activeCategory, activeEvent, city, minRating, verifiedOnly, sortBy]);
 
-  const topRated = useMemo(() => [...vendors].sort((a, b) => b.rating - a.rating || b.reviews - a.reviews).slice(0, 10), []);
+  const topRated = useMemo(() => [...vendors].sort((a, b) => b.rating - a.rating || b.reviews - a.reviews).slice(0, 10), [vendors]);
   const featured = vendors.find((vendor) => vendor.isVerified) ?? vendors[0];
+
+  // Deep link from /vendors?vendor=<id> (vendor dashboard "View public profile", compare page)
+  const wantedVendor = searchParams.get("vendor");
+  useEffect(() => {
+    if (!wantedVendor) return;
+    const match = vendors.find((v) => v.id === wantedVendor);
+    if (match) setProfileVendor(match);
+  }, [wantedVendor, vendors]);
+
+  // Escape closes the profile; the page behind it stops scrolling while it is open
+  useEffect(() => {
+    if (!profileVendor) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setProfileVendor(null); };
+    window.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = previous; };
+  }, [profileVendor]);
+
+  const profileRow = useMemo(() => (profileVendor ? profileFromVendor(profileVendor) : null), [profileVendor]);
   const activeFilterCount = Number(city !== "All Cities") + Number(minRating !== "0") + Number(verifiedOnly);
 
   const clearFilters = () => {
@@ -447,9 +507,9 @@ const Vendors = () => {
                     <button type="button" aria-label="Save featured vendor" onClick={() => toggleSaved(featured.id)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#C44A68]/25 text-[#4A3440] hover:border-[#C44A68] hover:text-[#C44A68]"><Heart className={`h-4 w-4 ${savedIds.has(featured.id) ? "fill-rose-500 text-rose-500" : ""}`} /></button>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#4A3440]/70">
-                    <span className="inline-flex items-center gap-1 text-[#C44A68]"><Star className="h-3.5 w-3.5 fill-current" /> {featured.rating} ({featured.reviews})</span>
+                    <span className="inline-flex items-center gap-1 text-[#C44A68]"><Star className="h-3.5 w-3.5 fill-current" /> {featured.reviews > 0 ? `${featured.rating} (${featured.reviews})` : "New"}</span>
                     <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{featured.location}</span>
-                    <span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" />{featured.eventsCompleted} events</span>
+                    {featured.eventsCompleted > 0 && <span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" />{featured.eventsCompleted} events</span>}
                     <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{featured.responseTime}</span>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-1.5">{featured.tags.slice(0, 4).map((tag) => <Badge key={tag} variant="secondary" className="border border-[#C44A68]/10 bg-[#F9DDE3] text-[10px] text-[#4A3440]">{tag}</Badge>)}</div>
@@ -508,7 +568,15 @@ const Vendors = () => {
               </motion.div>
             )}
 
-            {filtered.length ? (
+            {vendorsLoading ? (
+              <div className="rounded-2xl border border-[#C44A68]/20 bg-[#FFFBF8] py-16 text-center text-sm text-[#4A3440]/70">Loading vendors…</div>
+            ) : vendorsError ? (
+              <div className="rounded-2xl border border-red-300 bg-red-50 py-12 text-center text-sm text-red-700">Could not load vendors: {vendorsError}</div>
+            ) : vendors.length === 0 ? (
+              <div className="rounded-2xl border border-[#C44A68]/20 bg-[#FFFBF8] py-16 text-center">
+                <Search className="mx-auto h-10 w-10 text-[#4A3440]/40" /><h3 className="mt-4 text-lg font-semibold text-[#4A1230]">No vendors have joined yet</h3><p className="mt-1 text-sm text-[#4A3440]/70">Approved vendors will appear here as soon as they go live.</p>
+              </div>
+            ) : filtered.length ? (
               // grid-cols-1 on mobile (was grid-cols-10, which squeezed cards into 10 tiny columns)
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filtered.map((vendor, index) => (
@@ -551,14 +619,31 @@ const Vendors = () => {
         )}
       </AnimatePresence>
 
-      {/* Vendor profile modal */}
+      {/* Full vendor profile (replaces the old small popup) */}
       <AnimatePresence>
-        {profileVendor && (
-          <motion.div className="fixed inset-0 z-[110] flex items-center justify-center bg-[#4A1230]/40 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.target === event.currentTarget) setProfileVendor(null); }}>
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-[#C44A68]/20 bg-[#FFFBF8]">
-              <div className="relative h-56"><VendorImage vendor={profileVendor} index={0} className="absolute inset-0" /><button type="button" onClick={() => setProfileVendor(null)} aria-label="Close profile" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white"><X className="h-4 w-4" /></button><span className="absolute bottom-4 left-5 rounded-full bg-black/65 px-3 py-1 text-xs text-[#F4A6B8]">{profileVendor.isVerified ? "✓ Platform Verified" : "Vendor Profile"}</span></div>
-              <div className="p-5 sm:p-6"><h2 className="text-2xl font-bold text-[#4A1230]">{profileVendor.name}</h2><p className="mt-1 text-sm text-[#4A3440]/70">{profileVendor.category} · {profileVendor.location}</p><div className="mt-3 flex flex-wrap gap-4 text-xs text-[#4A3440]"><span className="inline-flex items-center gap-1 text-[#C44A68]"><Star className="h-3.5 w-3.5 fill-current" /> {profileVendor.rating} ({profileVendor.reviews} reviews)</span><span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" /> {profileVendor.eventsCompleted} events</span><span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Replies {profileVendor.responseTime}</span></div><p className="mt-4 text-sm leading-6 text-[#4A3440]">{profileVendor.description}</p><div className="mt-4 flex flex-wrap gap-2">{profileVendor.tags.map((tag) => <Badge key={tag} variant="secondary" className="bg-[#F9DDE3] text-[#4A3440]">{tag}</Badge>)}</div><div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#C44A68]/20 pt-5"><div><p className="text-xs text-[#4A3440]/60">Starting package</p><p className="mt-1 text-xl font-extrabold text-[#C44A68]">{profileVendor.price}</p></div><Button type="button" onClick={() => handleBook(profileVendor)} className="bg-gradient-to-r from-[#E0708A] to-[#C44A68] font-bold text-white hover:brightness-105"><Zap className="mr-2 h-4 w-4" /> Book This Vendor</Button></div></div>
-            </motion.div>
+        {profileVendor && profileRow && (
+          <motion.div
+            key="vendor-profile"
+            role="dialog"
+            aria-label={`${profileVendor.name} profile`}
+            className="fixed inset-0 z-[110] overflow-y-auto bg-[#FFF6F2]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="sticky top-0 z-30 border-b border-[#C44A68]/15 bg-[#FFF6F2]/95 backdrop-blur">
+              <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+                <button type="button" onClick={() => setProfileVendor(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#C44A68] hover:text-[#A8385A]">
+                  <ChevronLeft className="h-4 w-4" /> Back to vendors
+                </button>
+                <button type="button" onClick={() => setProfileVendor(null)} aria-label="Close profile" className="grid h-9 w-9 place-items-center rounded-full border border-[#C44A68]/25 text-[#4A3440] hover:border-[#C44A68] hover:text-[#C44A68]">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="mx-auto max-w-5xl px-4 py-6">
+              <VendorProfileView profile={profileRow} onBook={() => handleBook(profileVendor)} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

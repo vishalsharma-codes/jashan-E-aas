@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -47,12 +49,6 @@ const myEvents = [
   },
 ];
 
-const savedVendors = [
-  { name: "Lens & Light Studio", category: "Photography", rating: 4.9, price: "₹75K–₹2L", location: "Mumbai", initials: "LL", gradient: "from-blue-500 to-indigo-700" },
-  { name: "Royal Decor Co.", category: "Decoration", rating: 4.8, price: "₹50K–₹5L", location: "Delhi", initials: "RD", gradient: "from-rose-500 to-pink-700" },
-  { name: "Spice Route Catering", category: "Catering", rating: 4.7, price: "₹800/plate", location: "Mumbai", initials: "SR", gradient: "from-orange-500 to-red-700" },
-];
-
 const moodItems = [
   { emoji: "🌸", label: "Floral arch", category: "Décor", gradient: "from-rose-500/30 to-pink-700/20" },
   { emoji: "🕯️", label: "Candle ceremony", category: "Ambiance", gradient: "from-amber-500/30 to-yellow-700/20" },
@@ -70,12 +66,12 @@ const guests = [
   { name: "Deepa Iyer", rsvp: "Confirmed", dietary: "Jain", group: "Family", table: "T2" },
 ];
 
-const payments = [
-  { vendor: "Lens & Light Studio", phase: "Token Payment (20%)", amount: "₹15,000", date: "May 10, 2026", status: "Paid", protected: true },
-  { vendor: "Royal Decor Co.", phase: "Advance (30%)", amount: "₹60,000", date: "June 1, 2026", status: "Due", protected: true },
-  { vendor: "Spice Route Catering", phase: "Token Payment (20%)", amount: "₹32,000", date: "May 15, 2026", status: "Paid", protected: true },
-  { vendor: "DJ Beats Pro", phase: "Full Payment", amount: "₹25,000", date: "July 5, 2026", status: "Upcoming", protected: true },
-];
+interface MyBooking {
+  id: string; booking_code: string; vendor_id: string; vendor_name: string; event_type: string;
+  event_dates: string[]; token_amount: number; estimated_total: number; quote_amount: number | null;
+  payment_status: string; status: string; created_at: string;
+}
+const inrFmt = (n: number) => `₹${new Intl.NumberFormat("en-IN").format(Math.round(n || 0))}`;
 
 const loyaltyTiers = [
   { name: "Silver", min: 0, max: 49999, color: "text-gray-400", bg: "from-gray-500/20 to-gray-700/10", perks: ["5% discount on next booking", "Priority chat support"] },
@@ -85,7 +81,32 @@ const loyaltyTiers = [
 ];
 
 export default function CustomerAccount() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const displayName = (user?.user_metadata?.name as string | undefined) || user?.email?.split("@")[0] || "Guest";
+  const initials = displayName.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "G";
+
+  // The customer's real bookings, with the vendor's business name.
+  useEffect(() => {
+    if (!user) { setMyBookings([]); setBookingsLoading(false); return; }
+    let off = false;
+    (async () => {
+      const { data } = await supabase.from("bookings").select("*").eq("customer_id", user.id).order("created_at", { ascending: false });
+      const rows = data ?? [];
+      const ids = Array.from(new Set(rows.map((b: any) => b.vendor_id)));
+      const names = new Map<string, string>();
+      if (ids.length) {
+        const { data: vs } = await supabase.from("vendor_profiles").select("user_id, business_name").in("user_id", ids);
+        (vs ?? []).forEach((v: any) => names.set(v.user_id, v.business_name));
+      }
+      if (off) return;
+      setMyBookings(rows.map((b: any) => ({ ...b, vendor_name: names.get(b.vendor_id) || "Vendor" })));
+      setBookingsLoading(false);
+    })();
+    return () => { off = true; };
+  }, [user]);
   const currentSpend = 1240000;
   const coins = 840;
   const currentTier = loyaltyTiers[1]; // Gold
@@ -100,11 +121,11 @@ export default function CustomerAccount() {
           <div className="container mx-auto px-4 py-6">
             <div className="flex items-center gap-5">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center text-2xl font-bold text-background">
-                PA
+                {initials}
               </div>
               <div>
-                <h1 className="font-bold text-xl">Priya Sharma</h1>
-                <p className="text-muted-foreground text-sm">priya.sharma@email.com · Mumbai</p>
+                <h1 className="font-bold text-xl">{displayName}</h1>
+                <p className="text-muted-foreground text-sm">{user?.email ?? "Not signed in"}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
                     <Star className="w-3 h-3 mr-1" /> Gold Member
@@ -211,29 +232,8 @@ export default function CustomerAccount() {
             {activeTab === "wishlist" && (
               <motion.div key="wishlist" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <h2 className="font-bold text-lg mb-4">Saved Vendors</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {savedVendors.map((v, i) => (
-                    <motion.div
-                      key={v.name}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.07 }}
-                      className="bg-card border border-border rounded-2xl p-5 hover:border-gold/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${v.gradient} flex items-center justify-center text-white font-bold text-sm`}>{v.initials}</div>
-                        <div>
-                          <p className="font-semibold text-sm">{v.name}</p>
-                          <p className="text-xs text-muted-foreground">{v.category}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm mb-3">
-                        <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-gold fill-gold" />{v.rating}</span>
-                        <span className="text-gold font-semibold text-xs">{v.price}</span>
-                      </div>
-                      <Button size="sm" className="w-full bg-gold hover:bg-gold-dark text-background text-xs">Send Inquiry</Button>
-                    </motion.div>
-                  ))}
+                <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+                  Vendors you save will appear here. Browse the <a href="/vendors" className="text-gold underline">vendor directory</a> to find some.
                 </div>
               </motion.div>
             )}
@@ -321,35 +321,43 @@ export default function CustomerAccount() {
                 <p className="text-sm text-muted-foreground mb-5 flex items-center gap-2">
                   <Shield className="w-4 h-4 text-emerald-400" /> All payments are escrow-protected
                 </p>
-                <div className="space-y-3">
-                  {payments.map((p, i) => (
-                    <motion.div
-                      key={`${p.vendor}-${i}`}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.07 }}
-                      className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3"
-                    >
-                      <div>
-                        <p className="font-semibold text-sm">{p.vendor}</p>
-                        <p className="text-xs text-muted-foreground">{p.phase} · {p.date}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-gold">{p.amount}</span>
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${p.status === "Paid" ? "border-emerald-500/40 text-emerald-400" : p.status === "Due" ? "border-amber-500/40 text-amber-400" : "border-blue-500/40 text-blue-400"}`}
+                {bookingsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading your payments…</p>
+                ) : myBookings.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+                    No payments yet. When you pay a token to book a vendor, it will show up here.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {myBookings.map((b, i) => {
+                      const paid = b.payment_status === "token_paid";
+                      return (
+                        <motion.div
+                          key={b.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between flex-wrap gap-3"
                         >
-                          {p.status === "Paid" ? <CheckCircle className="w-3 h-3 mr-1" /> : <Clock className="w-3 h-3 mr-1" />}
-                          {p.status}
-                        </Badge>
-                        {p.status === "Due" && (
-                          <Button size="sm" className="bg-gold hover:bg-gold-dark text-background text-xs h-7">Pay Now</Button>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                          <div>
+                            <p className="font-semibold text-sm">{b.vendor_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {b.event_type} · Token payment · {new Date(b.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · {b.booking_code}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-gold">{inrFmt(b.token_amount)}</span>
+                            <Badge variant="outline" className={`text-xs ${paid ? "border-emerald-500/40 text-emerald-400" : "border-amber-500/40 text-amber-400"}`}>
+                              {paid ? <CheckCircle className="w-3 h-3 mr-1" /> : <Clock className="w-3 h-3 mr-1" />}
+                              {paid ? "Paid" : b.payment_status}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs capitalize">{b.status}</Badge>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
               </motion.div>
             )}
 

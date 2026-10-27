@@ -10,7 +10,8 @@ import { DynamicBackground, categoryThemeMap } from "@/components/DynamicBackgro
 import { Footer } from "@/components/Footer";
 import { EveBuddy } from "@/components/EveBuddy";
 import { eventCategories } from "@/lib/categoryData";
-import { getVendorsByCategory, vendors, type Vendor } from "@/lib/vendorData";
+import { useLiveVendors, byCategoryId } from "@/lib/liveVedors";
+import type { LiveVendor as Vendor } from "@/lib/vendorOptions";
 
 const VendorCard = ({ vendor, catGradient, index }: { vendor: Vendor; catGradient: string; index: number }) => (
   <motion.div
@@ -110,8 +111,8 @@ const CategoryPage = () => {
   const [activeTab, setActiveTab] = useState("vendors");
 
   const category = eventCategories.find((c) => c.id === categoryId);
-  const categoryVendors = getVendorsByCategory(categoryId || "");
-  const allCategoryVendors = categoryVendors.length > 0 ? categoryVendors : vendors.slice(0, 6);
+  const { vendors, loading: vendorsLoading } = useLiveVendors();
+  const allCategoryVendors = byCategoryId(vendors, categoryId || "");
 
   if (!category) {
     return (
@@ -139,7 +140,7 @@ const CategoryPage = () => {
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 flex items-center gap-3">
                   {serviceLabel || category.name} <span className="text-4xl">{category.icon}</span>
                 </h1>
-                <p className="text-white/70 text-lg">{allCategoryVendors.length}+ verified vendors · {category.subCategories.length} service types</p>
+                <p className="text-white/70 text-lg">{vendorsLoading ? "Loading vendors…" : `${allCategoryVendors.length} ${allCategoryVendors.length === 1 ? "vendor" : "vendors"}`} · {category.subCategories.length} service types</p>
               </motion.div>
             </div>
           </div>

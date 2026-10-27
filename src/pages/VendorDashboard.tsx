@@ -3,7 +3,7 @@ import type { ElementType, ReactNode } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import {
   BadgeCheck, CalendarDays, Clapperboard, Clock, Images, Inbox, LayoutDashboard, Loader2, MapPin, MessageCircle,
-  Package, ShieldCheck, Star, Store, Wallet,
+  Package, ShieldCheck, Star, Store, Wallet, X,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { BookingsPanel, OverviewPanel, PaymentsPanel, useBookings } from "@/comp
 import { CalendarPanel, PackagesPanel, PortfolioPanel } from "@/components/vendorDashboard/ListingPanels";
 import { MessagesPanel, ReelsPanel, ReviewsPanel } from "@/components/vendorDashboard/EngagementPanels";
 import { SettingsPanel } from "@/components/vendorDashboard/SettingsPanel";
+import { VendorProfileView } from "@/components/vendor/VendorProfileView";
 
 type TabId = "overview" | "bookings" | "calendar" | "payments" | "profile" | "packages" | "portfolio" | "jhalak" | "baatein" | "reviews" | "settings";
 
@@ -143,6 +144,7 @@ function Dashboard({ userId, profile, priv, save }: { userId: string; profile: V
   const unread = useUnreadCount();
   const [counts, setCounts] = useState({ portfolio: 0, packages: 0, docs: 0 });
   const [submitting, setSubmitting] = useState(false);
+  const [preview, setPreview] = useState(false);
 
   const refreshCounts = useCallback(async () => {
     const q = (t: string) => supabase.from(t).select("id", { count: "exact", head: true }).eq("vendor_id", userId);
@@ -150,6 +152,14 @@ function Dashboard({ userId, profile, priv, save }: { userId: string; profile: V
     setCounts({ portfolio: a.count ?? 0, packages: b.count ?? 0, docs: c.count ?? 0 });
   }, [userId]);
   useEffect(() => { void refreshCounts(); }, [refreshCounts, tab]);
+
+  // close the preview with Escape
+  useEffect(() => {
+    if (!preview) return;
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setPreview(false); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [preview]);
 
   const checklist = useMemo(() => profileChecklist(profile, priv, counts), [profile, priv, counts]);
   const requiredDone = checklist.filter((c) => c.required).every((c) => c.done);
@@ -174,7 +184,7 @@ function Dashboard({ userId, profile, priv, save }: { userId: string; profile: V
       case "payments": return <PaymentsPanel bookings={bookings} priv={priv} go={go} />;
       case "profile": return (
         <div className="space-y-5">
-          <PreviewCard p={profile} />
+          <PreviewCard p={profile} onOpen={() => setPreview(true)} />
           <VendorProfileForm userId={userId} profile={profile} priv={priv} save={save} sections={["business", "services", "location", "pricing"]} />
         </div>
       );
@@ -242,15 +252,28 @@ function Dashboard({ userId, profile, priv, save }: { userId: string; profile: V
           </div>
         </div>
       </main>
+
+      {/* full customer-view preview */}
+      {preview && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-background" role="dialog" aria-label="Customer view of your profile">
+          <div className="container mx-auto max-w-5xl px-4 py-6">
+            <button type="button" onClick={() => setPreview(false)} className="mb-4 inline-flex items-center gap-2 text-sm text-gold">
+              <X className="h-4 w-4" />Close preview
+            </button>
+            <VendorProfileView profile={profile} onBook={() => {}} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ───────── How customers see your card ───────── */
 
-function PreviewCard({ p }: { p: VendorProfileRow }) {
+function PreviewCard({ p, onOpen }: { p: VendorProfileRow; onOpen: () => void }) {
   return (
-    <Card title="How customers see you" subtitle="Updates when you save.">
+    <Card title="How customers see you" subtitle="Updates when you save."
+      action={<Button size="sm" variant="outline" onClick={onOpen}>Preview full profile</Button>}>
       <div className="flex gap-4 rounded-2xl border border-border bg-background p-4">
         <div className="flex gap-1">
           {(p.cover_urls.length ? p.cover_urls : [""]).slice(0, 3).map((u, i) => (

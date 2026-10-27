@@ -175,6 +175,7 @@ export type LiveVendor = Vendor & {
   logoUrl: string;
   coverUrls: string[];
   isLive: true;
+  raw: VendorProfileRow;
 };
 
 export function toLiveVendor(row: any, portfolioRows: any[] = [], blocked: string[] = []): LiveVendor {
@@ -204,11 +205,12 @@ export function toLiveVendor(row: any, portfolioRows: any[] = [], blocked: strin
     portfolio: portfolioRows.slice(0, 8).map((r) => ({
       id: r.id, title: r.title || "Portfolio", gradient: gradientFor(r.id), emoji: "📸",
       category: row.category, eventType: r.event_type || "Event",
-      imageUrl: r.image_url,
+      imageUrl: r.image_url, image: r.image_url,
     })) as any,
     blockedDates: blocked,
     logoUrl: row.logo_url,
     coverUrls: row.cover_urls ?? [],
     isLive: true,
+    raw: row as VendorProfileRow,
   };
 }

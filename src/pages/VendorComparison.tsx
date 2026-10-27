@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { DynamicBackground } from "@/components/DynamicBackground";
@@ -7,7 +7,8 @@ import { EveBuddy } from "@/components/EveBuddy";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, CheckCircle, X, Plus } from "lucide-react";
-import { vendors } from "@/lib/vendorData";
+import { useLiveVendors } from "@/lib/liveVedors";
+import type { LiveVendor } from "@/lib/vendorOptions";
 import { Link } from "react-router-dom";
 
 const MAX_COMPARE = 3;
@@ -24,14 +25,20 @@ const compareFields = [
   { key: "isVerified", label: "Verified" },
 ];
 
-type Vendor = (typeof vendors)[0];
+type Vendor = LiveVendor;
 
 export default function VendorComparison() {
+  const { vendors, loading: vendorsLoading } = useLiveVendors();
   // Three FIXED slots. A removed vendor leaves its slot empty, so nothing shifts or resizes.
-  const [slots, setSlots] = useState<(string | null)[]>(() => {
+  const [slots, setSlots] = useState<(string | null)[]>(() => Array.from({ length: MAX_COMPARE }, () => null));
+  // Pre-fill the first two slots once, when the real vendors arrive.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || vendors.length === 0) return;
+    prefilled.current = true;
     const first = vendors.slice(0, 2).map((v) => v.id);
-    return Array.from({ length: MAX_COMPARE }, (_, i) => first[i] ?? null);
-  });
+    setSlots(Array.from({ length: MAX_COMPARE }, (_, i) => first[i] ?? null));
+  }, [vendors]);
   const [pickerSlot, setPickerSlot] = useState<number | null>(null); // which empty slot is being filled
   const showPicker = pickerSlot !== null;
 
@@ -117,6 +124,11 @@ export default function VendorComparison() {
                     data-lenis-prevent-touch
                     className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-6 space-y-2"
                   >
+                    {vendors.length === 0 && (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        {vendorsLoading ? "Loading vendors…" : "No vendors are live yet. Check back soon."}
+                      </p>
+                    )}
                     {vendors.map((v) => {
                       const taken = selectedIds.includes(v.id);
                       return (

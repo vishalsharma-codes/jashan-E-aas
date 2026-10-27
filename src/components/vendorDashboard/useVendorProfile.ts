@@ -30,6 +30,11 @@ export function useVendorProfile(userId?: string, defaultName = "") {
     const next = { ...(profile ?? emptyProfile(userId, defaultName)), ...patch, user_id: userId };
     // rating and review count are controlled by the server
     const { rating: _r, reviews_count: _c, ...payload } = next as any;
+    // status and verification_status are decided by the platform (admin approval). Only send them
+    // when this save deliberately changes them (submit for review), never from the stale copy
+    // loaded earlier, otherwise saving anything would overwrite an approval back to "draft".
+    if (!("status" in patch)) delete payload.status;
+    if (!("verification_status" in patch)) delete payload.verification_status;
     const r1 = await supabase.from("vendor_profiles").upsert(payload, { onConflict: "user_id" }).select().single();
     if (r1.error) return { error: r1.error };
     setProfile({ ...next, ...r1.data });
