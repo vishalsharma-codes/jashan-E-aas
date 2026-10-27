@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback,useEffect, useMemo, useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -24,6 +24,47 @@ import { VendorProfileView } from "@/components/vendor/VendorProfileView";
 /* Blush Peach theme
    plum text #4A1230 / #4A3440 · rose accent #C44A68 · light rose #E0708A / #F4A6B8
    cream surfaces #FFF6F2 / #FFF1EC / #FFFBF8 · soft pink chip #F9DDE3 */
+
+/* ------------------------------------------------------------------ *
+ *  HOMEPAGE SECTIONS (you decide which vendor appears where)
+ *
+ *  "Top Rated Vendors" and "Featured Vendor" are ALWAYS shown on the page.
+ *  They stay EMPTY until you assign vendors to them in Supabase.
+ *  Every vendor still appears in "All Vendors" and "Browse All Vendors".
+ *
+ *  Run once in the Supabase SQL editor:
+ *     alter table vendors
+ *       add column if not exists home_sections text[] not null default '{}',
+ *       add column if not exists home_rank     int    not null default 999;
+ *
+ *  Assign a vendor (home_sections accepts: featured, top_rated, or both):
+ *     update vendors set home_sections = '{featured,top_rated}', home_rank = 1 where id = '<vendor-id>';
+ *     update vendors set home_sections = '{top_rated}',          home_rank = 2 where id = '<vendor-id>';
+ *
+ *  Remove a vendor from the sections:
+ *     update vendors set home_sections = '{}', home_rank = 999 where id = '<vendor-id>';
+ *
+ *  Lower home_rank = shown first. The columns are read from `vendor.raw`
+ *  (the full DB row). If useLiveVendors maps a column list instead of
+ *  select("*"), add both columns there.
+ * ------------------------------------------------------------------ */
+const SECTION_KEYS = {
+  featured: "featured",
+  topRated: "top_rated",
+} as const;
+
+const getSections = (v: Vendor): string[] => {
+  const value = (v as any).raw?.home_sections;
+  return Array.isArray(value) ? value : [];
+};
+const getRank = (v: Vendor): number => {
+  const value = Number((v as any).raw?.home_rank);
+  return Number.isFinite(value) ? value : 999;
+};
+const vendorsForSection = (list: Vendor[], key: string) =>
+  list
+    .filter((v) => getSections(v).includes(key))
+    .sort((a, b) => getRank(a) - getRank(b) || b.rating - a.rating);
 
 const SERVICE_CATEGORIES = [
   { label: "All Vendors", icon: Sparkles, match: "All" },
@@ -146,6 +187,11 @@ function VendorImage({ vendor, index, className = "" }: { vendor: Vendor; index:
   );
 }
 
+/**
+ * One card used everywhere (carousels + grid). Every block has a fixed height
+ * and the footer is pinned to the bottom, so all cards come out the same size
+ * whether or not a vendor has events, tags or a long price.
+ */
 function VendorCard({
   vendor,
   index,
@@ -168,9 +214,10 @@ function VendorCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.025, 0.18) }}
-      className="group min-w-0 overflow-hidden rounded-2xl border border-[#C44A68]/20 bg-[#FFFBF8] transition-all duration-300 hover:-translate-y-1 hover:border-[#C44A68]/50 hover:shadow-[0_18px_45px_rgba(196,74,104,.22)]"
+      className="group flex h-full w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#C44A68]/20 bg-[#FFFBF8] transition-all duration-300 hover:-translate-y-1 hover:border-[#C44A68]/50 hover:shadow-[0_18px_45px_rgba(196,74,104,.22)]"
     >
-      <div className={`relative ${compact ? "h-32" : "h-36"}`}>
+      {/* same image height on every card */}
+      <div className="relative h-36 shrink-0">
         <VendorImage vendor={vendor} index={index} className="absolute inset-0 transition-transform duration-500 group-hover:scale-105" />
         <button
           type="button"
@@ -187,41 +234,46 @@ function VendorCard({
         )}
       </div>
 
-      <div className="p-3.5">
+      <div className="flex flex-1 flex-col p-3.5">
         <div className="flex min-w-0 items-start gap-2">
           <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${vendor.gradient} text-xs font-bold text-white`}>
             {vendor.initials}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-bold text-[#4A1230] transition-colors group-hover:text-[#C44A68]">{vendor.name}</h3>
+            <h3 className="truncate text-sm font-bold text-[#4A1230] transition-colors group-hover:text-[#C44A68]" title={vendor.name}>{vendor.name}</h3>
             <p className="mt-0.5 truncate text-xs text-[#4A3440]/70">{vendor.category}</p>
           </div>
           {vendor.isVerified && <CheckCircle className="mt-1 h-4 w-4 shrink-0 text-[#C44A68]" />}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#4A3440]/70">
-          <span className="inline-flex items-center gap-1 text-[#C44A68]">
+        {/* rating + city (single line, never wraps) */}
+        <div className="mt-3 flex h-4 items-center gap-x-3 overflow-hidden whitespace-nowrap text-[11px] text-[#4A3440]/70">
+          <span className="inline-flex shrink-0 items-center gap-1 text-[#C44A68]">
             <Star className="h-3 w-3 fill-current" />
             {vendor.reviews > 0
               ? <><b>{vendor.rating}</b> <span className="text-[#4A3440]/60">({vendor.reviews})</span></>
               : <b>New</b>}
           </span>
-          <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{vendor.location}</span>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#4A3440]/60">
-          {vendor.eventsCompleted > 0 && <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{vendor.eventsCompleted} events</span>}
-          <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{vendor.responseTime}</span>
+          <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{vendor.location}</span></span>
         </div>
 
-        <div className="mt-3 flex min-h-6 flex-wrap gap-1">
+        {/* events + response time: row is ALWAYS rendered at a fixed height */}
+        <div className="mt-2 flex h-4 items-center gap-x-3 overflow-hidden whitespace-nowrap text-[11px] text-[#4A3440]/60">
+          {vendor.eventsCompleted > 0 && <span className="inline-flex shrink-0 items-center gap-1"><Briefcase className="h-3 w-3" />{vendor.eventsCompleted} events</span>}
+          <span className="inline-flex shrink-0 items-center gap-1"><Clock className="h-3 w-3" />{vendor.responseTime}</span>
+        </div>
+
+        {/* tags: fixed height, never wraps onto a second line */}
+        <div className="mt-3 flex h-6 flex-nowrap gap-1 overflow-hidden">
           {vendor.tags.slice(0, compact ? 2 : 3).map((tag) => (
-            <Badge key={tag} variant="secondary" className="border border-[#C44A68]/10 bg-[#F9DDE3] px-2 py-0.5 text-[10px] font-normal text-[#4A3440]">{tag}</Badge>
+            <Badge key={tag} variant="secondary" className="shrink-0 border border-[#C44A68]/10 bg-[#F9DDE3] px-2 py-0.5 text-[10px] font-normal text-[#4A3440]">{tag}</Badge>
           ))}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#C44A68]/15 pt-3">
-          <span className="text-sm font-extrabold text-[#C44A68]">{vendor.price}</span>
-          <div className="flex items-center gap-1.5">
+        {/* mt-auto pins the footer to the bottom of the card */}
+        <div className="mt-auto border-t border-[#C44A68]/15 pt-3">
+          <p className="truncate text-sm font-extrabold text-[#C44A68]" title={vendor.price}>{vendor.price}</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => onProfile(vendor)} className="h-8 border-[#C44A68]/30 bg-transparent px-2.5 text-[11px] text-[#C44A68] hover:bg-[#C44A68]/10 hover:text-[#A8385A]">View Profile</Button>
             <Button type="button" size="sm" onClick={() => onBook(vendor)} className="h-8 bg-gradient-to-r from-[#E0708A] to-[#C44A68] px-3 text-[11px] font-bold text-white hover:brightness-105"><Zap className="mr-1 h-3 w-3" />Book</Button>
           </div>
@@ -234,6 +286,7 @@ function VendorCard({
 function CarouselSection({
   title, subtitle, items, onBook, onProfile, savedIds, onToggleSaved, onViewAll,
   direction = "right-to-left",
+  emptyMessage = "No vendors to show in this section yet.",
 }: {
   title: string;
   subtitle: string;
@@ -244,8 +297,10 @@ function CarouselSection({
   onToggleSaved: (id: string) => void;
   onViewAll: () => void;
   direction?: "right-to-left" | "left-to-right";
+  emptyMessage?: string;
 }) {
   const marqueeRef = useRef<AutoScrollMarqueeHandle>(null);
+  const hasItems = items.length > 0;
 
   return (
     <section className="mb-7">
@@ -256,15 +311,20 @@ function CarouselSection({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button type="button" onClick={onViewAll} className="inline-flex items-center whitespace-nowrap text-xs font-semibold text-[#C44A68] transition hover:text-[#A8385A]">View All <ArrowUpRight className="ml-1 inline h-3.5 w-3.5" /></button>
-          <button type="button" aria-label={`Previous ${title}`} onClick={() => marqueeRef.current?.nudge("left")} className="grid h-8 w-8 place-items-center rounded-full border border-[#C44A68]/50 text-[#C44A68] transition hover:bg-[#C44A68] hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
-          <button type="button" aria-label={`Next ${title}`} onClick={() => marqueeRef.current?.nudge("right")} className="grid h-8 w-8 place-items-center rounded-full border border-[#C44A68]/50 text-[#C44A68] transition hover:bg-[#C44A68] hover:text-white"><ChevronRight className="h-4 w-4" /></button>
+          {hasItems && (
+            <>
+              <button type="button" aria-label={`Previous ${title}`} onClick={() => marqueeRef.current?.nudge("left")} className="grid h-8 w-8 place-items-center rounded-full border border-[#C44A68]/50 text-[#C44A68] transition hover:bg-[#C44A68] hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
+              <button type="button" aria-label={`Next ${title}`} onClick={() => marqueeRef.current?.nudge("right")} className="grid h-8 w-8 place-items-center rounded-full border border-[#C44A68]/50 text-[#C44A68] transition hover:bg-[#C44A68] hover:text-white"><ChevronRight className="h-4 w-4" /></button>
+            </>
+          )}
         </div>
       </div>
 
-      {items.length ? (
+      {hasItems ? (
         <AutoScrollMarquee ref={marqueeRef} speed={40} gap={12} direction={direction} className="-mx-1 px-1 pb-3 pt-1">
           {items.slice(0, 10).map((vendor, index) => (
-            <div key={`${title}-${vendor.id}`} className="w-[245px] shrink-0 sm:w-[265px]">
+            // flex => the card stretches to the row height; fixed width => identical to the grid cards
+            <div key={`${title}-${vendor.id}`} className="flex w-[265px] shrink-0">
               <VendorCard
                 vendor={vendor}
                 index={index}
@@ -278,7 +338,10 @@ function CarouselSection({
           ))}
         </AutoScrollMarquee>
       ) : (
-        <div className="rounded-xl border border-[#C44A68]/20 bg-white/50 p-6 text-sm text-[#4A3440]/70">No vendors to show in this section yet.</div>
+        <div className="flex min-h-[150px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#C44A68]/30 bg-white/50 p-6 text-center">
+          <Sparkles className="h-6 w-6 text-[#C44A68]/60" />
+          <p className="mt-2 text-sm text-[#4A3440]/70">{emptyMessage}</p>
+        </div>
       )}
     </section>
   );
@@ -360,8 +423,11 @@ const Vendors = () => {
     return result;
   }, [vendors, searchQuery, activeCategory, activeEvent, city, minRating, verifiedOnly, sortBy]);
 
-  const topRated = useMemo(() => [...vendors].sort((a, b) => b.rating - a.rating || b.reviews - a.reviews).slice(0, 10), [vendors]);
-  const featured = vendors.find((vendor) => vendor.isVerified) ?? vendors[0];
+  // Curated homepage sections: only vendors you assigned via home_sections (Supabase), ordered by home_rank.
+  // The sections are always rendered; they show an empty state until you assign vendors.
+  const topRated = useMemo(() => vendorsForSection(vendors, SECTION_KEYS.topRated).slice(0, 10), [vendors]);
+  const featuredList = useMemo(() => vendorsForSection(vendors, SECTION_KEYS.featured), [vendors]);
+  const featured = featuredList[0]; // the big spotlight card shows the first featured vendor
 
   // Deep link from /vendors?vendor=<id> (vendor dashboard "View public profile", compare page)
   const wantedVendor = searchParams.get("vendor");
@@ -460,7 +526,7 @@ const Vendors = () => {
             </div>
           </section>
 
-          {/* All Vendors carousel */}
+          {/* All Vendors carousel (follows the filters above) */}
           <CarouselSection
             title="All Vendors"
             subtitle="Explore our verified vendors across different event types"
@@ -473,7 +539,7 @@ const Vendors = () => {
             direction="right-to-left"
           />
 
-          {/* Top rated carousel */}
+          {/* Top rated carousel: ALWAYS shown. Only vendors with "top_rated" in home_sections appear; empty until you assign some. */}
           <CarouselSection
             title="Top Rated Vendors"
             subtitle="Handpicked professionals with the highest ratings from our community"
@@ -484,15 +550,16 @@ const Vendors = () => {
             onToggleSaved={toggleSaved}
             onViewAll={openAllVendors}
             direction="left-to-right"
+            emptyMessage="No top rated vendors have been selected yet. They will appear here soon."
           />
 
-          {/* Featured vendor */}
-          {featured && (
-            <section className="mb-9">
-              <div className="mb-3">
-                <h2 className="font-serif text-xl font-semibold text-[#4A1230] sm:text-2xl">Featured Vendor</h2>
-                <p className="mt-1 text-xs text-[#4A3440]/70 sm:text-sm">Our special partner for this season</p>
-              </div>
+          {/* Featured vendor: ALWAYS shown. First vendor with "featured" in home_sections; empty until you assign one. */}
+          <section className="mb-9">
+            <div className="mb-3">
+              <h2 className="font-serif text-xl font-semibold text-[#4A1230] sm:text-2xl">Featured Vendor</h2>
+              <p className="mt-1 text-xs text-[#4A3440]/70 sm:text-sm">Our special partner for this season</p>
+            </div>
+            {featured ? (
               <div className="grid overflow-hidden rounded-2xl border border-[#C44A68]/20 bg-[#FFFBF8] lg:grid-cols-[1.1fr_1fr]">
                 <div className="relative min-h-[220px] lg:min-h-[260px]">
                   <VendorImage vendor={featured} index={0} className="absolute inset-0" />
@@ -522,10 +589,15 @@ const Vendors = () => {
                   </div>
                 </div>
               </div>
-            </section>
-          )}
+            ) : (
+              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#C44A68]/30 bg-white/50 p-6 text-center">
+                <Sparkles className="h-7 w-7 text-[#C44A68]/60" />
+                <p className="mt-2 text-sm text-[#4A3440]/70">No featured vendor has been selected yet. Our season's special partner will appear here soon.</p>
+              </div>
+            )}
+          </section>
 
-          {/* Full directory */}
+          {/* Full directory: EVERY vendor always appears here */}
           <section id="all-vendors" className="scroll-mt-24 border-t border-[#C44A68]/20 pt-7">
             <div className="sticky top-20 z-20 -mx-4 mb-4 flex flex-col gap-4 border-b border-[#C44A68]/20 bg-[#FFF6F2]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:-mx-8 lg:px-8">
               <div>
@@ -577,10 +649,10 @@ const Vendors = () => {
                 <Search className="mx-auto h-10 w-10 text-[#4A3440]/40" /><h3 className="mt-4 text-lg font-semibold text-[#4A1230]">No vendors have joined yet</h3><p className="mt-1 text-sm text-[#4A3440]/70">Approved vendors will appear here as soon as they go live.</p>
               </div>
             ) : filtered.length ? (
-              // grid-cols-1 on mobile (was grid-cols-10, which squeezed cards into 10 tiny columns)
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              // Same 265px card width as the carousels; items-stretch + h-full keeps every card the same height
+              <div className="grid items-stretch gap-4 [grid-template-columns:repeat(auto-fill,minmax(265px,1fr))]">
                 {filtered.map((vendor, index) => (
-                  <div key={vendor.id} className="relative">
+                  <div key={vendor.id} className="relative h-full">
                     {bookedVendorId === vendor.id && <div className="absolute inset-x-0 top-0 z-20 rounded-t-2xl bg-emerald-600 px-2 py-1 text-center text-xs font-bold text-white">✓ Token paid — booking confirmed</div>}
                     <VendorCard vendor={vendor} index={index} onBook={handleBook} onProfile={setProfileVendor} saved={savedIds.has(vendor.id)} onToggleSaved={toggleSaved} />
                   </div>

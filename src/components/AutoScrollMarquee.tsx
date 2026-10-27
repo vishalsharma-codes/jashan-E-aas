@@ -3,6 +3,7 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 
@@ -11,7 +12,7 @@ export interface AutoScrollMarqueeHandle {
 }
 
 interface AutoScrollMarqueeProps {
-  children: ReactNode; // one set of items; the marquee duplicates it for the loop
+  children: ReactNode; // one set of items; duplicated ONLY when it overflows the row
   speed?: number; // pixels per second
   gap?: number; // pixels between items
   direction?: "right-to-left" | "left-to-right";
@@ -23,8 +24,9 @@ const NUDGE_EASE_MS = 220; // how softly manual nudges glide
 
 /**
  * Smooth, constant, seamless auto-scroll in a single row.
- * Pauses (with easing) on hover, touch and keyboard focus.
- * If the items don't fill the row, it stays still instead of looping.
+ * - Pauses (with easing) on hover, touch and keyboard focus.
+ * - If the items fit inside the row, it stays still and shows NO duplicate cards.
+ * - Re-measures with a ResizeObserver, so it reacts to data loading and window resizes.
  */
 export const AutoScrollMarquee = forwardRef<
   AutoScrollMarqueeHandle,
@@ -41,6 +43,7 @@ export const AutoScrollMarquee = forwardRef<
 
     const isPausedRef = useRef(false);
     const nudgeRef = useRef(0);
+    const [overflowing, setOverflowing] = useState(false);
 
     useImperativeHandle(ref, () => ({
       nudge: (dir) => {
@@ -51,22 +54,44 @@ export const AutoScrollMarquee = forwardRef<
       },
     }));
 
+    // Decide whether the row needs to scroll at all.
+    // Content width = set width minus the trailing gap padding.
+    useEffect(() => {
+      const viewport = viewportRef.current;
+      const firstSet = firstSetRef.current;
+      if (!viewport || !firstSet) return;
+
+      const measure = () => {
+        setOverflowing(firstSet.offsetWidth - gap > viewport.clientWidth + 1);
+      };
+      measure();
+
+      const ro = new ResizeObserver(measure);
+      ro.observe(viewport);
+      ro.observe(firstSet);
+      return () => ro.disconnect();
+    }, [gap]);
+
     // The duplicate set is decoration only: keep it out of tab order.
     useEffect(() => {
       const copy = copyRef.current as (HTMLDivElement & { inert?: boolean }) | null;
       if (copy) copy.inert = true;
-    }, []);
+    }, [overflowing]);
 
     useEffect(() => {
       const track = trackRef.current;
-      const viewport = viewportRef.current;
       const firstSet = firstSetRef.current;
-      if (!track || !viewport || !firstSet) return;
+      if (!track || !firstSet) return;
+
+      if (!overflowing) {
+        nudgeRef.current = 0;
+        track.style.transform = "translate3d(0, 0, 0)";
+        return;
+      }
 
       const reduceMotion = window.matchMedia(
         "(prefers-reduced-motion: reduce)"
       ).matches;
-
       const dirSign = direction === "left-to-right" ? -1 : 1;
 
       let frameId = 0;
@@ -79,17 +104,15 @@ export const AutoScrollMarquee = forwardRef<
           const dt = Math.min(time - previousTime, 50);
           const loopWidth = firstSet.offsetWidth;
 
-          if (loopWidth > 0 && loopWidth > viewport.clientWidth) {
-            const targetSpeed =
-              isPausedRef.current || reduceMotion ? 0 : speed;
+          if (loopWidth > 0) {
+            const targetSpeed = isPausedRef.current || reduceMotion ? 0 : speed;
             currentSpeed +=
               (targetSpeed - currentSpeed) * (1 - Math.exp(-dt / PAUSE_EASE_MS));
 
             offset += (dirSign * currentSpeed * dt) / 1000;
 
             if (Math.abs(nudgeRef.current) > 0.5) {
-              const step =
-                nudgeRef.current * (1 - Math.exp(-dt / NUDGE_EASE_MS));
+              const step = nudgeRef.current * (1 - Math.exp(-dt / NUDGE_EASE_MS));
               nudgeRef.current -= step;
               offset += step;
             } else {
@@ -99,27 +122,19 @@ export const AutoScrollMarquee = forwardRef<
             // Seamless loop: wrap by exactly one set width, in either direction.
             offset = ((offset % loopWidth) + loopWidth) % loopWidth;
             track.style.transform = `translate3d(${-offset}px, 0, 0)`;
-          } else {
-            // Not enough items to loop: stay put.
-            offset = 0;
-            nudgeRef.current = 0;
-            track.style.transform = "translate3d(0, 0, 0)";
           }
         }
-
         previousTime = time;
         frameId = requestAnimationFrame(animate);
       };
 
       frameId = requestAnimationFrame(animate);
-
       return () => cancelAnimationFrame(frameId);
-    }, [speed, direction]);
+    }, [speed, direction, overflowing]);
 
     const pause = () => {
       isPausedRef.current = true;
     };
-
     const resume = () => {
       isPausedRef.current = false;
     };
@@ -138,17 +153,20 @@ export const AutoScrollMarquee = forwardRef<
         className={`overflow-hidden ${className}`}
       >
         <div ref={trackRef} className="flex w-max will-change-transform">
-          <div ref={firstSetRef} className="flex shrink-0" style={setStyle}>
+          {/* items-stretch so every card in the row ends up the same height */}
+          <div ref={firstSetRef} className="flex shrink-0 items-stretch" style={setStyle}>
             {children}
           </div>
-          <div
-            ref={copyRef}
-            aria-hidden="true"
-            className="flex shrink-0"
-            style={setStyle}
-          >
-            {children}
-          </div>
+          {overflowing && (
+            <div
+              ref={copyRef}
+              aria-hidden="true"
+              className="flex shrink-0 items-stretch"
+              style={setStyle}
+            >
+              {children}
+            </div>
+          )}
         </div>
       </div>
     );

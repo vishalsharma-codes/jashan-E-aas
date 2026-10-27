@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import {  useCallback,useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -25,13 +25,14 @@ import { RopePull } from "@/components/RopePull";
 import { Button } from "@/components/ui/button";
 import { UpiPaymentModal } from "@/components/UpiPayment";
 import { DynamicBackground } from "@/components/DynamicBackground";
-import { useLiveVendors, featuredOf, topRatedOf } from "@/lib/liveVedors";
+import { useLiveVendors, homeSectionOf, topRatedOf } from "@/lib/liveVedors";
 import { StackSection } from "@/components/StackSection";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import { HowItWorksTimeline } from "@/components/HowItWorksTimeline";
 import { TopRatedStack } from "@/components/TopRatedStack";
 import { StoriesStrip } from "@/components/StoriesStrip";
 import LogoBackground from "@/components/LogoBackground";
+import TopRatedSection from "@/components/TopRatedSection";
 
 
 /* ── Profession themes (matched by keyword in vendor.category) ──
@@ -148,61 +149,103 @@ const CREAM = "#FFF6F2";
 export default function Index() {
   const navigate = useNavigate();
   const { vendors: liveVendors } = useLiveVendors();
+  // Only show vendors explicitly assigned to the "featured" homepage section.
+  // homeSectionOf orders them by home_rank, then rating; no fallback vendors are added.
+  // Include all vendors assigned to the "featured" homepage section.
+  // homeSectionOf keeps them ordered by home_rank, then rating.
   const sortedFeatured = useMemo(
-    () => [...featuredOf(liveVendors, 6)].sort((a, b) => a.category.localeCompare(b.category)),
+    () => homeSectionOf(liveVendors, "featured"),
     [liveVendors],
   );
+
   const topVendors = useMemo(() => topRatedOf(liveVendors, 8), [liveVendors]);
   const [demoPayOpen, setDemoPayOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const activeRef = useRef(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const pausedRef = useRef(false);
+
+  const [paused, setPaused] = useState(false);
+const featuredCount = sortedFeatured.length;
+
+const goToFeatured = useCallback(
+  (i: number) => {
+    if (!featuredCount) return;
+    const idx = ((i % featuredCount) + featuredCount) % featuredCount; // loops forever
+    setActiveIdx(idx);
+
+    const c = scrollRef.current;
+    const card = c?.children[idx] as HTMLElement | undefined;
+    if (c && card && c.scrollWidth > c.clientWidth + 1) {
+      const left =
+        c.scrollLeft +
+        card.getBoundingClientRect().left -
+        c.getBoundingClientRect().left;
+      c.scrollTo({ left, behavior: "smooth" });
+    }
+  },
+  [featuredCount],
+);
+
+// autoscroll: moves the active card (and the big image) every 4s
+useEffect(() => {
+  if (featuredCount < 2 || paused) return;
+  const t = setTimeout(() => goToFeatured(activeIdx + 1), 4000);
+  return () => clearTimeout(t);
+}, [featuredCount, paused, activeIdx, goToFeatured]);
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || sortedFeatured.length === 0) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!el || sortedFeatured.length < 2) return;
 
-    const SPEED = 40; // px per second
-    const n = sortedFeatured.length;
-    let pos = el.scrollLeft;
+    const SPEED = 32; // px per second; slow enough to read each card
+    let direction = 1;
     let last = performance.now();
     let raf = 0;
 
     const detectActive = () => {
-      const left = el.getBoundingClientRect().left;
-      for (let i = 0; i < el.children.length; i++) {
-        const r = (el.children[i] as HTMLElement).getBoundingClientRect();
-        if (r.left + r.width / 2 > left + 10) {
-          const idx = i % n;
-          if (idx !== activeRef.current) {
-            activeRef.current = idx;
-            setActiveIdx(idx);
-          }
-          break;
+      const container = el.getBoundingClientRect();
+      const targetX = container.left + Math.min(container.width * 0.25, 120);
+      let nearestIndex = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      Array.from(el.children).forEach((child, index) => {
+        const rect = (child as HTMLElement).getBoundingClientRect();
+        const center = rect.left + rect.width / 2;
+        const distance = Math.abs(center - targetX);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
         }
+      });
+
+      if (nearestIndex !== activeRef.current) {
+        activeRef.current = nearestIndex;
+        setActiveIdx(nearestIndex);
       }
     };
 
     const tick = (now: number) => {
-      const dt = (now - last) / 1000;
+      // Read the current position each frame so manual arrow clicks still work.
+      const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
+      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
 
-      if (!pausedRef.current && !reduced) {
-        const first = el.children[0] as HTMLElement | undefined;
-        const clone = el.children[n] as HTMLElement | undefined;
+      if (maxScroll > 0) {
+        let next = el.scrollLeft + direction * SPEED * dt;
 
-        if (first && clone) {
-          const period = clone.offsetLeft - first.offsetLeft;
-          pos += SPEED * dt;
-          if (pos >= period) pos -= period;
-          el.scrollLeft = pos;
+        // Bounce at either end instead of duplicating vendor cards or stopping.
+        if (next >= maxScroll) {
+          next = maxScroll;
+          direction = -1;
+        } else if (next <= 0) {
+          next = 0;
+          direction = 1;
         }
-      } else {
-        pos = el.scrollLeft;
+
+        el.scrollLeft = next;
       }
+
       detectActive();
       raf = requestAnimationFrame(tick);
     };
@@ -232,178 +275,228 @@ export default function Index() {
           {/* 2 ── CATEGORIES */}
           <CategoryCarousel />
 
-          {/* 3 ── FEATURED VENDORS (hidden until real vendors are approved) */}
-          {sortedFeatured.length > 0 && (
-          <section className="relative overflow-hidden bg-[#FFE3D6] py-28">
-            <svg
-              viewBox="0 0 1440 80"
-              preserveAspectRatio="none"
-              className="pointer-events-none absolute inset-x-0 top-0 h-14 w-full"
-              style={{ fill: CREAM }}
+          
+
+{/* 3 ── FEATURED VENDORS */}
+{sortedFeatured.length > 0 && (
+  <section className="relative overflow-hidden bg-[#FFE3D6] py-28">
+    <svg
+      viewBox="0 0 1440 80"
+      preserveAspectRatio="none"
+      className="pointer-events-none absolute inset-x-0 top-0 h-14 w-full"
+      style={{ fill: CREAM }}
+    >
+      <path d={WAVE} />
+    </svg>
+
+    <svg
+      viewBox="0 0 1440 80"
+      preserveAspectRatio="none"
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-14 w-full -scale-y-100"
+      style={{ fill: CREAM }}
+    >
+      <path d={WAVE} />
+    </svg>
+
+    <div className="container relative mx-auto px-4">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
+
+        {/* LEFT: big image, follows the active card */}
+        {(() => {
+          const index = Math.min(activeIdx, sortedFeatured.length - 1);
+          const v = sortedFeatured[index];
+          const theme = getTheme(v.category);
+
+          const cover = v.portfolio?.find((p: any) => p?.imageUrl || p?.image);
+          const image =
+            cover?.imageUrl || cover?.image || v.coverUrls?.[0] || v.logoUrl;
+
+          return (
+            <Link
+              to={`/vendors?vendor=${v.id}`}
+              className="group relative flex h-[320px] w-full shrink-0 items-center justify-center overflow-hidden rounded-md lg:h-auto lg:min-h-[480px] lg:w-[400px] lg:self-stretch"
             >
-              <path d={WAVE} />
-            </svg>
-            <svg
-              viewBox="0 0 1440 80"
-              preserveAspectRatio="none"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-14 w-full -scale-y-100"
-              style={{ fill: CREAM }}
-            >
-              <path d={WAVE} />
-            </svg>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={v.id}
+                  initial={{ opacity: 0, scale: 1.04 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${theme.gradient}`}
+                >
+                  {image ? (
+                    <img
+                      src={image}
+                      alt={`${v.name} portfolio`}
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  ) : (
+                    <span className="text-8xl opacity-90">{theme.emoji}</span>
+                  )}
+                </motion.div>
+              </AnimatePresence>
 
-            <div className="container relative mx-auto px-4">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
-                {/* LEFT: big feature card */}
-                {sortedFeatured[activeIdx] &&
-                  (() => {
-                    const v = sortedFeatured[activeIdx];
-                    const theme = getTheme(v.category);
-                    return (
-                      <Link
-                        to={`/vendors?vendor=${v.id}`}
-                        className="group relative flex h-[320px] w-full shrink-0 items-center justify-center overflow-hidden rounded-md lg:h-auto lg:w-[400px]"
-                      >
-                        <AnimatePresence mode="wait">
-                          <motion.div
-                            key={v.category}
-                            initial={{ opacity: 0, scale: 1.08 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.5 }}
-                            className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${theme.gradient}`}
-                          >
-                            <span className="text-8xl opacity-90 transition-transform duration-500 group-hover:scale-110">
-                              {theme.emoji}
-                            </span>
-                          </motion.div>
-                        </AnimatePresence>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#4A3440]/85 via-[#4A3440]/10 to-transparent" />
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#4A3440]/60 via-transparent to-transparent" />
-                        <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#4A3440]">
-                          {v.category}
-                        </span>
-                        <p className="absolute bottom-4 left-4 font-display text-lg leading-tight text-white">
-                          Explore<br />{v.category}
-                        </p>
-                        <span className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center bg-white/90 text-[#C44A68]">
-                          <ArrowRight className="h-4 w-4" />
-                        </span>
-                      </Link>
-                    );
-                  })()}
+              <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#4A3440]">
+                {v.category}
+              </span>
 
-                {/* RIGHT: title + auto-scrolling cards */}
-                <div className="min-w-0 flex-1">
-                  <motion.div
-                    initial={{ opacity: 0, y: 24 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    className="mb-6 flex items-end justify-between"
-                  >
-                    <div>
-                      <p className="mb-1 text-sm font-medium uppercase tracking-wider text-gold">
-                        Hand-picked for you
-                      </p>
-                      <h2 className="font-display text-3xl text-foreground md:text-4xl">
-                        Featured <span className="text-gradient-gold">Vendors</span>
-                      </h2>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => scrollRef.current?.scrollBy({ left: -480, behavior: "smooth" })}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold hover:bg-gold/10"
-                        aria-label="Previous"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => scrollRef.current?.scrollBy({ left: 480, behavior: "smooth" })}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold hover:bg-gold/10"
-                        aria-label="Next"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </motion.div>
+              <div className="absolute bottom-4 left-4 right-14 text-white">
+                <p className="font-display text-xl leading-tight">{v.name}</p>
+                <p className="mt-1 text-sm text-white/80">Explore {v.category}</p>
+              </div>
 
+              <span className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center bg-white/90 text-[#C44A68]">
+                <ArrowRight className="h-4 w-4" />
+              </span>
+            </Link>
+          );
+        })()}
+
+        {/* RIGHT: heading and vendor carousel */}
+        <div
+          className="min-w-0 flex-1"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-6 flex items-end justify-between"
+          >
+            <div>
+              <p className="mb-1 text-sm font-medium uppercase tracking-wider text-gold">
+                Hand-picked for you
+              </p>
+              <h2 className="font-display text-3xl text-foreground md:text-4xl">
+                Featured <span className="text-gradient-gold">Vendors</span>
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => goToFeatured(activeIdx - 1)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold hover:bg-gold/10"
+                aria-label="Previous vendor"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => goToFeatured(activeIdx + 1)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold hover:bg-gold/10"
+                aria-label="Next vendor"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+
+          <div
+            ref={scrollRef}
+            className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {sortedFeatured.map((vendor, i) => {
+              const cover = vendor.portfolio?.find((p: any) => p?.imageUrl || p?.image);
+              const theme = getTheme(vendor.category);
+              const image =
+                cover?.imageUrl || cover?.image || vendor.coverUrls?.[0] || vendor.logoUrl;
+
+              return (
+                <div
+                  key={vendor.id}
+                  onClick={() => goToFeatured(i)}
+                  className={`w-[220px] shrink-0 cursor-pointer rounded-md bg-[#FFFBF8] p-2 text-[#4A3440] shadow-[0_8px_24px_-8px_rgba(196,74,104,0.35)] transition ${
+                    i === activeIdx ? "ring-2 ring-[#C44A68]" : ""
+                  }`}
+                >
                   <div
-                    ref={scrollRef}
-                    onMouseEnter={() => (pausedRef.current = true)}
-                    onMouseLeave={() => (pausedRef.current = false)}
-                    onTouchStart={() => (pausedRef.current = true)}
-                    onTouchEnd={() => setTimeout(() => (pausedRef.current = false), 1500)}
-                    className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    className={`relative flex h-[200px] items-center justify-center overflow-hidden rounded-sm bg-gradient-to-br ${cover?.gradient ?? vendor.gradient}`}
                   >
-                    {[...sortedFeatured, ...sortedFeatured].map((vendor, i) => {
-                      const cover = vendor.portfolio[0];
-                      const isClone = i >= sortedFeatured.length;
-                      const theme = getTheme(vendor.category);
-                      return (
-                        <div
-                          key={`${vendor.id}-${i}`}
-                          aria-hidden={isClone}
-                          className="w-[220px] shrink-0 rounded-md bg-[#FFFBF8] p-2 text-[#4A3440] shadow-[0_8px_24px_-8px_rgba(196,74,104,0.35)]"
-                        >
-                          <div
-                            className={`relative flex h-[200px] items-center justify-center rounded-sm bg-gradient-to-br ${
-                              cover?.gradient ?? vendor.gradient
-                            } text-6xl`}
-                          >
-                            {cover?.emoji}
-                            <span
-                              className={`absolute left-2 top-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${theme.badge}`}
-                            >
-                              <span>{theme.emoji}</span>
-                              {vendor.category}
-                            </span>
-                          </div>
-                          <div className="px-1 pb-1 pt-3">
-                            <div className="flex items-center gap-1.5">
-                              <h3 className="truncate font-display text-sm font-bold">{vendor.name}</h3>
-                              {vendor.isVerified && (
-                                <CheckCircle className="h-3.5 w-3.5 shrink-0 text-[#C44A68]" />
-                              )}
-                            </div>
-                            <p className="truncate text-xs text-[#4A3440]/70">
-                              {vendor.category} · {vendor.location}
-                            </p>
-                            <div className="mt-1 flex items-center gap-1 text-xs">
-                              <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-                              <span className="font-semibold">{vendor.rating}</span>
-                              <span className="text-[#4A3440]/70">({vendor.reviews})</span>
-                            </div>
-                            <p className="mt-2 text-sm font-bold text-[#C44A68]">{vendor.price}</p>
-                            <Link
-                              to={`/vendors?vendor=${vendor.id}`}
-                              draggable={false}
-                              tabIndex={isClone ? -1 : 0}
-                              className="mt-3 block rounded-sm bg-gold py-2 text-center text-xs font-semibold uppercase tracking-wide text-white hover:bg-gold-dark"
-                            >
-                              View Profile
-                            </Link>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {image ? (
+                      <img
+                        src={image}
+                        alt={`${vendor.name} portfolio`}
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-6xl">{cover?.emoji ?? "📸"}</span>
+                    )}
+
+                    <span
+                      className={`absolute left-2 top-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${theme.badge}`}
+                    >
+                      <span>{theme.emoji}</span>
+                      {vendor.category}
+                    </span>
                   </div>
 
-                  <div className="mt-4 text-right">
-                    <Link to="/vendors" className="inline-flex items-center text-sm text-gold hover:underline">
-                      View All Vendors <ArrowRight className="ml-1 h-4 w-4" />
+                  <div className="px-1 pb-1 pt-3">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="truncate font-display text-sm font-bold">
+                        {vendor.name}
+                      </h3>
+                      {vendor.isVerified && (
+                        <CheckCircle className="h-3.5 w-3.5 shrink-0 text-[#C44A68]" />
+                      )}
+                    </div>
+
+                    <p className="truncate text-xs text-[#4A3440]/70">
+                      {vendor.category} · {vendor.location}
+                    </p>
+
+                    <div className="mt-1 flex items-center gap-1 text-xs">
+                      <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                      <span className="font-semibold">{vendor.rating}</span>
+                      <span className="text-[#4A3440]/70">({vendor.reviews})</span>
+                    </div>
+
+                    <p className="mt-2 text-sm font-bold text-[#C44A68]">
+                      {vendor.price}
+                    </p>
+
+                    <Link
+                      to={`/vendors?vendor=${vendor.id}`}
+                      draggable={false}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-3 block rounded-sm bg-gold py-2 text-center text-xs font-semibold uppercase tracking-wide text-white hover:bg-gold-dark"
+                    >
+                      View Profile
                     </Link>
                   </div>
                 </div>
-              </div>
-            </div>
-          </section>
-          )}
+              );
+            })}
+          </div>
+
+          <div className="mt-4 text-right">
+            <Link
+              to="/vendors"
+              className="inline-flex items-center text-sm text-gold hover:underline"
+            >
+              View All Vendors
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+)}
+
+
 
           {/* 4 ── HOW IT WORKS */}
           <HowItWorksTimeline steps={howItWorks} quickLinks={quickLinks} />
 
           {/* 5 ── TOP RATED VENDORS */}
-          {topVendors.length > 0 && <TopRatedStack vendors={topVendors} />}
+          {topVendors.length > 0 && <TopRatedSection />}
 
           {/* 6 ── TESTIMONIALS */}
           <StoriesStrip stories={testimonials} />
