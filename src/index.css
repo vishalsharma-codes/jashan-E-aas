@@ -171,3 +171,6 @@
     font-family: var(--app-font-serif);
   }
 }
+
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: clip; }

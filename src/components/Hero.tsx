@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Star, Calendar, Search, MapPin, ChevronDown } from "lucide-react";
+import { Star, Calendar, Search, MapPin, ChevronDown, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
@@ -8,9 +8,38 @@ import { useNavigate } from "react-router-dom";
 const eventTypes = ["Wedding", "Corporate", "College Fest", "Birthday", "Concert", "Religious", "Sangeet", "Conference"];
 const cities = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Pune", "Chennai", "Jaipur", "Kolkata", "Goa", "Ahmedabad"];
 
-// Scroll box for the two dropdown lists. `data-lenis-prevent` (on the element) lets the mouse wheel scroll inside it.
+// min / max are kept so the Vendors page can filter with them later (null = no limit).
+const GUEST_OPTIONS = [
+  { label: "Any size", min: null, max: null },
+  { label: "Under 50", min: 0, max: 49 },
+  { label: "50 – 100", min: 50, max: 100 },
+  { label: "100 – 200", min: 100, max: 200 },
+  { label: "200 – 300", min: 200, max: 300 },
+  { label: "300 – 500", min: 300, max: 500 },
+  { label: "500 – 1,000", min: 500, max: 1000 },
+  { label: "1,000+", min: 1000, max: null },
+];
+
+const BUDGET_OPTIONS = [
+  { label: "Any budget", min: null, max: null },
+  { label: "Under ₹1 Lakh", min: 0, max: 100000 },
+  { label: "₹1 – 5 Lakh", min: 100000, max: 500000 },
+  { label: "₹5 – 10 Lakh", min: 500000, max: 1000000 },
+  { label: "₹10 – 25 Lakh", min: 1000000, max: 2500000 },
+  { label: "₹25 – 50 Lakh", min: 2500000, max: 5000000 },
+  { label: "₹50 Lakh – 1 Crore", min: 5000000, max: 10000000 },
+  { label: "₹1 Crore+", min: 10000000, max: null },
+];
+
+// Scroll box for the dropdown lists. `data-lenis-prevent` (on the element) lets the mouse wheel scroll inside it.
 const LIST_CLASS =
   "absolute top-full left-0 mt-1 w-full bg-card border border-border rounded-xl shadow-[0_14px_36px_-14px_rgba(196,74,104,0.35)] z-50 py-1 max-h-56 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(196,74,104,0.4)_transparent]";
+
+const TRIGGER_CLASS =
+  "w-full h-12 flex items-center gap-2 px-3 rounded-lg bg-secondary/70 text-sm text-foreground hover:bg-secondary transition-colors";
+
+const ITEM_CLASS =
+  "w-full text-left px-4 py-2 text-sm text-foreground hover:bg-gold/10 hover:text-gold transition-colors";
 
 // Soft drifting colour glows behind the hero (Blush Peach)
 const ORBS = [
@@ -23,9 +52,21 @@ export const Hero = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedType, setSelectedType] = useState("");
+  const [selectedGuests, setSelectedGuests] = useState("");
+  const [selectedBudget, setSelectedBudget] = useState("");
+
   const [cityOpen, setCityOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
+  const [guestsOpen, setGuestsOpen] = useState(false);
+  const [budgetOpen, setBudgetOpen] = useState(false);
   const navigate = useNavigate();
+
+  const closeAllMenus = () => {
+    setCityOpen(false);
+    setTypeOpen(false);
+    setGuestsOpen(false);
+    setBudgetOpen(false);
+  };
 
   // Sparkles: positions are created once (they used to jump every time a dropdown opened)
   const sparkles = useMemo(
@@ -45,7 +86,28 @@ export const Hero = () => {
     if (searchQuery) params.set("q", searchQuery);
     if (selectedCity) params.set("city", selectedCity);
     if (selectedType) params.set("type", selectedType);
+
+    const guests = GUEST_OPTIONS.find((g) => g.label === selectedGuests);
+    if (guests) {
+      params.set("guests", guests.label);
+      if (guests.min !== null) params.set("guests_min", String(guests.min));
+      if (guests.max !== null) params.set("guests_max", String(guests.max));
+    }
+
+    const budget = BUDGET_OPTIONS.find((b) => b.label === selectedBudget);
+    if (budget) {
+      params.set("budget", budget.label);
+      if (budget.min !== null) params.set("budget_min", String(budget.min));
+      if (budget.max !== null) params.set("budget_max", String(budget.max));
+    }
+
     navigate(`/vendors?${params.toString()}`);
+  };
+
+  // One toggle for every dropdown: closes the others, then flips this one.
+  const toggle = (setter: (v: boolean) => void, current: boolean) => {
+    closeAllMenus();
+    setter(!current);
   };
 
   return (
@@ -111,14 +173,14 @@ export const Hero = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35 }}
-            className="max-w-3xl mx-auto mb-10"
+            className="max-w-5xl mx-auto mb-10"
           >
             <div
               className="bg-white/80 backdrop-blur-md border border-gold/20 rounded-2xl p-2 shadow-[0_18px_50px_-18px_rgba(196,74,104,0.35)]"
-              onClick={() => { setCityOpen(false); setTypeOpen(false); }}
+              onClick={closeAllMenus}
             >
+              {/* Row 1: keyword + search */}
               <div className="flex flex-col md:flex-row gap-2">
-                {/* Keyword */}
                 <div className="relative flex-1" onClick={(e) => e.stopPropagation()}>
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -130,12 +192,20 @@ export const Hero = () => {
                   />
                 </div>
 
-                {/* City dropdown */}
-                <div className="relative md:w-44" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => { setCityOpen(!cityOpen); setTypeOpen(false); }}
-                    className="w-full h-12 flex items-center gap-2 px-3 rounded-lg bg-secondary/70 text-sm text-foreground hover:bg-secondary transition-colors"
-                  >
+                <Button
+                  onClick={handleSearch}
+                  className="h-12 px-6 bg-gold hover:bg-gold-dark text-primary-foreground font-semibold shrink-0"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Search
+                </Button>
+              </div>
+
+              {/* Row 2: filters */}
+              <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                {/* City */}
+                <div className="relative" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => toggle(setCityOpen, cityOpen)} className={TRIGGER_CLASS}>
                     <MapPin className="w-4 h-4 text-gold flex-shrink-0" />
                     <span className="flex-1 text-left truncate">{selectedCity || "Select City"}</span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${cityOpen ? "rotate-180" : ""}`} />
@@ -146,7 +216,7 @@ export const Hero = () => {
                         <button
                           key={city}
                           onClick={() => { setSelectedCity(city); setCityOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-gold/10 hover:text-gold transition-colors"
+                          className={ITEM_CLASS}
                         >
                           {city}
                         </button>
@@ -155,12 +225,9 @@ export const Hero = () => {
                   )}
                 </div>
 
-                {/* Event type dropdown */}
-                <div className="relative md:w-44" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => { setTypeOpen(!typeOpen); setCityOpen(false); }}
-                    className="w-full h-12 flex items-center gap-2 px-3 rounded-lg bg-secondary/70 text-sm text-foreground hover:bg-secondary transition-colors"
-                  >
+                {/* Event type */}
+                <div className="relative" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => toggle(setTypeOpen, typeOpen)} className={TRIGGER_CLASS}>
                     <Calendar className="w-4 h-4 text-gold flex-shrink-0" />
                     <span className="flex-1 text-left truncate">{selectedType || "Event Type"}</span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${typeOpen ? "rotate-180" : ""}`} />
@@ -171,7 +238,7 @@ export const Hero = () => {
                         <button
                           key={type}
                           onClick={() => { setSelectedType(type); setTypeOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-gold/10 hover:text-gold transition-colors"
+                          className={ITEM_CLASS}
                         >
                           {type}
                         </button>
@@ -180,14 +247,55 @@ export const Hero = () => {
                   )}
                 </div>
 
-                {/* Search button */}
-                <Button
-                  onClick={handleSearch}
-                  className="h-12 px-6 bg-gold hover:bg-gold-dark text-primary-foreground font-semibold shrink-0"
-                >
-                  <Search className="w-4 h-4 mr-2" />
-                  Search
-                </Button>
+                {/* Number of guests */}
+                <div className="relative" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => toggle(setGuestsOpen, guestsOpen)} className={TRIGGER_CLASS}>
+                    <Users className="w-4 h-4 text-gold flex-shrink-0" />
+                    <span className="flex-1 text-left truncate">{selectedGuests || "No. of Guests"}</span>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${guestsOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {guestsOpen && (
+                    <div data-lenis-prevent className={LIST_CLASS}>
+                      {GUEST_OPTIONS.map((g) => (
+                        <button
+                          key={g.label}
+                          onClick={() => {
+                            setSelectedGuests(g.min === null && g.max === null ? "" : g.label);
+                            setGuestsOpen(false);
+                          }}
+                          className={ITEM_CLASS}
+                        >
+                          {g.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Budget */}
+                <div className="relative" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => toggle(setBudgetOpen, budgetOpen)} className={TRIGGER_CLASS}>
+                    <Wallet className="w-4 h-4 text-gold flex-shrink-0" />
+                    <span className="flex-1 text-left truncate">{selectedBudget || "Budget"}</span>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${budgetOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {budgetOpen && (
+                    <div data-lenis-prevent className={LIST_CLASS}>
+                      {BUDGET_OPTIONS.map((b) => (
+                        <button
+                          key={b.label}
+                          onClick={() => {
+                            setSelectedBudget(b.min === null && b.max === null ? "" : b.label);
+                            setBudgetOpen(false);
+                          }}
+                          className={ITEM_CLASS}
+                        >
+                          {b.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

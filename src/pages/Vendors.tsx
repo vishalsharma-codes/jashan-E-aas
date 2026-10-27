@@ -696,13 +696,14 @@ const Vendors = () => {
         {profileVendor && profileRow && (
           <motion.div
             key="vendor-profile"
+            data-profile-scroll
             role="dialog"
             aria-label={`${profileVendor.name} profile`}
-            className="fixed inset-0 z-[110] overflow-y-auto bg-[#FFF6F2]"
+            className="fixed inset-0 z-[110] overflow-y-auto overscroll-contain bg-[#FFF6F2]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-          >
+          ><div>
             <div className="sticky top-0 z-30 border-b border-[#C44A68]/15 bg-[#FFF6F2]/95 backdrop-blur">
               <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
                 <button type="button" onClick={() => setProfileVendor(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#C44A68] hover:text-[#A8385A]">
@@ -713,9 +714,10 @@ const Vendors = () => {
                 </button>
               </div>
             </div>
-            <div className="mx-auto max-w-5xl px-4 py-6">
+                        <div className="mx-auto max-w-5xl px-4 py-6">
               <VendorProfileView profile={profileRow} onBook={() => handleBook(profileVendor)} />
             </div>
+          </div>
           </motion.div>
         )}
       </AnimatePresence>
