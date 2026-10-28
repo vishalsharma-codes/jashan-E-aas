@@ -80,7 +80,7 @@ export const DynamicBackground = ({ theme: override }: { theme?: BgTheme }) => {
               // light page = stronger pastel (0.55) than the old dark page (0.14)
               background: `radial-gradient(circle, rgba(${orb.color},0.55) 0%, rgba(${orb.color},0.22) 55%, transparent 75%)`,
               transform: "translate(-50%, -50%)",
-              filter: "blur(70px)",
+              willChange: "transform",
             }}
             animate={{
               x: [0, 35, -18, 22, -8, 0],

@@ -194,74 +194,74 @@ useEffect(() => {
   return () => clearTimeout(t);
 }, [featuredCount, paused, activeIdx, goToFeatured]);
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || sortedFeatured.length < 2) return;
+  // useEffect(() => {
+  //   const el = scrollRef.current;
+  //   if (!el || sortedFeatured.length < 2) return;
 
-    const SPEED = 32; // px per second; slow enough to read each card
-    let direction = 1;
-    let last = performance.now();
-    let raf = 0;
+  //   const SPEED = 32; // px per second; slow enough to read each card
+  //   let direction = 1;
+  //   let last = performance.now();
+  //   let raf = 0;
 
-    const detectActive = () => {
-      const container = el.getBoundingClientRect();
-      const targetX = container.left + Math.min(container.width * 0.25, 120);
-      let nearestIndex = 0;
-      let nearestDistance = Number.POSITIVE_INFINITY;
+  //   const detectActive = () => {
+  //     const container = el.getBoundingClientRect();
+  //     const targetX = container.left + Math.min(container.width * 0.25, 120);
+  //     let nearestIndex = 0;
+  //     let nearestDistance = Number.POSITIVE_INFINITY;
 
-      Array.from(el.children).forEach((child, index) => {
-        const rect = (child as HTMLElement).getBoundingClientRect();
-        const center = rect.left + rect.width / 2;
-        const distance = Math.abs(center - targetX);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestIndex = index;
-        }
-      });
+  //     Array.from(el.children).forEach((child, index) => {
+  //       const rect = (child as HTMLElement).getBoundingClientRect();
+  //       const center = rect.left + rect.width / 2;
+  //       const distance = Math.abs(center - targetX);
+  //       if (distance < nearestDistance) {
+  //         nearestDistance = distance;
+  //         nearestIndex = index;
+  //       }
+  //     });
 
-      if (nearestIndex !== activeRef.current) {
-        activeRef.current = nearestIndex;
-        setActiveIdx(nearestIndex);
-      }
-    };
+  //     if (nearestIndex !== activeRef.current) {
+  //       activeRef.current = nearestIndex;
+  //       setActiveIdx(nearestIndex);
+  //     }
+  //   };
 
-    const tick = (now: number) => {
-      // Read the current position each frame so manual arrow clicks still work.
-      const dt = Math.min((now - last) / 1000, 0.05);
-      last = now;
-      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+  //   const tick = (now: number) => {
+  //     // Read the current position each frame so manual arrow clicks still work.
+  //     const dt = Math.min((now - last) / 1000, 0.05);
+  //     last = now;
+  //     const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
 
-      if (maxScroll > 0) {
-        let next = el.scrollLeft + direction * SPEED * dt;
+  //     if (maxScroll > 0) {
+  //       let next = el.scrollLeft + direction * SPEED * dt;
 
-        // Bounce at either end instead of duplicating vendor cards or stopping.
-        if (next >= maxScroll) {
-          next = maxScroll;
-          direction = -1;
-        } else if (next <= 0) {
-          next = 0;
-          direction = 1;
-        }
+  //       // Bounce at either end instead of duplicating vendor cards or stopping.
+  //       if (next >= maxScroll) {
+  //         next = maxScroll;
+  //         direction = -1;
+  //       } else if (next <= 0) {
+  //         next = 0;
+  //         direction = 1;
+  //       }
 
-        el.scrollLeft = next;
-      }
+  //       el.scrollLeft = next;
+  //     }
 
-      detectActive();
-      raf = requestAnimationFrame(tick);
-    };
+  //     detectActive();
+  //     raf = requestAnimationFrame(tick);
+  //   };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [sortedFeatured]);
+  //   raf = requestAnimationFrame(tick);
+  //   return () => cancelAnimationFrame(raf);
+  // }, [sortedFeatured]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Faint logo overlay across the WHOLE page (above sections, ignores clicks) */}
       <LogoBackground
-        variant="depth"
-        opacity={0.22}
-        className="!z-30 mix-blend-multiply"
-      />
+  variant="depth"
+  opacity={0.14}
+  className="!z-30"
+/>
       <Navbar />
 
       <main>

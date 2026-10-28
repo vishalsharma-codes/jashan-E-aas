@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Star, Calendar, Search, MapPin, ChevronDown, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HeroVendorMatches } from "@/components/HeroVendorMatches";
+import { hasActiveFilters } from "@/lib/vendorMatch";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 
@@ -83,6 +85,7 @@ export const Hero = () => {
 
   const handleSearch = () => {
     const params = new URLSearchParams();
+    params.set("browse", "1");
     if (searchQuery) params.set("q", searchQuery);
     if (selectedCity) params.set("city", selectedCity);
     if (selectedType) params.set("type", selectedType);
@@ -299,19 +302,38 @@ export const Hero = () => {
               </div>
             </div>
 
-            {/* Quick search pills */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-              <span className="text-xs text-muted-foreground">Popular:</span>
-              {["Wedding Photographer", "DJ in Mumbai", "Caterer Delhi", "Decorator Bangalore"].map((term) => (
-                <button
-                  key={term}
-                  onClick={() => { setSearchQuery(term); }}
-                  className="text-xs text-gold hover:text-gold-dark bg-white/50 border border-gold/30 hover:border-gold/60 rounded-full px-3 py-1 transition-colors"
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
+            {/* Show matching vendors when filters are active; otherwise show popular searches. */}
+            {hasActiveFilters({
+              query: searchQuery,
+              city: selectedCity,
+              event: selectedType,
+              guests: selectedGuests,
+              budget: selectedBudget,
+            }) ? (
+              <HeroVendorMatches
+                filters={{
+                  query: searchQuery,
+                  city: selectedCity,
+                  event: selectedType,
+                  guests: selectedGuests,
+                  budget: selectedBudget,
+                }}
+                onSeeAll={handleSearch}
+              />
+            ) : (
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+                <span className="text-xs text-muted-foreground">Popular:</span>
+                {["Wedding Photographer", "DJ in Mumbai", "Caterer Delhi", "Decorator Bangalore"].map((term) => (
+                  <button
+                    key={term}
+                    onClick={() => { setSearchQuery(term); }}
+                    className="text-xs text-gold hover:text-gold-dark bg-white/50 border border-gold/30 hover:border-gold/60 rounded-full px-3 py-1 transition-colors"
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
           {/* ─────────────────────────────────────────────────── */}
 
@@ -324,7 +346,7 @@ export const Hero = () => {
           >
             <Button
               size="lg"
-              onClick={() => navigate("/vendors")}
+              onClick={() => navigate("/vendors?browse=1")}
               className="h-14 px-8 bg-primary hover:bg-gold-dark text-primary-foreground font-semibold text-lg glow-gold"
             >
               Explore All Vendors

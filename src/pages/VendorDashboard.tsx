@@ -255,15 +255,17 @@ function Dashboard({ userId, profile, priv, save }: { userId: string; profile: V
 
       {/* full customer-view preview */}
       {preview && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-background" role="dialog" aria-label="Customer view of your profile">
-          <div className="container mx-auto max-w-5xl px-4 py-6">
-            <button type="button" onClick={() => setPreview(false)} className="mb-4 inline-flex items-center gap-2 text-sm text-gold">
-              <X className="h-4 w-4" />Close preview
-            </button>
-            <VendorProfileView profile={profile} onBook={() => {}} />
-          </div>
-        </div>
-      )}
+  <div data-profile-scroll data-lenis-prevent className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-background" role="dialog" aria-label="Customer view of your profile">
+    <div>
+      <div className="container mx-auto max-w-5xl px-4 py-6">
+        <button type="button" onClick={() => setPreview(false)} className="mb-4 inline-flex items-center gap-2 text-sm text-gold">
+          <X className="h-4 w-4" />Close preview
+        </button>
+        <VendorProfileView profile={profile} onBook={() => {}} />
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

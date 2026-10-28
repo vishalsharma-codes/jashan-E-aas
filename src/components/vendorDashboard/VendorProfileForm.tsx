@@ -47,6 +47,7 @@ export function VendorProfileForm({ userId, profile, priv, save, sections, wizar
   const num = (v: string) => Math.max(0, Number(v.replace(/[^\d]/g, "")) || 0);
 
   const group = SERVICE_GROUPS.find((g) => g.id === f.category_id) ?? SERVICE_GROUPS[0];
+  const perGuest = /plate|person|head|guest/i.test(String(f.price_unit));
 
   const problem = (id: SectionId): string | null => {
     if (id === "business") {
@@ -64,6 +65,8 @@ export function VendorProfileForm({ userId, profile, priv, save, sections, wizar
     if (id === "pricing") {
       if (f.price_min <= 0) return "Enter your starting price.";
       if (f.price_max < f.price_min) return "Maximum price must be at least your starting price.";
+      if (f.min_guests && f.max_guests && f.max_guests < f.min_guests) return "Maximum guests must be at least the minimum guests.";
+      if (perGuest && !f.max_guests) return "Enter the maximum number of guests you can handle.";
     }
     if (id === "contact") {
       if (p.phone.replace(/\D/g, "").length < 10) return "Enter a 10-digit phone number.";
@@ -203,9 +206,26 @@ export function VendorProfileForm({ userId, profile, priv, save, sections, wizar
               <Field label="Starting price (₹)" required><Input inputMode="numeric" value={f.price_min || ""} onChange={(e) => set("price_min", num(e.target.value))} placeholder="80000" /></Field>
               <Field label="Maximum price (₹)" required><Input inputMode="numeric" value={f.price_max || ""} onChange={(e) => set("price_max", num(e.target.value))} placeholder="500000" /></Field>
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Maximum guests you can handle" required={perGuest}
+                hint="A vendor who handles up to 1000 guests is also shown to customers searching for 200.">
+                <Input inputMode="numeric" value={f.max_guests || ""} onChange={(e) => set("max_guests", num(e.target.value))} placeholder="1000" />
+              </Field>
+              <Field label="Minimum guests (optional)" hint="Leave empty if you take any size.">
+                <Input inputMode="numeric" value={f.min_guests || ""} onChange={(e) => set("min_guests", num(e.target.value))} placeholder="50" />
+              </Field>
+            </div>
+            {perGuest && (
+              <p className="rounded-xl bg-gold/10 px-4 py-3 text-sm">
+                Your price is <b>per guest</b>, so customers see the total grow with their guest count.
+                For example, 200 guests at your starting price is <b>₹{inr(f.price_min * 200)}</b> and 500 guests is <b>₹{inr(f.price_min * 500)}</b>. Enter the amount for <b>one</b> guest (like 800), not the whole event.
+              </p>
+            )}
             {f.price_min > 0 && (
               <p className="rounded-xl bg-gold/10 px-4 py-3 text-sm">
-                Customers pay a 15% token to book you. At your starting price that is <b>₹{inr(f.price_min * 0.15)}</b> per event day, held in escrow.
+                Customers pay a 15% token to book you. At your starting price that is{" "}
+                <b>₹{inr(f.price_min * (perGuest ? Math.max(f.min_guests, 1) : 1) * 0.15)}</b>
+                {perGuest ? ` for ${Math.max(f.min_guests, 1)} guest${f.min_guests > 1 ? "s" : ""}` : " per event day"}, held in escrow.
               </p>
             )}
             <div className="grid gap-4 sm:grid-cols-2">

@@ -127,12 +127,10 @@
 
 @layer utilities {
   /* Frosted glass (navbar etc.). Name kept: now a light, creamy glass */
-  .glass-dark {
-    background: hsla(18, 100%, 97%, 0.78);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 1px 0 hsla(353, 50%, 90%, 0.9);
-  }
+.glass-dark {
+  background: hsla(18, 100%, 97%, 0.96);
+  box-shadow: 0 1px 0 hsla(353, 50%, 90%, 0.9);
+}
 
   /* Soft rose-pink panel */
   .velvet-texture {

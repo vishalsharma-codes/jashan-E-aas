@@ -65,6 +65,8 @@ export interface VendorProfileRow {
   team_size: number;
   price_min: number;
   price_max: number;
+  max_guests: number;
+  min_guests: number;
   price_unit: PriceUnit;
   min_notice_days: number;
   response_time: string;
@@ -105,7 +107,7 @@ export const emptyProfile = (userId: string, name = ""): VendorProfileRow => ({
   event_types: [], specialties: [], tags: [], languages: ["Hindi", "English"],
   home_city: "", cities: [], travels_for_destination: false,
   years_experience: 0, events_completed: 0, team_size: 1,
-  price_min: 0, price_max: 0, price_unit: "per_event",
+  price_min: 0, price_max: 0, max_guests: 0, min_guests: 0, price_unit: "per_event",
   min_notice_days: 7, response_time: "< 4 hrs", cancellation_policy: "",
   logo_url: "", cover_urls: [], onboarded: false,
   verification_status: "unverified", status: "draft", rating: 0, reviews_count: 0,
