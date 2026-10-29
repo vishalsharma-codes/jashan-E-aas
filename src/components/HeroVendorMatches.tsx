@@ -2,25 +2,29 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Star, CheckCircle, ArrowUpRight } from "lucide-react";
 import { useLiveVendors } from "@/lib/liveVedors";
-import { vendorMatches, type HeroFilters } from "@/lib/vendorMatch";
+import { vendorMatches, sortByBudget, type HeroFilters } from "@/lib/vendorMatch";
+import { guestsFromLabel } from "@/lib/guestPricing";
 
 export function HeroVendorMatches({ filters, onSeeAll }: { filters: HeroFilters; onSeeAll: () => void }) {
   const { vendors, loading } = useLiveVendors();
   const navigate = useNavigate();
-  const matches = useMemo(() => vendors.filter((v) => vendorMatches(v, filters)), [vendors, filters]);
+  const matches = useMemo(() => {
+    const list = vendors.filter((v) => vendorMatches(v, filters));
+    return sortByBudget(list, filters.budget, guestsFromLabel(filters.guests));
+  }, [vendors, filters]);
 
   if (loading) return <p className="mt-4 text-center text-xs text-[#4A3440]/70">Finding vendors…</p>;
 
   if (matches.length === 0) {
     return (
-      <div className="mx-auto mt-4 w-full max-w-3xl rounded-2xl border border-dashed border-[#C44A68]/30 bg-white/60 py-6 text-center text-sm font-medium text-[#4A3440]/80 backdrop-blur">
+      <div className="relative z-0 mx-auto mt-4 w-full max-w-3xl rounded-2xl border border-dashed border-[#C44A68]/30 bg-white/60 py-6 text-center text-sm font-medium text-[#4A3440]/80 backdrop-blur">
         No vendor found
       </div>
     );
   }
 
   return (
-    <div className="mx-auto mt-4 w-full max-w-3xl">
+    <div className="relative z-0 mx-auto mt-4 w-full max-w-3xl">
       <div className="mb-2 flex items-center justify-between px-1 text-xs">
         <span className="font-semibold text-[#4A1230]">{matches.length} vendor{matches.length > 1 ? "s" : ""} available</span>
         <button type="button" onClick={onSeeAll} className="inline-flex items-center font-semibold text-[#C44A68] hover:text-[#A8385A]">

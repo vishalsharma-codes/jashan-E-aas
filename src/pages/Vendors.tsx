@@ -35,6 +35,7 @@ import { DynamicBackground } from "@/components/DynamicBackground";
 import { emptyProfile, type LiveVendor as Vendor, type VendorProfileRow } from "@/lib/vendorOptions";
 
 import { capacityOk, estimate, guestsFromLabel, inr } from "@/lib/guestPricing";
+import { sortByBudget } from "@/lib/vendorMatch";
 
 import { useLiveVendors } from "@/lib/liveVedors";
 
@@ -244,7 +245,8 @@ const BUDGET_OPTIONS = [
 
   { value: "25-50", label: "₹25 – 50 Lakh", min: 25 * L, max: 50 * L },
 
-  { value: "50+", label: "Above ₹50 Lakh", min: 50 * L, max: Infinity },
+  { value: "50-100", label: "₹50 Lakh – 1 Crore", min: 50 * L, max: 100 * L },
+  { value: "1cr+", label: "₹1 Crore+", min: 100 * L, max: Infinity },
 
 ];
 
@@ -894,7 +896,11 @@ const Vendors = () => {
 
         break;
 
-      default: result = [...result].sort((a, b) => Number(b.isVerified) - Number(a.isVerified) || b.rating - a.rating);
+      default: {
+        const base = [...result].sort((a, b) => Number(b.isVerified) - Number(a.isVerified) || b.rating - a.rating);
+        const label = BUDGET_OPTIONS.find((o) => o.value === budget)?.label;
+        result = budget !== "any" ? sortByBudget(base, label, guestCount) : base;
+      }
 
     }
 

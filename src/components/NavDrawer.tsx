@@ -25,7 +25,7 @@ const ITEMS: NavItem[] = [
   { label: "Vendors", href: "/vendors", icon: Store },
   { label: "Compare Vendors", href: "/compare", icon: GitCompare },
   { label: "For Partners", href: "/for-partners", icon: Briefcase },
-  { label: "Community", href: "/community", icon: Users, soon: true },
+  { label: "Community", href: "/community", icon: Users},
 ];
 
 export function NavDrawer() {

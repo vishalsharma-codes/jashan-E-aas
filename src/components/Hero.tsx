@@ -35,7 +35,7 @@ const BUDGET_OPTIONS = [
 
 // Scroll box for the dropdown lists. `data-lenis-prevent` (on the element) lets the mouse wheel scroll inside it.
 const LIST_CLASS =
-  "absolute top-full left-0 mt-1 w-full bg-card border border-border rounded-xl shadow-[0_14px_36px_-14px_rgba(196,74,104,0.35)] z-50 py-1 max-h-56 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(196,74,104,0.4)_transparent]";
+  "absolute top-full left-0 mt-1 w-full bg-[#FFFBF8] border border-border rounded-xl shadow-2xl z-50 py-1 max-h-56 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(196,74,104,0.4)_transparent]";
 
 const TRIGGER_CLASS =
   "w-full h-12 flex items-center gap-2 px-3 rounded-lg bg-secondary/70 text-sm text-foreground hover:bg-secondary transition-colors";
@@ -179,7 +179,7 @@ export const Hero = () => {
             className="max-w-5xl mx-auto mb-10"
           >
             <div
-              className="bg-white/80 backdrop-blur-md border border-gold/20 rounded-2xl p-2 shadow-[0_18px_50px_-18px_rgba(196,74,104,0.35)]"
+              className="relative z-30 bg-white/80 backdrop-blur-md border border-gold/20 rounded-2xl p-2 shadow-[0_18px_50px_-18px_rgba(196,74,104,0.35)]"
               onClick={closeAllMenus}
             >
               {/* Row 1: keyword + search */}

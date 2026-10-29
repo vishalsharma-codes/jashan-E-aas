@@ -1,19 +1,50 @@
 import type { LiveVendor as Vendor } from "@/lib/vendorOptions";
+import { estimate, guestsFromLabel as guestsFromHeroLabel } from "@/lib/guestPricing";
 
 export type HeroFilters = { query?: string; city?: string; event?: string; guests?: string; budget?: string };
 
 const norm = (s: string) => s.replace(/[\s–—-]/g, "").toLowerCase();
-const L = 100_000;
+
+const UNIT = (u?: string) => (/cr/i.test(u ?? "") ? 1e7 : /^(l|lakh|lac)$/i.test(u ?? "") ? 1e5 : /^k$/i.test(u ?? "") ? 1e3 : 1);
+
+// Reads labels such as "Under ₹1 Lakh", "₹1 – 5 Lakh", "₹50 Lakh – 1 Crore", and "₹1 Crore+".
+export function parseBudget(label?: string): [number, number] | null {
+  if (!label) return null;
+  const s = label.replace(/,/g, "");
+  const re = /(\d+(?:\.\d+)?)\s*(crore|cr|lakh|lac|l|k)?/gi;
+  const nums: { v: number; u?: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s))) nums.push({ v: Number(m[1]), u: m[2] });
+  if (!nums.length) return null;
+  const lastUnit = [...nums].reverse().find((n) => n.u)?.u;
+  const val = (n: { v: number; u?: string }) => n.v * UNIT(n.u ?? lastUnit);
+  const first = val(nums[0]);
+  if (nums.length >= 2) return [first, val(nums[1])];
+  if (/under|below|up\s?to/i.test(s)) return [0, first];
+  if (/above|over|more|\+/.test(s)) return [first, Infinity];
+  return [first, first];
+}
+
+// Target point: midpoint of a range, cap for "Under X", floor for "X+".
+const budgetTarget = ([lo, hi]: [number, number]) =>
+  hi === Infinity ? lo : lo === 0 ? hi : (lo + hi) / 2;
+
+export function sortByBudget<T extends Vendor>(list: T[], label?: string, guests = 0): T[] {
+  const range = parseBudget(label);
+  if (!range) return list;
+  const target = budgetTarget(range);
+  const gap = (v: T) => {
+    const e = estimate(v, guests);
+    if (!e.min) return Infinity;
+    return Math.abs((e.min + e.max) / 2 - target);
+  };
+  return [...list].sort((a, b) => gap(a) - gap(b));
+}
 
 const GUESTS: Record<string, [number, number]> = {
   [norm("Under 50")]: [0, 49], [norm("50 – 100")]: [50, 100], [norm("100 – 200")]: [100, 200],
   [norm("200 – 300")]: [200, 300], [norm("300 – 500")]: [300, 500],
   [norm("500 – 1000")]: [500, 1000], [norm("1000+")]: [1000, Infinity],
-};
-const BUDGETS: Record<string, [number, number]> = {
-  [norm("Under ₹1 Lakh")]: [0, 1 * L], [norm("₹1 – 5 Lakh")]: [1 * L, 5 * L],
-  [norm("₹5 – 10 Lakh")]: [5 * L, 10 * L], [norm("₹10 – 25 Lakh")]: [10 * L, 25 * L],
-  [norm("₹25 – 50 Lakh")]: [25 * L, 50 * L], [norm("Above ₹50 Lakh")]: [50 * L, Infinity],
 };
 const EVENT_RX: Record<string, RegExp> = {
   wedding: /wedding|bridal|mehendi|decor|flor|venue|photograph/,
@@ -32,7 +63,7 @@ const isSet = (v?: string, placeholder?: RegExp) => !!v && !placeholder?.test(v)
 const cityOn = (c?: string) => isSet(c, /^(select city|all cities)$/i);
 const eventOn = (e?: string) => isSet(e, /^(event type|all events)$/i);
 const guestsOn = (g?: string) => !!g && !!GUESTS[norm(g)];
-const budgetOn = (b?: string) => !!b && !!BUDGETS[norm(b)];
+const budgetOn = (b?: string) => !!b && !!parseBudget(b);
 
 export const hasActiveFilters = (f: HeroFilters) =>
   !!f.query?.trim() || cityOn(f.city) || eventOn(f.event) || guestsOn(f.guests) || budgetOn(f.budget);
@@ -61,10 +92,9 @@ export function vendorMatches(v: Vendor, f: HeroFilters): boolean {
     if (hasRange && !(lo <= gMax && hi >= gMin)) return false;
   }
   if (budgetOn(f.budget)) {
-    const [bMin, bMax] = BUDGETS[norm(f.budget!)];
-    const vMin = v.priceMin ?? 0;
-    const vMax = v.priceMax && v.priceMax >= vMin ? v.priceMax : vMin;
-    if (vMin !== 0 && !(vMin <= bMax && vMax >= bMin)) return false;
+    const [bMin, bMax] = parseBudget(f.budget)!;
+    const e = estimate(v, guestsFromHeroLabel(f.guests));
+    if (e.min !== 0 && !(e.min <= bMax && e.max >= bMin)) return false;
   }
   return true;
 }
