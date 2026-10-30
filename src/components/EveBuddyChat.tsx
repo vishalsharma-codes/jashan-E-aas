@@ -167,9 +167,13 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
     const userMessage = message.trim();
     if (!userMessage || isAiLoading) return;
 
+    const userMessageId = `${Date.now()}-user`;
+    const assistantMessageId = `${Date.now()}-assistant`;
+
     setMessages((prev) => [
       ...prev,
-      { id: `${Date.now()}-user`, role: "user", content: userMessage },
+      { id: userMessageId, role: "user", content: userMessage },
+      { id: assistantMessageId, role: "assistant", content: "" },
     ]);
 
     setMessage("");
@@ -190,50 +194,75 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
         }),
       });
 
-      const responseText = await response.text();
-      let data: { error?: string; reply?: string } = {};
-
-      try {
-        data = responseText ? JSON.parse(responseText) : {};
-      } catch {
-        // Keep the response text available for a useful fallback error below.
-      }
-
       if (!response.ok) {
+        const responseText = await response.text();
+        let errorData: { error?: string; detail?: string } = {};
+        try {
+          errorData = responseText ? JSON.parse(responseText) : {};
+        } catch {
+          // The server may return a plain-text or HTML error page.
+        }
         throw new Error(
-          data.error ||
+          errorData.detail ||
+            errorData.error ||
             (responseText.trim()
               ? `Server error ${response.status}: ${responseText.slice(0, 200)}`
               : `Server error ${response.status}`)
         );
       }
 
-      if (!data.reply) {
-        throw new Error(data.error || "The server returned an empty response.");
+      if (!response.body) {
+        throw new Error("Your browser could not read the response stream.");
       }
 
-      const reply = data.reply;
-      setAiReply(reply);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let reply = "";
 
-      setMessages((prev) => [
-        ...prev,
-        { id: `${Date.now()}-assistant`, role: "assistant", content: reply },
-      ]);
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          reply += decoder.decode(value, { stream: true });
+          setAiReply(reply);
+          setMessages((prev) =>
+            prev.map((item) =>
+              item.id === assistantMessageId
+                ? { ...item, content: reply }
+                : item
+            )
+          );
+        }
+        reply += decoder.decode();
+      } finally {
+        reader.releaseLock();
+      }
+
+      if (!reply.trim()) {
+        throw new Error("Gemini returned an empty response.");
+      }
+
+      setAiReply(reply);
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === assistantMessageId
+            ? { ...item, content: reply }
+            : item
+        )
+      );
     } catch (error) {
       console.error("EveBuddy chat error:", error);
-
       const errorMessage =
         error instanceof Error ? error.message : "Unable to connect to EveBuddy.";
-
       setAiError(errorMessage);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
-          role: "assistant",
-          content: `Sorry, I couldn't respond: ${errorMessage}`,
-        },
-      ]);
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === assistantMessageId
+            ? { ...item, content: `Sorry, I couldn't respond: ${errorMessage}` }
+            : item
+        )
+      );
     } finally {
       setIsAiLoading(false);
     }
@@ -734,16 +763,11 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
                       {chatMessage.role === "assistant" && (
                         <p className="mb-2 text-xs font-bold text-[#C44A68]">✨ EveBuddy AI</p>
                       )}
-                      <p className="whitespace-pre-wrap text-base leading-relaxed">{chatMessage.content}</p>
+                      <p className="whitespace-pre-wrap text-base leading-relaxed">{chatMessage.content || (chatMessage.id.endsWith("-assistant") && isAiLoading ? "Eve is thinking..." : "")}</p>
                     </div>
                   </div>
                 ))}
 
-                {isAiLoading && (
-                  <div className="self-start rounded-xl border border-[#C44A68]/25 bg-[#FFFBF8] px-4 py-3 text-sm text-[#C44A68]">
-                    Eve is thinking...
-                  </div>
-                )}
                 <div ref={chatEndRef} />
               </div>
 
