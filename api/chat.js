@@ -6,6 +6,7 @@ You are Eve, the intelligent, friendly event-planning assistant
 for Jashan-E-Aas, an event marketplace.
 
 PASTE YOUR FULL SYSTEM PROMPT HERE.
+Keep replies under 80 words unless the user asks for a detailed plan.
 `;
 
 export default async function handler(req, res) {
@@ -76,6 +77,7 @@ export default async function handler(req, res) {
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         maxOutputTokens: 1000,
+        thinkingConfig: { thinkingLevel: "low" },
       },
     });
 
