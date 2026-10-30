@@ -1,11 +1,14 @@
 import { GoogleGenAI } from "@google/genai";
 
+export const config = { maxDuration: 30 };
+
 const SYSTEM_INSTRUCTION = `
 You are Eve, the intelligent, friendly event-planning assistant
 for Jashan-E-Aas, an event marketplace.
 
 PASTE YOUR FULL SYSTEM PROMPT HERE.
 Keep replies under 80 words unless the user asks for a detailed plan.
+Do not use markdown formatting (no ** or #). Use plain text with simple - bullets and short lines.
 `;
 
 export default async function handler(req, res) {
@@ -57,7 +60,8 @@ export default async function handler(req, res) {
       ],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        maxOutputTokens: 500,
+        maxOutputTokens: 2048,
+        thinkingConfig: { thinkingLevel: "low" },
       },
     });
 
@@ -70,6 +74,8 @@ export default async function handler(req, res) {
     try {
       for await (const chunk of stream) {
         if (chunk.text) res.write(chunk.text);
+        const reason = chunk.candidates?.[0]?.finishReason;
+        if (reason) console.log("finishReason:", reason);
       }
       return res.end();
     } catch (streamError) {
