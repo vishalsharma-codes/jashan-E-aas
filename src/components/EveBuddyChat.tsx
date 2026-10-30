@@ -190,13 +190,29 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
         }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: { error?: string; reply?: string } = {};
 
-      if (!response.ok) {
-        throw new Error(data.error || "Eve couldn't respond.");
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        // Keep the response text available for a useful fallback error below.
       }
 
-      const reply = data.reply || "Please try asking me again.";
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            (responseText.trim()
+              ? `Server error ${response.status}: ${responseText.slice(0, 200)}`
+              : `Server error ${response.status}`)
+        );
+      }
+
+      if (!data.reply) {
+        throw new Error(data.error || "The server returned an empty response.");
+      }
+
+      const reply = data.reply;
       setAiReply(reply);
 
       setMessages((prev) => [
