@@ -24,7 +24,7 @@ import ChooseRole from "./pages/ChooseRole";
 import Reels from "./pages/Reels";
 import Chat from "./pages/Chat"; // NEW
 import { ChatProvider } from "@/components/chat/ChatProvider"; // NEW
-import { SmoothScroll } from "@/components/SmoothScroll";
+// import { SmoothScroll } from "@/components/SmoothScroll";
 import { ModerationToasts, AdminModeration } from "@/components/chat/moderation";
 import MyReels from "./pages/MyReels";
 
@@ -40,7 +40,7 @@ const App = () => (
         <Sonner />
         <ModerationToasts />
         <BrowserRouter>
-                    <SmoothScroll />
+                    {/* <SmoothScroll /> */}
           <Routes>
             <Route path="/category/:categoryId" element={<CategoryPage />} />
             <Route path="/subcategory/:subcategoryName" element={<SubCategoryPage />} />
@@ -66,6 +66,8 @@ const App = () => (
             <Route path="/reels" element={<Reels />} />
             <Route path="/my-reels" element={<MyReels />} />
             <Route path="/admin/moderation" element={<AdminModeration />} />
+            <Route path="/vendors" element={<Vendors />} />
+<Route path="/vendors/:slug" element={<Vendors />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

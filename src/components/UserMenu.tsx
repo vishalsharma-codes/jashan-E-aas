@@ -69,25 +69,26 @@ export default function UserMenu({ variant = "desktop", onNavigate }: Props) {
 
   const groups: Item[][] = useMemo(
     () => [
-      [
-        { label: "My Profile", to: "/account", icon: User, action: "profile" },
-        { label: "My Bookings", to: "/booking-system", icon: CalendarCheck },
-        { label: "Baatein: Messages", to: "/chat", icon: MessageCircle, badge: unread },
-        { label: "Jhalak: My Reels", to: "/my-reels", icon: Clapperboard },
-        { label: "Saved Vendors", to: "/account?tab=saved", icon: Heart },
-      ],
+      // [
+      //   // { label: "My Profile", to: "/account", icon: User, action: "profile" },
+      //   // { label: "My Bookings", to: "/booking-system", icon: CalendarCheck },
+      //   // { label: "Baatein: Messages", to: "/chat", icon: MessageCircle, badge: unread },
+      //   // { label: "Jhalak: My Reels", to: "/my-reels", icon: Clapperboard },
+      //   // { label: "Saved Vendors", to: "/account?tab=saved", icon: Heart },
+      // ],
       [
         // { label: "Rewards & Points", to: "/rewards", icon: Gift },
         // { label: "Compare Vendors", to: "/compare", icon: GitCompare },
-        { label: "Ultra Gold Membership", to: "/ultra-gold", icon: Crown, premium: true },
+        // { label: "Ultra Gold Membership", to: "/ultra-gold", icon: Crown, premium: true },
         isVendor
           ? { label: "Vendor Dashboard", to: "/vendor-dashboard", icon: LayoutDashboard }
           : { label: "Become a Vendor", sub: "List Your Business", to: "/for-partners", icon: Store },
+          { label: "Trust & Safety / Help Center", to: "/trust-safety", icon: ShieldCheck },
       ],
-      [
-        // { label: "Settings", to: "/account?tab=settings", icon: Settings },
-        { label: "Trust & Safety / Help Center", to: "/trust-safety", icon: ShieldCheck },
-      ],
+      // [
+      //   // { label: "Settings", to: "/account?tab=settings", icon: Settings },
+        
+      // ],
     ],
     [unread, isVendor]
   );

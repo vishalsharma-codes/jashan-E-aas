@@ -1,26 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import Lenis from "lenis"; // if your package.json has "@studio-freight/lenis", import from that instead
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUp, BadgeCheck, Briefcase, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight,
   Clock, Heart, Images, MapPin, MessageCircle, Plane, Share2, ShieldCheck, Sparkles, Star, Users, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ReviewForm } from "@/components/vendor/ReviewForm";
 import { gradientFor, initialsOf, inr, priceLabel, type VendorProfileRow } from "@/lib/vendorOptions";
 
-/**
- * Customer-facing vendor profile (Blush Peach theme). Shows ONLY public fields.
- * Never reads vendor_private (phone, UPI, bank, documents) or escrow data.
- *
- * Needs a scroll parent marked  data-profile-scroll  whose FIRST child wraps all content
- * (see the overlay in Vendors.tsx). Lenis is attached to that parent, so the page scrolls
- * smoothly while the rest of the site is untouched.
- *
- * Features: Lenis smooth scroll · scroll progress bar · parallax hero + cover slider ·
- * sticky scroll-spy tabs · count-up stats · package picker and availability checker ·
- * date check against the vendor calendar · bento portfolio + swipe lightbox ·
- * map · FAQ · rating breakdown · share / shortlist · back-to-top · mobile booking bar.
- */
+/** Customer-facing vendor profile. Tabs switch content; the profile itself does not scroll-spy. */
 
 export interface PublicReview { id: string; author: string; rating: number; text: string; created_at: string }
 
@@ -48,51 +36,18 @@ const tidy = (xs: string[]) => {
 
 /* ───────── small building blocks ───────── */
 
-const getRoot = (el: Element | null) => (el?.closest("[data-profile-scroll]") as Element | null) ?? null;
-
-/** fades + lifts its children in the first time they enter the viewport of the profile scroller */
-function Reveal({ children, delay = 0, y = 26, className = "" }: { children: React.ReactNode; delay?: number; y?: number; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
+function Reveal({ children, delay = 0, y = 18, className = "" }: { children: React.ReactNode; delay?: number; y?: number; className?: string }) {
   const reduced = useReducedMotion();
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || reduced) { setShown(true); return; }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } },
-      { root: getRoot(el), threshold: 0.1, rootMargin: "0px 0px -5% 0px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [reduced]);
-  return (
-    <motion.div ref={ref} className={className} initial={{ opacity: 0, y }} animate={shown ? { opacity: 1, y: 0 } : undefined}
-      transition={{ duration: 0.7, delay, ease: EASE }}>{children}</motion.div>
-  );
+  return <motion.div className={className} initial={reduced ? false : { opacity: 0, y }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay }}>{children}</motion.div>;
 }
 
 function CountUp({ to, decimals = 0, suffix = "" }: { to: number; decimals?: number; suffix?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const reduced = useReducedMotion();
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || reduced) { setVal(to); return; }
-    let raf = 0;
-    const io = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting) return;
-      io.disconnect();
-      const t0 = performance.now();
-      const run = (t: number) => { const k = Math.min(1, (t - t0) / 1200); setVal(to * (1 - Math.pow(1 - k, 3))); if (k < 1) raf = requestAnimationFrame(run); };
-      raf = requestAnimationFrame(run);
-    }, { root: getRoot(el), threshold: 0.4 });
-    io.observe(el);
-    return () => { io.disconnect(); cancelAnimationFrame(raf); };
-  }, [to, reduced]);
-  return <span ref={ref}>{val.toFixed(decimals)}{suffix}</span>;
+  return <span>{to.toFixed(decimals)}{suffix}</span>;
 }
 
-function SectionHead({ id, eyebrow, title }: { id: string; eyebrow: string; title: string }) {
+function SectionHead({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
-    <div id={`vp-${id}`} className="scroll-mt-40">
+    <div>
       <Reveal className="mb-6">
         <p className="text-[10px] font-bold tracking-[.28em] text-[#C44A68]">{eyebrow}</p>
         <h2 className="mt-1.5 font-serif text-2xl font-bold text-[#4A1230] sm:text-3xl">{title}</h2>
@@ -214,8 +169,9 @@ function Lightbox({ photos, index, setIndex, onClose }: { photos: Photo[]; index
 
 /* ───────── main view ───────── */
 
-export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBook, onMessage, saved = false, onToggleSaved }: {
+export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBook, onMessage, saved = false, onToggleSaved, profileUrl }: {
   profile: VendorProfileRow;
+  profileUrl?: string;
   reviews?: PublicReview[];
   onBook: (selection?: BookingSelection) => void;
   onMessage?: (selection?: BookingSelection) => void;
@@ -223,11 +179,6 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   onToggleSaved?: () => void;
 }) {
   const reduced = useReducedMotion();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const tabsBarRef = useRef<HTMLDivElement>(null);
-  const lenisRef = useRef<Lenis | null>(null);
-  const idsRef = useRef<string[]>([]);
-  const lockRef = useRef(false);  
 
   const [pkgs, setPkgs] = useState<Pkg[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
@@ -246,15 +197,9 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   const [checked, setChecked] = useState(false);
   const [moreAbout, setMoreAbout] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [active, setActive] = useState("about");
-  const [past, setPast] = useState(false);
-  const [farPast, setFarPast] = useState(false);
+  const [active, setActive] = useState<"about" | "packages" | "portfolio" | "services" | "areas" | "availability" | "reviews" | "faq">("about");
   const [toast, setToast] = useState("");
 
-  const scrollY = useMotionValue(0);
-  const progress = useMotionValue(0);
-  const heroY = useTransform(scrollY, [0, 520], [0, 36]);
-  const heroScale = useTransform(scrollY, [0, 520], [1.14, 1.22]);
 
   const flash = (msg: string) => { setToast(msg); window.setTimeout(() => setToast(""), 2200); };
 
@@ -286,74 +231,22 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
 
   const reviews = reviewsProp.length ? reviewsProp : fetchedReviews;
 
-  /* ───── Lenis smooth scroll on the overlay + scroll progress, parallax, scroll-spy ───── */
-  useEffect(() => {
-    const root = rootRef.current;
-    const scroller = root?.closest<HTMLElement>("[data-profile-scroll]");
-    if (!root || !scroller) return;
-    let raf = 0;
-    let lenis: Lenis | null = null;
-
-    const update = (y: number, prog: number) => {
-      scrollY.set(y);
-      progress.set(prog);
-      setPast(y > 440);
-      setFarPast(y > 1100);
-      const top = scroller.getBoundingClientRect().top;
-      const ids = idsRef.current;
-      let cur = ids[0];
-      for (const id of ids) {
-        const el = document.getElementById(`vp-${id}`);
-        if (el && el.getBoundingClientRect().top - top <= 190) cur = id;
-      }
-      if (prog > 0.985) cur = ids[ids.length - 1];
-      if (cur && !lockRef.current) setActive(cur);
-    };
-
-    if (reduced) {
-      const onNative = () => update(scroller.scrollTop, scroller.scrollTop / Math.max(1, scroller.scrollHeight - scroller.clientHeight));
-      scroller.addEventListener("scroll", onNative, { passive: true });
-      return () => scroller.removeEventListener("scroll", onNative);
-    }
-
-    lenis = new Lenis({
-      wrapper: scroller,
-      content: (scroller.firstElementChild as HTMLElement) ?? undefined,
-      duration: 1.15,
-      easing: (t: number) => 1 - Math.pow(1 - t, 4),
-      wheelMultiplier: 1,
-      smoothWheel: true,
-      syncTouch: false,
-    });
-    lenisRef.current = lenis;
-    lenis.on("scroll", (l: Lenis) => update(l.scroll, l.progress));
-    const loop = (t: number) => { lenis?.raf(t); raf = requestAnimationFrame(loop); };
-    raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); lenis?.destroy(); lenisRef.current = null; };
-  }, [reduced, scrollY, progress]);
-
   // freeze page scrolling while the lightbox is open
   useEffect(() => {
     if (!lb) return;
-    lenisRef.current?.stop();
-    return () => lenisRef.current?.start();
+    // The lightbox is modal; no page-level smooth-scroll instance is used.
   }, [lb]);
 
-  // keep the active tab visible in the horizontally scrolling tab bar (mobile)
-  useEffect(() => {
-    tabsBarRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
-  }, [active]);
-
-  const goTo = (id: string) => {
-  const el = document.getElementById(`vp-${id}`);
-  if (!el) return;
-  setActive(id);
-  lockRef.current = true;
-  window.setTimeout(() => { lockRef.current = false; }, 1500);
-  if (lenisRef.current) lenisRef.current.scrollTo(el, { offset: -150, duration: 1.3 });
-  else el.scrollIntoView({ behavior: "smooth", block: "start" });
-};
-  const toTop = () => (lenisRef.current ? lenisRef.current.scrollTo(0, { duration: 1.4 }) : rootRef.current?.closest("[data-profile-scroll]")?.scrollTo({ top: 0, behavior: "smooth" }));
+  const tabs = [
+    { id: "about", label: "About" },
+    { id: "packages", label: "Packages" },
+    { id: "portfolio", label: "Portfolio" },
+    { id: "services", label: "Services" },
+    { id: "areas", label: "Areas" },
+    { id: "availability", label: "Availability" },
+    { id: "reviews", label: "Reviews" },
+    { id: "faq", label: "FAQ" },
+  ] as const;
 
   /* derived */
   const covers = p.cover_urls ?? [];
@@ -370,17 +263,6 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   }, [covers, shots, p.business_name]);
   const hasServices = (p.event_types?.length ?? 0) > 0 || (p.specialties?.length ?? 0) > 0 || (p.languages?.length ?? 0) > 0;
 
-  const tabs = [
-    { id: "about", label: "About" },
-    pkgs.length > 0 && { id: "packages", label: "Packages" },
-    shots.length > 0 && { id: "portfolio", label: "Portfolio" },
-    hasServices && { id: "services", label: "Services" },
-    { id: "areas", label: "Areas" },
-    { id: "availability", label: "Availability" },
-    { id: "reviews", label: "Reviews" },
-    { id: "faq", label: "FAQ" },
-  ].filter(Boolean) as { id: string; label: string }[];
-  idsRef.current = tabs.map((t) => t.id);
 
   // cover slider auto-advance
   useEffect(() => {
@@ -411,7 +293,7 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   const cancelText = p.cancellation_policy?.split(":").slice(1).join(":").trim();
 
   const share = async () => {
-    const url = `${window.location.origin}/vendors?vendor=${p.user_id}`;
+    const url = `${window.location.origin}${profileUrl ?? `/vendors?vendor=${p.user_id}`}`;
     try {
       if (navigator.share) { await navigator.share({ title: p.business_name, text: `Check out ${p.business_name} on Jashan-E-Aas`, url }); return; }
     } catch (e) { if ((e as Error).name === "AbortError") return; }
@@ -436,7 +318,7 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
     { q: "Where should I chat and pay?", a: "Keep all chats and payments on Jashan-E-Aas so you have a record if anything needs to be sorted out." },
   ].filter(Boolean) as { q: string; a: string }[];
 
-  /* the booking card is used twice (sticky on desktop, inline on mobile) */
+  /* Desktop booking card stays alongside the active tab content. */
   const card = (
     <div className="rounded-3xl border border-[#C44A68]/20 bg-[#FFFBF8] p-5 shadow-[0_24px_70px_rgba(196,74,104,.14)]">
       <p className="text-[10px] font-bold tracking-[.28em] text-[#C44A68]">{selectedPkg ? "SELECTED PACKAGE" : "STARTING AT"}</p>
@@ -506,15 +388,14 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   );
 
   return (
-    <div ref={rootRef} className="pb-28 lg:pb-10">
-      {/* scroll progress */}
-      <motion.div style={{ scaleX: progress }} className="fixed inset-x-0 top-0 z-[125] h-[3px] origin-left bg-gradient-to-r from-[#F4A6B8] via-[#E0708A] to-[#C44A68]" />
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-[#FFF6F1]">
+      <div className="mx-auto w-full max-w-[1000px] px-4 pb-16">
 
       {/* ───── hero ───── */}
       <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }}
         onMouseEnter={() => setHoverHero(true)} onMouseLeave={() => setHoverHero(false)}
-        className="relative h-[52vh] min-h-[340px] max-h-[560px] overflow-hidden rounded-3xl border border-[#C44A68]/20 bg-[#F9DDE3]">
-        <motion.div style={reduced ? undefined : { y: heroY, scale: heroScale }} className="absolute inset-0">
+        className="relative mt-4 h-[360px] overflow-hidden rounded-3xl border border-[#C44A68]/20 bg-[#F9DDE3]">
+        <motion.div className="absolute inset-0">
           <AnimatePresence initial={false}>
             {covers.length ? (
               <motion.img key={covers[cover] ?? covers[0]} src={covers[cover] ?? covers[0]} alt={`${p.business_name} cover`}
@@ -577,7 +458,7 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
       </motion.section>
 
       {/* ───── stats strip ───── */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map(({ icon: I, node, l }, i) => (
           <Reveal key={l} delay={i * 0.06} y={18}>
             <div className="h-full rounded-2xl border border-[#C44A68]/15 bg-[#FFF1EC] px-4 py-3.5 transition hover:-translate-y-0.5 hover:border-[#C44A68]/40 hover:shadow-[0_12px_30px_rgba(196,74,104,.12)]">
@@ -589,37 +470,27 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
         ))}
       </div>
 
-      {/* ───── sticky scroll-spy tabs ───── */}
-      <div className="sticky top-[61px] z-30 -mx-4 mt-6 border-b border-[#C44A68]/15 bg-[#FFF6F2]/90 px-4 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-3">
-          <div ref={tabsBarRef} className="flex min-w-0 gap-1 overflow-x-auto py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {tabs.map((t) => (
-              <button key={t.id} type="button" data-active={active === t.id} onClick={() => goTo(t.id)}
-                className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active === t.id ? "text-white" : "text-[#4A3440] hover:text-[#C44A68]"}`}>
-                {active === t.id && <motion.span layoutId="vp-tab-pill" className="absolute inset-0 rounded-full bg-gradient-to-r from-[#E0708A] to-[#C44A68]" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
-                <span className="relative">{t.label}</span>
-              </button>
-            ))}
-          </div>
-          <AnimatePresence>
-            {past && (
-              <motion.button type="button" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} onClick={() => onMessage?.(selection)}
-                className="hidden shrink-0 items-center gap-2 rounded-full bg-gradient-to-r from-[#E0708A] to-[#C44A68] px-4 py-2 text-sm font-bold text-white shadow-md hover:brightness-105 lg:inline-flex">
-                <MessageCircle className="h-4 w-4" />Contact me
-              </motion.button>
-            )}
-          </AnimatePresence>
+      {/* Tabs switch the visible panel; the overlay handles page scrolling. */}
+      <div className="mt-6 flex items-center justify-between gap-2 border-b border-rose-100 pb-2">
+        <div className="flex min-w-0 gap-1 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {tabs.map((t) => (
+            <button key={t.id} type="button" onClick={() => setActive(t.id)}
+              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${active === t.id ? "bg-gradient-to-r from-rose-400 to-rose-600 text-white shadow" : "text-[#4a2c3a] hover:bg-rose-50"}`}>
+              {t.label}
+            </button>
+          ))}
         </div>
+        {onMessage && <button type="button" onClick={() => onMessage(selection)} className="shrink-0 rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white">Contact me</button>}
       </div>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_360px]">
-        <div className="min-w-0 space-y-16">
+      <div className="mt-6 grid gap-6 pb-4 md:grid-cols-[1fr_340px]">
+        <div className="min-w-0">
           {/* mobile booking card */}
-          <div className="lg:hidden">{card}</div>
+          
 
           {/* about */}
-          <section>
-            <SectionHead id="about" eyebrow="WHO THEY ARE" title={`About ${p.business_name}`} />
+          <section style={{ display: active === "about" ? "block" : "none" }}>
+            <SectionHead eyebrow="WHO THEY ARE" title={`About ${p.business_name}`} />
             <Reveal>
               <p className={`max-w-prose whitespace-pre-line leading-relaxed text-[#4A3440] ${!moreAbout && p.description.length > 260 ? "line-clamp-5" : ""}`}>{p.description}</p>
               {p.description.length > 260 && (
@@ -631,8 +502,8 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
 
           {/* packages */}
           {pkgs.length > 0 && (
-            <section>
-              <SectionHead id="packages" eyebrow="PRICING" title="Packages" />
+            <section style={{ display: active === "packages" ? "block" : "none" }}>
+              <SectionHead eyebrow="PRICING" title="Packages" />
               <div className="grid gap-4 sm:grid-cols-2">
                 {pkgs.map((k, i) => (
                   <Reveal key={k.id} delay={i * 0.07}>
@@ -657,8 +528,8 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
 
           {/* portfolio */}
           {shots.length > 0 && (
-            <section>
-              <SectionHead id="portfolio" eyebrow="THEIR WORK" title={`Portfolio (${shots.length})`} />
+            <section style={{ display: active === "portfolio" ? "block" : "none" }}>
+              <SectionHead eyebrow="THEIR WORK" title={`Portfolio (${shots.length})`} />
               {eventTags.length > 1 && (
                 <div className="mb-4 flex flex-wrap gap-2">
                   {["All", ...eventTags].map((t) => (
@@ -691,8 +562,8 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
 
           {/* services */}
           {hasServices && (
-            <section>
-              <SectionHead id="services" eyebrow="WHAT THEY DO" title="Services & specialities" />
+            <section style={{ display: active === "services" ? "block" : "none" }}>
+              <SectionHead eyebrow="WHAT THEY DO" title="Services & specialities" />
               <div className="space-y-6">
                 {[
                   { label: "Events they cover", items: p.event_types ?? [] },
@@ -714,8 +585,8 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
           )}
 
           {/* areas */}
-          <section>
-            <SectionHead id="areas" eyebrow="WHERE THEY WORK" title="Service areas" />
+          <section style={{ display: active === "areas" ? "block" : "none" }}>
+            <SectionHead eyebrow="WHERE THEY WORK" title="Service areas" />
             <Reveal>
               <p className="mb-3 text-sm text-[#4A3440]/70">Based in <b className="text-[#4A1230]">{home}</b></p>
               <div className="flex flex-wrap gap-2">{cities.map((c) => <Chip key={c}>{c}</Chip>)}</div>
@@ -730,8 +601,8 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
           </section>
 
           {/* availability */}
-          <section>
-            <SectionHead id="availability" eyebrow="PLAN YOUR DATE" title="Availability" />
+          <section style={{ display: active === "availability" ? "block" : "none" }}>
+            <SectionHead eyebrow="PLAN YOUR DATE" title="Availability" />
             <Reveal>
               <Calendar blocked={blocked} minNotice={p.min_notice_days || 0} value={date} onPick={(d) => { setDate(d); setChecked(false); flash(`${longDate(d)} selected`); }} />
               <p className="mt-3 text-xs text-[#4A3440]/60">Tap a free day to use it in the booking box.</p>
@@ -739,8 +610,16 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
           </section>
 
           {/* reviews */}
-          <section>
-            <SectionHead id="reviews" eyebrow="WHAT CLIENTS SAY" title={rated ? `Reviews (${p.reviews_count})` : "Reviews"} />
+          <section style={{ display: active === "reviews" ? "block" : "none" }}>
+            <SectionHead eyebrow="WHAT CLIENTS SAY" title={rated ? `Reviews (${p.reviews_count})` : "Reviews"} />
+            <ReviewForm
+              vendorId={p.user_id}
+              vendorName={p.business_name}
+              onSaved={(r) => {
+                setFetchedReviews((prev) => [r, ...prev.filter((x) => x.id !== r.id)]);
+                flash("Thanks! Your review is live");
+              }}
+            />
             {reviews.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-[200px_1fr]">
                 <Reveal>
@@ -781,15 +660,15 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
               <Reveal>
                 <div className="rounded-3xl border border-dashed border-[#C44A68]/30 bg-white/50 p-8 text-center">
                   <Star className="mx-auto h-7 w-7 text-[#C44A68]/50" />
-                  <p className="mt-2 text-sm text-[#4A3440]/70">No reviews yet. Reviews appear here after clients complete a booking.</p>
+                  <p className="mt-2 text-sm text-[#4A3440]/70">No reviews yet. Be the first to review {p.business_name}.</p>
                 </div>
               </Reveal>
             )}
           </section>
 
           {/* faq */}
-          <section>
-            <SectionHead id="faq" eyebrow="GOOD TO KNOW" title="Frequently asked" />
+          <section style={{ display: active === "faq" ? "block" : "none" }}>
+            <SectionHead eyebrow="GOOD TO KNOW" title="Frequently asked" />
             <div className="space-y-2">
               {faqs.map((f, i) => (
                 <Reveal key={f.q} delay={i * 0.05} y={14}>
@@ -812,41 +691,9 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
           </section>
         </div>
 
-        {/* desktop sticky booking card */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-[140px]">{card}</div>
-        </aside>
+        {/* Desktop booking card */}
+        <aside className="hidden md:sticky md:top-20 md:block md:self-start">{card}</aside>
       </div>
-
-      {/* mobile booking bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-[#C44A68]/20 bg-[#FFF6F2]/95 px-4 py-3 backdrop-blur lg:hidden safe-area-bottom">
-        <div className="min-w-0">
-          <p className="text-[11px] text-[#4A3440]/60">{selectedPkg ? selectedPkg.name : "Starting at"}</p>
-          <p className="truncate font-bold text-[#C44A68]">{selectedPkg ? `₹${inr(selectedPkg.price)}` : priceLabel(p.price_min, p.price_max, p.price_unit)}</p>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => goTo("availability")}
-            className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[#C44A68]/35 px-4 text-sm font-semibold text-[#C44A68]">
-            <CalendarDays className="h-4 w-4" />Check
-          </button>
-          {onMessage && (
-            <button type="button" onClick={() => onMessage(selection)}
-              className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#E0708A] to-[#C44A68] px-5 text-sm font-bold text-white">
-              <MessageCircle className="h-4 w-4" />Contact me
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* back to top */}
-      <AnimatePresence>
-        {farPast && (
-          <motion.button type="button" aria-label="Back to top" onClick={toTop} initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }}
-            className="fixed bottom-24 right-4 z-40 grid h-11 w-11 place-items-center rounded-full bg-[#4A1230] text-white shadow-xl hover:bg-[#C44A68] lg:bottom-6 lg:right-6">
-            <ArrowUp className="h-5 w-5" />
-          </motion.button>
-        )}
-      </AnimatePresence>
 
       {/* toast */}
       <AnimatePresence>
@@ -859,6 +706,7 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
       <AnimatePresence>
         {lb && <Lightbox photos={lb.list} index={lb.i} setIndex={(i) => setLb({ ...lb, i })} onClose={() => setLb(null)} />}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

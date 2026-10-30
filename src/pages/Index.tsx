@@ -686,8 +686,7 @@ useEffect(() => {
                   Ready to Plan Your <span className="text-gradient-gold">Dream Event?</span>
                 </h2>
                 <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground">
-                  Join 50,000+ event hosts who trust Jashan-E-Aas to find the best vendors across India. Zero
-                  fraud. Every rupee protected.
+                  Planning an event? Find verified vendors in minutes. Running a business? List your services and reach new customers.
                 </p>
                 <div className="flex flex-col justify-center gap-4 sm:flex-row">
                   <Button

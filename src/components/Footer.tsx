@@ -39,7 +39,7 @@ export const Footer = () => {
               </span>
             </Link>
             <p className="text-muted-foreground mb-2 max-w-sm text-sm leading-relaxed">
-              India's premier cinematic event marketplace. 12,000+ verified vendors, AI-powered planning, and escrow-protected payments.
+              A cinematic way to plan your celebration. Discover vendors through their reels, chat with them directly, and book with your payment held safely in escrow until the event is done.
             </p>
             <p className="text-gold/60 text-xs mb-6 font-medium">जश्न-ए-आस — The Joy of Possibilities</p>
 
@@ -108,11 +108,11 @@ export const Footer = () => {
           </a>
           <a href="tel:+911800000000" className="flex items-center gap-2 hover:text-gold transition-colors">
             <Phone className="w-4 h-4" />
-            1800-000-0000 (Toll Free)
+            +91 8373901813
           </a>
           <span className="flex items-center gap-2">
             <MapPin className="w-4 h-4" />
-            Mumbai · Delhi · Bengaluru · Hyderabad
+            Delhi
           </span>
         </div>
 

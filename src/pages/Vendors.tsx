@@ -2,7 +2,7 @@ import { useCallback,useEffect, useMemo, useState, useRef } from "react";
 
 import { AnimatePresence, motion } from "framer-motion";
 
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import {
 
@@ -742,8 +742,15 @@ function CarouselSection({
 
 }
 
+const slugifyVendorName = (name: string) =>
+  name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+const vendorSlug = (vendor: Vendor) => `${slugifyVendorName(vendor.name)}-${vendor.id}`;
+
 const Vendors = () => {
 
+  const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
   const [searchParams] = useSearchParams();
 
   const { vendors, loading: vendorsLoading, error: vendorsError } = useLiveVendors();
@@ -786,9 +793,20 @@ const Vendors = () => {
 
   const [profileVendor, setProfileVendor] = useState<Vendor | null>(null);
 
+  const openProfile = (vendor: Vendor) => {
+    navigate(`/vendors/${vendorSlug(vendor)}`);
+  };
+
+  const closeProfile = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("vendor");
+    const query = nextParams.toString();
+    navigate(`/vendors${query ? `?${query}` : ""}`);
+  };
+
   const handleBook = (vendor: Vendor) => {
 
-    setProfileVendor(null);
+    closeProfile();
 
     setBookingVendor(vendor);
 
@@ -918,19 +936,34 @@ const Vendors = () => {
 
   const featured = featuredList[0]; // the big spotlight card shows the first featured vendor
 
-  // Deep link from /vendors?vendor=<id> (vendor dashboard "View public profile", compare page)
-
+  // Canonical public profile URL: /vendors/<vendor-name>-<vendor-id>.
+  // Keep supporting old /vendors?vendor=<id> links by redirecting them.
   const wantedVendor = searchParams.get("vendor");
 
   useEffect(() => {
+    if (vendorsLoading) return;
 
-    if (!wantedVendor) return;
+    if (wantedVendor) {
+      const legacyMatch = vendors.find((vendor) => vendor.id === wantedVendor);
+      if (legacyMatch) {
+        navigate(`/vendors/${vendorSlug(legacyMatch)}`, { replace: true });
+      }
+      return;
+    }
 
-    const match = vendors.find((v) => v.id === wantedVendor);
+    if (!slug) {
+      setProfileVendor(null);
+      return;
+    }
 
-    if (match) setProfileVendor(match);
-
-  }, [wantedVendor, vendors]);
+    const match = vendors.find((vendor) => vendorSlug(vendor) === slug);
+    if (match) {
+      setProfileVendor(match);
+    } else if (vendors.length > 0) {
+      setProfileVendor(null);
+      navigate("/vendors", { replace: true });
+    }
+  }, [slug, wantedVendor, vendors, vendorsLoading, navigate]);
 
   const norm = (s: string) => s.replace(/[\s–—-]/g, "").toLowerCase();
 
@@ -1012,7 +1045,7 @@ const Vendors = () => {
 
     if (!profileVendor) return;
 
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setProfileVendor(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeProfile(); };
 
     window.addEventListener("keydown", onKey);
 
@@ -1196,7 +1229,7 @@ const Vendors = () => {
 
             onBook={handleBook}
 
-            onProfile={setProfileVendor}
+            onProfile={openProfile}
 
             savedIds={savedIds}
 
@@ -1224,7 +1257,7 @@ const Vendors = () => {
 
             onBook={handleBook}
 
-            onProfile={setProfileVendor}
+            onProfile={openProfile}
 
             savedIds={savedIds}
 
@@ -1298,7 +1331,7 @@ const Vendors = () => {
 
                     <div className="flex gap-2">
 
-                      <Button type="button" variant="outline" onClick={() => setProfileVendor(featured)} className="border-[#C44A68]/40 bg-transparent text-[#C44A68] hover:bg-[#C44A68]/10">View Profile</Button>
+                      <Button type="button" variant="outline" onClick={() => openProfile(featured)} className="border-[#C44A68]/40 bg-transparent text-[#C44A68] hover:bg-[#C44A68]/10">View Profile</Button>
 
                       <Button type="button" onClick={() => handleBook(featured)} className="bg-gradient-to-r from-[#E0708A] to-[#C44A68] font-bold text-white hover:brightness-105">Book Now</Button>
 
@@ -1460,7 +1493,7 @@ const Vendors = () => {
 
                     {bookedVendorId === vendor.id && <div className="absolute inset-x-0 top-0 z-20 rounded-t-2xl bg-emerald-600 px-2 py-1 text-center text-xs font-bold text-white">✓ Token paid — booking confirmed</div>}
 
-                    <VendorCard vendor={vendor} index={index} guests={guestCount} onBook={handleBook} onProfile={setProfileVendor} saved={savedIds.has(vendor.id)} onToggleSaved={toggleSaved} />
+                    <VendorCard vendor={vendor} index={index} guests={guestCount} onBook={handleBook} onProfile={openProfile} saved={savedIds.has(vendor.id)} onToggleSaved={toggleSaved} />
 
                   </div>
 
@@ -1560,13 +1593,13 @@ const Vendors = () => {
 
               <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
 
-                <button type="button" onClick={() => setProfileVendor(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#C44A68] hover:text-[#A8385A]">
+                <button type="button" onClick={closeProfile} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#C44A68] hover:text-[#A8385A]">
 
                   <ChevronLeft className="h-4 w-4" /> Back to vendors
 
                 </button>
 
-                <button type="button" onClick={() => setProfileVendor(null)} aria-label="Close profile" className="grid h-9 w-9 place-items-center rounded-full border border-[#C44A68]/25 text-[#4A3440] hover:border-[#C44A68] hover:text-[#C44A68]">
+                <button type="button" onClick={closeProfile} aria-label="Close profile" className="grid h-9 w-9 place-items-center rounded-full border border-[#C44A68]/25 text-[#4A3440] hover:border-[#C44A68] hover:text-[#C44A68]">
 
                   <X className="h-4 w-4" />
 
@@ -1578,7 +1611,7 @@ const Vendors = () => {
 
                         <div className="mx-auto max-w-5xl px-4 py-6">
 
-              <VendorProfileView profile={profileRow} onBook={() => handleBook(profileVendor)} />
+              <VendorProfileView profile={profileRow} profileUrl={`/vendors/${vendorSlug(profileVendor)}`} onBook={() => handleBook(profileVendor)} />
 
             </div>
 
