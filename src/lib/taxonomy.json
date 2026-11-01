@@ -1,0 +1,2214 @@
+{
+ "categories": [
+  {
+   "id": "CAT-01",
+   "name": "Weddings & Pre-Wedding Ceremonies 6 14 33 1 Month to 18 Months CAT-02: Corporate Events 12 11 28 1.5 Months to 6 Months CAT-03: Social Celebrations & Private Parties 12 8 22 1 Week to 1.5 Months CAT-04: Educational Events 10 9 22 3 Weeks to 3.5 Months CAT-05: Concerts & Entertainment Shows 9 10 20 2 Weeks to 4 Months CAT-06: Religious & Spiritual Events 5 8 18 1 Month to 4 Months CAT-07: Exhibitions & Trade Shows 9 5 19 3 Months to 12 Months CAT-08: Sports Events & Competitions 8 5 18 1.5 Months to 3 Months CAT-09: Government & Political Events 8 5 18 2 Weeks to 1 Month CAT-10: Charity & Fundraising Events 8 5 16 1 Month to 2.5 Months CAT-11: Fashion & Lifestyle Events 8 5 16 1.5 Months to 3 Months CAT-12: Virtual & Hybrid Events 8 4 14 3 Weeks to 1.5 Months CAT-13: Festivals & Seasonal Celebrations 6 5 15 1 Month to 2.5 Months CAT-14: Hospitality & Travel Events 8 4 14 1.5 Months to 3 Months CAT-15: Film & Media Events 6 4 15 3 Weeks to 1.5 Months CAT-16: Technology & Innovation Events 7 4 14 3 Weeks to 1.5 Months CAT-17: Health & Wellness Events 8 4 12 3 Weeks to 1.5 Months CAT-18: Community & Neighborhood Events 7 4 11 2 Weeks to 1 Month CAT-19: Agricultural & Rural Events 7 4 12 1 Month to 2.5 Months CAT-20: Automotive Events 8 4 12 1.5 Months to 3 Months 2. Itemized Category Breakdown (Formats, Sub-Events & Required Services) JASHN-E-AAS: 20-CATEGORY EVENT TAXONOMY & SERVICE BLUEPRINT MASTER TAXONOMY BLUEPRINT CAT-01: Weddings & Pre-Wedding Ceremonies",
+   "leadTime": "1 Month to 18 Months",
+   "scope": "Comprehensive marital nuptials, royal/destination galas, and pre-wedding cultural ceremonies.",
+   "subCategories": [
+    "Theme-Based Weddings",
+    "Culture-Based Weddings",
+    "Destination Weddings",
+    "Luxury Weddings",
+    "Budget/Intimate Weddings",
+    "Eco-Friendly/Sustainable Weddings"
+   ],
+   "subEvents": [
+    "Engagement / Sagai / Roka",
+    "Mehandi & Henna Function",
+    "Sangeet & Musical Night",
+    "Haldi Ceremony",
+    "Bachelor / Bachelorette Party",
+    "Bridal Shower",
+    "Cocktail Party",
+    "Tilak / Shagun Ceremony",
+    "Main Wedding Ceremony (Phera/Nikah/Anand Karaj)",
+    "Bidaai Ceremony",
+    "Post-Wedding Rituals (Griha Pravesh, Mu Dikhai)",
+    "Wedding Reception",
+    "Anniversary Celebrations",
+    "Vow Renewal Ceremonies"
+   ]
+  },
+  {
+   "id": "CAT-02",
+   "name": "Corporate Events",
+   "leadTime": "1.5 Months to 6 Months",
+   "scope": "Enterprise corporate conferences, product reveals, B2B activations, and annual general meetings.",
+   "subCategories": [
+    "Conferences & Seminars",
+    "Business Meetings (Board, AGM)",
+    "Product Launches & Brand Activations",
+    "Trade Shows & Exhibitions",
+    "Corporate Parties",
+    "Team Building Activities",
+    "Training & Workshops",
+    "Corporate Retreats & Offsites",
+    "Corporate Sports Events",
+    "Press Conferences",
+    "Virtual / Hybrid Events",
+    "Corporate Hackathons"
+   ],
+   "subEvents": [
+    "Annual General Meetings (AGM)",
+    "Company Anniversaries & Milestones",
+    "New Office Inaugurations",
+    "Executive Retreats",
+    "Sales Conferences",
+    "Technology Summits",
+    "Leadership Programs",
+    "Dealer / Distributor Meets",
+    "Customer Appreciation Events",
+    "Year-End & Holiday Parties",
+    "Retirement & Promotion Parties"
+   ]
+  },
+  {
+   "id": "CAT-03",
+   "name": "Social Celebrations & Private Parties",
+   "leadTime": "1 Week to 1.5 Months",
+   "scope": "Personal milestones, birthday galas, housewarmings, and intimate social gatherings.",
+   "subCategories": [
+    "Birthday Parties (Kids, Teens, Milestones)",
+    "Anniversary Celebrations",
+    "Baby Showers & Gender Reveals",
+    "Naming Ceremonies (Namkaran)",
+    "Cradle Ceremonies",
+    "Housewarming Parties (Griha Pravesh)",
+    "Reunion Parties (School, College, Family)",
+    "Retirement Parties",
+    "Farewell Parties",
+    "Theme Parties (Costume, Movie)",
+    "Pool & Garden Parties",
+    "Cocktail Parties"
+   ],
+   "subEvents": [
+    "First Birthday Parties",
+    "Sweet Sixteen & Quinceañera",
+    "Coming of Age Ceremonies",
+    "Silver (25th) & Golden (50th) Anniversaries",
+    "Graduation Parties",
+    "Promotion Celebrations",
+    "House Parties & Intimate Gatherings",
+    "Picnic Parties"
+   ]
+  },
+  {
+   "id": "CAT-04",
+   "name": "Educational Events",
+   "leadTime": "3 Weeks to 3.5 Months",
+   "scope": "University fests, academic convocations, school annual functions, and student competitions.",
+   "subCategories": [
+    "College Fests & Cultural Events",
+    "School Annual Days",
+    "Convocation Ceremonies",
+    "Freshers & Farewell Parties",
+    "Sports Days & Athletic Meets",
+    "Inter-College Competitions",
+    "Alumni Meets",
+    "Prize Distribution Ceremonies",
+    "Educational Seminars & Workshops",
+    "Science Fairs & Exhibitions"
+   ],
+   "subEvents": [
+    "Technical Fests (Tech Symposiums)",
+    "Cultural Festivals",
+    "Literary Fests",
+    "Model United Nations (MUN)",
+    "Hackathons",
+    "Quiz Competitions",
+    "Art Exhibitions",
+    "College Fashion Shows",
+    "Drama & Theatre Events"
+   ]
+  },
+  {
+   "id": "CAT-05",
+   "name": "Concerts & Entertainment Shows",
+   "leadTime": "2 Weeks to 4 Months",
+   "scope": "Ticketed arena concerts, stand-up comedy tours, theatrical plays, and star nights.",
+   "subCategories": [
+    "Music Concerts (Classical, Bollywood, EDM, Rock)",
+    "Stand-up Comedy Shows",
+    "Theatre Performances & Plays",
+    "Dance Shows",
+    "Celebrity Appearances & Meet-and-Greets",
+    "Film Premieres & Screenings",
+    "Award Shows & Ceremonies",
+    "Fashion Shows",
+    "Talent Shows & Reality Tapings"
+   ],
+   "subEvents": [
+    "Solo Artist Concerts",
+    "Band Performances",
+    "Orchestra Performances",
+    "DJ Nights",
+    "Open Mic Events",
+    "Music Festivals",
+    "Comedy Festivals",
+    "Sufi & Ghazal Evenings",
+    "Qawwali Nights",
+    "Karaoke Nights"
+   ]
+  },
+  {
+   "id": "CAT-06",
+   "name": "Religious & Spiritual Events",
+   "leadTime": "1 Month to 4 Months",
+   "scope": "Sacred pujas, pandal festivals, devotional kirtans, community langars, and religious galas.",
+   "subCategories": [
+    "Hindu Events (Pujas, Kirtans, Jagrans, Festivals, Yagnas)",
+    "Muslim Events (Eid, Iftars, Milad, Nikah, Walima)",
+    "Christian Events (Christmas, Easter, Baptism, Church Meets)",
+    "Sikh Events (Gurudwara, Langar, Akhand Path, Anand Karaj)",
+    "Other Religious Events (Buddhist, Jain, Parsi, Inter-faith)"
+   ],
+   "subEvents": [
+    "Satyanarayan Puja & Griha Pravesh",
+    "Bhajan & Kirtan Mandali",
+    "Ramayan / Bhagwat Katha",
+    "Navratri Garba & Durga Puja Pandal",
+    "Ramadan Iftar & Eid Gathering",
+    "Christmas Carol & Prayer Meet",
+    "Gurpurab & Shabad Kirtan",
+    "Yoga & Meditation Retreats"
+   ]
+  },
+  {
+   "id": "CAT-07",
+   "name": "Exhibitions & Trade Shows",
+   "leadTime": "3 Months to 12 Months",
+   "scope": "Large-scale international industry trade fairs, B2B expos, and commercial exhibitions.",
+   "subCategories": [
+    "Industry Expos (Auto, Tech, Healthcare, Real Estate)",
+    "Art Exhibitions & Galleries",
+    "Book Fairs & Literary Events",
+    "Property Exhibitions",
+    "Business Summits & Startup Expos",
+    "Food & Beverage Expos",
+    "Fashion & Lifestyle Exhibitions",
+    "Wedding & Jewelry Expos",
+    "Industrial Trade Fairs"
+   ],
+   "subEvents": [
+    "B2B Exhibitions",
+    "B2C Consumer Fairs",
+    "International Trade Shows",
+    "Regional Trade Fairs",
+    "Virtual & Hybrid Exhibitions"
+   ]
+  },
+  {
+   "id": "CAT-08",
+   "name": "Sports Events & Competitions",
+   "leadTime": "1.5 Months to 3 Months",
+   "scope": "Citywide marathons, stadium tournaments, corporate sports leagues, and e-sports championships.",
+   "subCategories": [
+    "Tournaments (Cricket, Football, Tennis, Basketball)",
+    "Marathons & Running Events (5K, 10K, Full Marathon)",
+    "Sports Leagues (Corporate, Amateur, Pro)",
+    "Adventure Sports Events",
+    "Fitness Competitions (CrossFit, Bodybuilding, Yoga)",
+    "E-Sports & Gaming Events",
+    "Motorsports & Rallies",
+    "School / College Sports Days"
+   ],
+   "subEvents": [
+    "Inter-Company Sports Meets",
+    "Charity & Celebrity Sports Events",
+    "Sports Award Ceremonies",
+    "Paralympic & Age-Group Tournaments",
+    "Opening & Closing Ceremonies"
+   ]
+  },
+  {
+   "id": "CAT-09",
+   "name": "Government & Political Events",
+   "leadTime": "2 Weeks to 1 Month",
+   "scope": "High-security political rallies, government inaugurations, state banquets, and national celebrations.",
+   "subCategories": [
+    "Political Rallies & Public Meetings",
+    "Election Campaigns",
+    "Government Inaugurations & Foundation Laying",
+    "National Day Celebrations (15 Aug, 26 Jan)",
+    "State Functions & Ceremonies",
+    "Public Awareness Campaigns",
+    "Diplomatic Events & State Visits",
+    "Military Parades & Police Events"
+   ],
+   "subEvents": [
+    "Ministry Events",
+    "Government Award Ceremonies",
+    "Flag Hoisting Ceremonies",
+    "Constitutional Day Events",
+    "Voter Awareness & Scheme Launches"
+   ]
+  },
+  {
+   "id": "CAT-10",
+   "name": "Charity & Fundraising Events",
+   "leadTime": "1 Month to 2.5 Months",
+   "scope": "HNI charity galas, donor auctions, benefit concerts, and humanitarian relief drives.",
+   "subCategories": [
+    "NGO Fundraisers",
+    "Charity Galas & Dinners",
+    "Donation Drives",
+    "Awareness Campaigns (Health, Environment)",
+    "Blood Donation & Medical Camps",
+    "Social Cause Walkathons",
+    "Charity Auctions",
+    "Disaster Relief Events JASHN-E-AAS: 20-CATEGORY EVENT TAXONOMY & SERVICE BLUEPRINT MASTER TAXONOMY BLUEPRINT"
+   ],
+   "subEvents": [
+    "Crowdfunding Events",
+    "Benefit Concerts",
+    "Art for Charity Auctions",
+    "Food & Clothing Distribution Drives",
+    "Orphanage & Old Age Home Support Events"
+   ]
+  },
+  {
+   "id": "CAT-11",
+   "name": "Fashion & Lifestyle Events",
+   "leadTime": "1.5 Months to 3 Months",
+   "scope": "High-fashion couture runways, beauty pageants, model casting, and luxury trunk shows.",
+   "subCategories": [
+    "Fashion Shows (Designer, Bridal, Seasonal)",
+    "Beauty Pageants",
+    "Model Auditions & Casting Calls",
+    "Designer Showcases",
+    "Lifestyle & Wellness Expos",
+    "Spa & Salon Launches",
+    "Fashion Week Events",
+    "Trunk Shows & Pop-Up Events"
+   ],
+   "subEvents": [
+    "Bridal Fashion Shows",
+    "Kids & Plus-Size Fashion Shows",
+    "Haute Couture Runway Displays",
+    "Prêt-à-Porter Shows",
+    "Jewelry & Accessories Showcase"
+   ]
+  },
+  {
+   "id": "CAT-12",
+   "name": "Virtual & Hybrid Events",
+   "leadTime": "3 Weeks to 1.5 Months",
+   "scope": "Global dual-format hybrid summits, virtual product reveals, and interactive webinars.",
+   "subCategories": [
+    "Virtual Conferences & Summits",
+    "Webinars & Online Workshops",
+    "Digital Product Launches",
+    "Virtual Trade Shows & Expos",
+    "Virtual Networking Events",
+    "Hybrid Conferences (Physical + Virtual)",
+    "Virtual Award Ceremonies",
+    "Virtual Concerts"
+   ],
+   "subEvents": [
+    "VR & AR Immersive Experiences",
+    "Metaverse Brand Events",
+    "Online Gaming Events",
+    "Virtual Tours & Online Festivals"
+   ]
+  },
+  {
+   "id": "CAT-13",
+   "name": "Festivals & Seasonal Celebrations",
+   "leadTime": "1 Month to 2.5 Months",
+   "scope": "Community festive melas, seasonal food/craft carnivals, and traditional festival galas.",
+   "subCategories": [
+    "Religious Festivals (Diwali, Holi, Durga Puja, Eid, Christmas)",
+    "Harvest Festivals (Pongal, Onam, Baisakhi)",
+    "New Year Celebrations",
+    "Seasonal Melas & Carnivals",
+    "Food & Music Festivals",
+    "Arts, Crafts & Film Festivals"
+   ],
+   "subEvents": [
+    "Community Durga Puja Pandals",
+    "Navratri Garba & Dandiya Nights",
+    "Diwali Shopping Melas",
+    "Christmas Carnivals",
+    "Beach & Desert Festivals (Rann Utsav, Pushkar)"
+   ]
+  },
+  {
+   "id": "CAT-14",
+   "name": "Hospitality & Travel Events",
+   "leadTime": "1.5 Months to 3 Months",
+   "scope": "Five-star hotel launches, restaurant inaugurations, gourmet tasting sessions, and travel expos.",
+   "subCategories": [
+    "Hotel Openings & Launches",
+    "Restaurant Launches",
+    "Food Tasting Events",
+    "Wine & Dine Evenings",
+    "Chef's Table Experiences",
+    "Culinary Competitions",
+    "Tourism Promotion Events",
+    "Travel Expos & Fairs"
+   ],
+   "subEvents": [
+    "Pop-up Restaurant Events",
+    "Food Truck Festivals",
+    "Beer, Wine & Coffee Festivals",
+    "Cooking Workshops & Mixology Battles"
+   ]
+  },
+  {
+   "id": "CAT-15",
+   "name": "Film & Media Events",
+   "leadTime": "3 Weeks to 1.5 Months",
+   "scope": "Celebrity film premieres, red carpet media events, trailer launches, and film award nights.",
+   "subCategories": [
+    "Film Premieres & Red Carpets",
+    "Movie Screenings & Film Festivals",
+    "Award Ceremonies",
+    "Press Conferences & Media Meets",
+    "Trailer & Music Launch Events",
+    "Web Series & OTT Platform Launches"
+   ],
+   "subEvents": [
+    "Independent Film Screenings",
+    "Short Film Competitions",
+    "Fan Meet-and-Greets",
+    "Wrap-Up & Completion Parties"
+   ]
+  },
+  {
+   "id": "CAT-16",
+   "name": "Technology & Innovation Events",
+   "leadTime": "3 Weeks to 1.5 Months",
+   "scope": "Overnight developer hackathons, startup pitch demo days, AI summits, and tech reveals.",
+   "subCategories": [
+    "Tech Conferences & Summits",
+    "Hackathons (24-48 Hours)",
+    "Product Launches (Software, Apps, Hardware)",
+    "Startup Pitch Events & Demo Days",
+    "Developer Conferences",
+    "Gaming Conventions & LAN Parties",
+    "AI, Robotics & Cybersecurity Summits"
+   ],
+   "subEvents": [
+    "Code Sprints & Bug Bounties",
+    "Tech Meetups",
+    "Accelerator Demo Days",
+    "VR/AR Experience Zones"
+   ]
+  },
+  {
+   "id": "CAT-17",
+   "name": "Health & Wellness Events",
+   "leadTime": "3 Weeks to 1.5 Months",
+   "scope": "Holistic yoga retreats, medical diagnostic camps, corporate wellness drives, and fitness expos.",
+   "subCategories": [
+    "Health Camps & Medical Check-ups",
+    "Yoga Retreats & Workshops",
+    "Meditation & Mindfulness Sessions",
+    "Fitness Challenges & Marathons",
+    "Mental Health Awareness Events",
+    "Wellness Expos",
+    "Medical Conferences (CME)",
+    "Blood Donation Drives"
+   ],
+   "subEvents": [
+    "Corporate Wellness Programs",
+    "Zumba & Fitness Events",
+    "Alternative Medicine & Ayurveda Expos",
+    "Diagnostic Screening Camps"
+   ]
+  },
+  {
+   "id": "CAT-18",
+   "name": "Community & Neighborhood Events",
+   "leadTime": "2 Weeks to 1 Month",
+   "scope": "Residential society annual days, neighborhood flea markets, block parties, and local talent fests.",
+   "subCategories": [
+    "Society Events & Annual Days",
+    "Neighborhood Festivals",
+    "Community Gatherings",
+    "Resident Welfare Association (RWA) Events",
+    "Clean-up & Tree Plantation Drives",
+    "Local Talent Shows",
+    "Flea Markets & Block Parties"
+   ],
+   "subEvents": [
+    "Housing Society Festive Celebrations",
+    "Children's & Senior Citizen Days",
+    "Women's Day Celebrations",
+    "Independence & Republic Day Society Functions"
+   ]
+  },
+  {
+   "id": "CAT-19",
+   "name": "Agricultural & Rural Events",
+   "leadTime": "1 Month to 2.5 Months",
+   "scope": "Regional agricultural trade fairs, farmer melas, livestock shows, and rural machinery expos.",
+   "subCategories": [
+    "Agricultural Fairs (Krishi Melas)",
+    "Farmers' Markets",
+    "Livestock Shows & Competitions",
+    "Agricultural Training Workshops",
+    "Organic Farming Events",
+    "Agricultural Equipment Expos",
+    "Dairy & Poultry Expos"
+   ],
+   "subEvents": [
+    "Kisan Diwas Celebrations",
+    "Farm Produce Festivals",
+    "Tractor & Machinery Demonstrations",
+    "Rural Traditional Crafts Fairs"
+   ]
+  },
+  {
+   "id": "CAT-20",
+   "name": "Automotive Events",
+   "leadTime": "1.5 Months to 3 Months",
+   "scope": "Automotive vehicle unveils, track test drive days, auto expos, and vintage car rallies.",
+   "subCategories": [
+    "Auto Expos & Motor Shows",
+    "New Vehicle Launches",
+    "Test Drive Events",
+    "Car & Bike Rallies",
+    "Racing & Track Days",
+    "Vintage Car Shows",
+    "Electric Vehicle (EV) Expos",
+    "Auto Parts & Accessories Expos"
+   ],
+   "subEvents": [
+    "Custom Car Shows",
+    "Off-Road Vehicle Rallies",
+    "Automotive Tech Conferences",
+    "Track Driving Workshops"
+   ]
+  }
+ ],
+ "services": [
+  {
+   "id": "venue-providers",
+   "name": "Venue Providers",
+   "options": [
+    "Banquet Halls",
+    "Hotels",
+    "Resorts",
+    "Farmhouses",
+    "Convention Centers",
+    "Party Halls",
+    "Lawns",
+    "Rooftops",
+    "Stadiums",
+    "Arenas",
+    "Auditoriums",
+    "Community Halls",
+    "Open Grounds",
+    "Grounds",
+    "Indoor Courts",
+    "Sponsored / Donated",
+    "Galleries",
+    "Wellness Resorts",
+    "Parks",
+    "Society Parks",
+    "Open Fields",
+    "Village Grounds",
+    "Exhibition Centers",
+    "Race Tracks"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-02",
+    "CAT-03",
+    "CAT-04",
+    "CAT-05",
+    "CAT-06",
+    "CAT-07",
+    "CAT-08",
+    "CAT-09",
+    "CAT-10",
+    "CAT-11",
+    "CAT-14",
+    "CAT-17",
+    "CAT-18",
+    "CAT-19",
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "catering-food",
+   "name": "Catering & Food",
+   "options": [
+    "Multi-cuisine",
+    "Live Counters",
+    "Desserts",
+    "Coffee Breaks",
+    "Meals",
+    "Artist",
+    "Crew",
+    "Audience F&B",
+    "Prasad",
+    "Langar",
+    "Satvik/Halal Food",
+    "Healthy Snacks",
+    "Energy Drinks"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-02",
+    "CAT-03",
+    "CAT-04",
+    "CAT-05",
+    "CAT-06",
+    "CAT-07",
+    "CAT-09",
+    "CAT-10",
+    "CAT-14",
+    "CAT-15",
+    "CAT-16",
+    "CAT-17",
+    "CAT-18",
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "photographers-videographers",
+   "name": "Photographers & Videographers",
+   "options": [
+    "Candid",
+    "Drone",
+    "Pre-wedding",
+    "Cinematic"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-02",
+    "CAT-03",
+    "CAT-04",
+    "CAT-06",
+    "CAT-07",
+    "CAT-08",
+    "CAT-09",
+    "CAT-10",
+    "CAT-11",
+    "CAT-14",
+    "CAT-15",
+    "CAT-18",
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "lighting",
+   "name": "Lighting",
+   "options": [
+    "Stage",
+    "Ambient",
+    "Intelligent Lights",
+    "Lasers",
+    "Diyas",
+    "LED",
+    "Temple Illumination"
+   ],
+   "categories": [
+    "CAT-02",
+    "CAT-03",
+    "CAT-04",
+    "CAT-05",
+    "CAT-06",
+    "CAT-07",
+    "CAT-09",
+    "CAT-11",
+    "CAT-13",
+    "CAT-14",
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "sound-systems-pa",
+   "name": "Sound Systems & PA",
+   "options": [
+    "High-Capacity Horn Trucks"
+   ],
+   "categories": [
+    "CAT-02",
+    "CAT-03",
+    "CAT-04",
+    "CAT-05",
+    "CAT-06",
+    "CAT-09",
+    "CAT-11",
+    "CAT-13",
+    "CAT-14",
+    "CAT-17",
+    "CAT-18"
+   ]
+  },
+  {
+   "id": "security-crowd-control",
+   "name": "Security & Crowd Control",
+   "options": [],
+   "categories": [
+    "CAT-04",
+    "CAT-05",
+    "CAT-06",
+    "CAT-07",
+    "CAT-08",
+    "CAT-09",
+    "CAT-13",
+    "CAT-16",
+    "CAT-18"
+   ]
+  },
+  {
+   "id": "stage-setup-backdrops",
+   "name": "Stage Setup & Backdrops",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-02",
+    "CAT-04",
+    "CAT-05",
+    "CAT-09",
+    "CAT-11",
+    "CAT-15",
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "led-walls-screens-av",
+   "name": "LED Walls, Screens & AV",
+   "options": [],
+   "categories": [
+    "CAT-02",
+    "CAT-04",
+    "CAT-05",
+    "CAT-07",
+    "CAT-09",
+    "CAT-10",
+    "CAT-15",
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "first-aid-medical",
+   "name": "First Aid & Medical",
+   "options": [
+    "Trauma Doctors",
+    "Ambulance",
+    "First Aid",
+    "Doctors",
+    "Nurses",
+    "Paramedics"
+   ],
+   "categories": [
+    "CAT-04",
+    "CAT-05",
+    "CAT-08",
+    "CAT-09",
+    "CAT-10",
+    "CAT-17",
+    "CAT-19",
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "registration-check-in",
+   "name": "Registration & Check-in",
+   "options": [],
+   "categories": [
+    "CAT-02",
+    "CAT-04",
+    "CAT-07",
+    "CAT-08",
+    "CAT-10",
+    "CAT-16",
+    "CAT-17"
+   ]
+  },
+  {
+   "id": "housekeeping-sanitation",
+   "name": "Housekeeping & Sanitation",
+   "options": [],
+   "categories": [
+    "CAT-03",
+    "CAT-06",
+    "CAT-07",
+    "CAT-08",
+    "CAT-13",
+    "CAT-17",
+    "CAT-18"
+   ]
+  },
+  {
+   "id": "decorators-florists",
+   "name": "Decorators & Florists",
+   "options": [
+    "Stage",
+    "Entry Gates",
+    "Theme",
+    "Traditional",
+    "Floral",
+    "Rangoli"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-03",
+    "CAT-04",
+    "CAT-06",
+    "CAT-13",
+    "CAT-18"
+   ]
+  },
+  {
+   "id": "anchor-emcee",
+   "name": "Anchor / Emcee",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-02",
+    "CAT-03",
+    "CAT-04",
+    "CAT-11",
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "furniture-seating",
+   "name": "Furniture & Seating",
+   "options": [
+    "Tables",
+    "Chairs",
+    "Podiums",
+    "Carpets",
+    "Mats",
+    "Gaddi"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-02",
+    "CAT-03",
+    "CAT-06",
+    "CAT-07",
+    "CAT-17"
+   ]
+  },
+  {
+   "id": "live-streaming",
+   "name": "Live Streaming",
+   "options": [],
+   "categories": [
+    "CAT-02",
+    "CAT-04",
+    "CAT-08",
+    "CAT-11",
+    "CAT-13",
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "pr-social-media",
+   "name": "PR & Social Media",
+   "options": [],
+   "categories": [
+    "CAT-05",
+    "CAT-10",
+    "CAT-11",
+    "CAT-14",
+    "CAT-15",
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "bartending-beverages",
+   "name": "Bartending & Beverages",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-02",
+    "CAT-03",
+    "CAT-11",
+    "CAT-14"
+   ]
+  },
+  {
+   "id": "tent-canopy-pandal",
+   "name": "Tent, Canopy & Pandal",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-06",
+    "CAT-13",
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "exhibition-stall-designers",
+   "name": "Exhibition Stall Designers",
+   "options": [
+    "Octanorm",
+    "Wooden"
+   ],
+   "categories": [
+    "CAT-02",
+    "CAT-07",
+    "CAT-13",
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "wi-fi-internet",
+   "name": "Wi-Fi & Internet",
+   "options": [
+    "100+ Mbps"
+   ],
+   "categories": [
+    "CAT-02",
+    "CAT-07",
+    "CAT-12",
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "dj-music-systems",
+   "name": "DJ & Music Systems",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-03",
+    "CAT-13"
+   ]
+  },
+  {
+   "id": "sound-lighting",
+   "name": "Sound & Lighting",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-08",
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "entertainment-artists",
+   "name": "Entertainment Artists",
+   "options": [
+    "Singers",
+    "Dancers",
+    "Bands",
+    "DJs"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-03",
+    "CAT-04"
+   ]
+  },
+  {
+   "id": "transportation",
+   "name": "Transportation",
+   "options": [
+    "Luxury Cars",
+    "Vintage Cars",
+    "Baggi"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-02",
+    "CAT-04"
+   ]
+  },
+  {
+   "id": "promotional-staff-hostesses",
+   "name": "Promotional Staff & Hostesses",
+   "options": [],
+   "categories": [
+    "CAT-02",
+    "CAT-07",
+    "CAT-14"
+   ]
+  },
+  {
+   "id": "trophies-medals-certificates",
+   "name": "Trophies, Medals & Certificates",
+   "options": [],
+   "categories": [
+    "CAT-04",
+    "CAT-08",
+    "CAT-18"
+   ]
+  },
+  {
+   "id": "sponsorship",
+   "name": "Sponsorship",
+   "options": [],
+   "categories": [
+    "CAT-04",
+    "CAT-08",
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "invitation-designers-printers",
+   "name": "Invitation Designers & Printers",
+   "options": [
+    "Digital",
+    "Physical",
+    "Video"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "favors-return-gifts",
+   "name": "Favors & Return Gifts",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "cake-designers-bakers",
+   "name": "Cake Designers & Bakers",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "valet-parking",
+   "name": "Valet Parking",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-14"
+   ]
+  },
+  {
+   "id": "pandit-priest-officiant",
+   "name": "Pandit / Priest / Officiant",
+   "options": [
+    "Hindu",
+    "Muslim Qazi",
+    "Christian Pastor",
+    "Sikh Granthi",
+    "Pandit",
+    "Qazi",
+    "Pastor",
+    "Granthi",
+    "Monk"
+   ],
+   "categories": [
+    "CAT-01",
+    "CAT-06"
+   ]
+  },
+  {
+   "id": "photo-booth-services",
+   "name": "Photo Booth Services",
+   "options": [],
+   "categories": [
+    "CAT-01",
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "security-valet",
+   "name": "Security & Valet",
+   "options": [],
+   "categories": [
+    "CAT-02",
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "power-generators",
+   "name": "Power & Generators",
+   "options": [],
+   "categories": [
+    "CAT-02",
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "idol-makers",
+   "name": "Idol Makers",
+   "options": [],
+   "categories": [
+    "CAT-06",
+    "CAT-13"
+   ]
+  },
+  {
+   "id": "wedding-planners-coordinators",
+   "name": "Wedding Planners & Coordinators",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "bridal-makeup-artists-hair-stylists",
+   "name": "Bridal Makeup Artists & Hair Stylists",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "groom-makeup-styling",
+   "name": "Groom Makeup & Styling",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "mehandi-artists",
+   "name": "Mehandi Artists",
+   "options": [
+    "Traditional",
+    "Arabic",
+    "Indo-Western"
+   ],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "bridal-wear-designers-boutiques",
+   "name": "Bridal Wear Designers & Boutiques",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "jewelry-designers-rental",
+   "name": "Jewelry Designers & Rental",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "choreographers",
+   "name": "Choreographers",
+   "options": [
+    "Sangeet",
+    "Couple Dance"
+   ],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "live-bands-musicians",
+   "name": "Live Bands & Musicians",
+   "options": [
+    "Classical",
+    "Bollywood",
+    "Fusion"
+   ],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "trousseau-packers-decorators",
+   "name": "Trousseau Packers & Decorators",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "wedding-stationery",
+   "name": "Wedding Stationery",
+   "options": [
+    "Signage",
+    "Menu Cards"
+   ],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "fireworks-special-effects",
+   "name": "Fireworks & Special Effects",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "drone-services",
+   "name": "Drone Services",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "henna-bar-setup",
+   "name": "Henna Bar Setup",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "astrologers-muhurat-services",
+   "name": "Astrologers & Muhurat Services",
+   "options": [],
+   "categories": [
+    "CAT-01"
+   ]
+  },
+  {
+   "id": "event-planners-management-companies",
+   "name": "Event Planners & Management Companies",
+   "options": [],
+   "categories": [
+    "CAT-02"
+   ]
+  },
+  {
+   "id": "event-tech",
+   "name": "Event Tech",
+   "options": [
+    "Apps",
+    "Live Polling",
+    "Q&A"
+   ],
+   "categories": [
+    "CAT-02"
+   ]
+  },
+  {
+   "id": "simultaneous-translation-services",
+   "name": "Simultaneous Translation Services",
+   "options": [],
+   "categories": [
+    "CAT-02"
+   ]
+  },
+  {
+   "id": "teleprompter-services",
+   "name": "Teleprompter Services",
+   "options": [],
+   "categories": [
+    "CAT-02"
+   ]
+  },
+  {
+   "id": "keynote-motivational-speakers",
+   "name": "Keynote & Motivational Speakers",
+   "options": [],
+   "categories": [
+    "CAT-02"
+   ]
+  },
+  {
+   "id": "corporate-gifts-merchandise",
+   "name": "Corporate Gifts & Merchandise",
+   "options": [],
+   "categories": [
+    "CAT-02"
+   ]
+  },
+  {
+   "id": "team-building-activity-organizers",
+   "name": "Team Building Activity Organizers",
+   "options": [],
+   "categories": [
+    "CAT-02"
+   ]
+  },
+  {
+   "id": "party-planners",
+   "name": "Party Planners",
+   "options": [],
+   "categories": [
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "balloon-decorators",
+   "name": "Balloon Decorators",
+   "options": [
+    "Arches",
+    "Columns",
+    "Sculptures"
+   ],
+   "categories": [
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "dessert-tables-candy-bars",
+   "name": "Dessert Tables & Candy Bars",
+   "options": [],
+   "categories": [
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "games-activity-organizers",
+   "name": "Games & Activity Organizers",
+   "options": [],
+   "categories": [
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "bounce-house-inflatable-rentals",
+   "name": "Bounce House & Inflatable Rentals",
+   "options": [],
+   "categories": [
+    "CAT-03"
+   ]
+  },
+  {
+   "id": "event-management-companies",
+   "name": "Event Management Companies",
+   "options": [],
+   "categories": [
+    "CAT-04"
+   ]
+  },
+  {
+   "id": "judges-coordinators",
+   "name": "Judges & Coordinators",
+   "options": [],
+   "categories": [
+    "CAT-04"
+   ]
+  },
+  {
+   "id": "celebrity-guests-chief-guests",
+   "name": "Celebrity Guests & Chief Guests",
+   "options": [],
+   "categories": [
+    "CAT-04"
+   ]
+  },
+  {
+   "id": "promotional-material-design",
+   "name": "Promotional Material Design",
+   "options": [],
+   "categories": [
+    "CAT-04"
+   ]
+  },
+  {
+   "id": "timing-systems-scoreboards",
+   "name": "Timing Systems & Scoreboards",
+   "options": [],
+   "categories": [
+    "CAT-04"
+   ]
+  },
+  {
+   "id": "event-producers-promoters",
+   "name": "Event Producers & Promoters",
+   "options": [],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "special-effects",
+   "name": "Special Effects",
+   "options": [
+    "Pyrotechnics",
+    "Confetti",
+    "Fog"
+   ],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "rigging-trussing-services",
+   "name": "Rigging & Trussing Services",
+   "options": [],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "artist-management-booking",
+   "name": "Artist Management & Booking",
+   "options": [],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "technical-crew",
+   "name": "Technical Crew",
+   "options": [
+    "Sound Engineers",
+    "Lighting Directors"
+   ],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "ticketing-platforms-gate-scanners",
+   "name": "Ticketing Platforms & Gate Scanners",
+   "options": [],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "vip-lounge-backstage-setup",
+   "name": "VIP Lounge & Backstage Setup",
+   "options": [],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "green-room-management",
+   "name": "Green Room Management",
+   "options": [],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "artist-transportation-hospitality",
+   "name": "Artist Transportation & Hospitality",
+   "options": [],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "permits-licensing-coordination",
+   "name": "Permits & Licensing Coordination",
+   "options": [],
+   "categories": [
+    "CAT-05"
+   ]
+  },
+  {
+   "id": "flower-garland-vendors",
+   "name": "Flower & Garland Vendors",
+   "options": [],
+   "categories": [
+    "CAT-06"
+   ]
+  },
+  {
+   "id": "incense-religious-material-suppliers",
+   "name": "Incense & Religious Material Suppliers",
+   "options": [],
+   "categories": [
+    "CAT-06"
+   ]
+  },
+  {
+   "id": "donation-collection-management",
+   "name": "Donation Collection Management",
+   "options": [],
+   "categories": [
+    "CAT-06"
+   ]
+  },
+  {
+   "id": "religious-performance-groups",
+   "name": "Religious Performance Groups",
+   "options": [
+    "Bhajan",
+    "Qawwali",
+    "Choirs"
+   ],
+   "categories": [
+    "CAT-06"
+   ]
+  },
+  {
+   "id": "traditional-musicians",
+   "name": "Traditional Musicians",
+   "options": [
+    "Tabla",
+    "Harmonium",
+    "Dhol"
+   ],
+   "categories": [
+    "CAT-06"
+   ]
+  },
+  {
+   "id": "exhibition-organizers",
+   "name": "Exhibition Organizers",
+   "options": [],
+   "categories": [
+    "CAT-07"
+   ]
+  },
+  {
+   "id": "display-systems-panels",
+   "name": "Display Systems & Panels",
+   "options": [],
+   "categories": [
+    "CAT-07"
+   ]
+  },
+  {
+   "id": "flooring-carpet-services",
+   "name": "Flooring & Carpet Services",
+   "options": [],
+   "categories": [
+    "CAT-07"
+   ]
+  },
+  {
+   "id": "freight-material-handling-logistics",
+   "name": "Freight & Material Handling Logistics",
+   "options": [],
+   "categories": [
+    "CAT-07"
+   ]
+  },
+  {
+   "id": "signage-branding-materials",
+   "name": "Signage & Branding Materials",
+   "options": [],
+   "categories": [
+    "CAT-07"
+   ]
+  },
+  {
+   "id": "lead-generation-tech",
+   "name": "Lead Generation Tech",
+   "options": [],
+   "categories": [
+    "CAT-07"
+   ]
+  },
+  {
+   "id": "sports-event-management-companies",
+   "name": "Sports Event Management Companies",
+   "options": [],
+   "categories": [
+    "CAT-08"
+   ]
+  },
+  {
+   "id": "ground-preparation-maintenance",
+   "name": "Ground Preparation & Maintenance",
+   "options": [],
+   "categories": [
+    "CAT-08"
+   ]
+  },
+  {
+   "id": "sport-specific-equipment-rental",
+   "name": "Sport-Specific Equipment Rental",
+   "options": [],
+   "categories": [
+    "CAT-08"
+   ]
+  },
+  {
+   "id": "timing-scoring-systems",
+   "name": "Timing & Scoring Systems",
+   "options": [
+    "RFID Mats"
+   ],
+   "categories": [
+    "CAT-08"
+   ]
+  },
+  {
+   "id": "referee-umpire-services",
+   "name": "Referee & Umpire Services",
+   "options": [],
+   "categories": [
+    "CAT-08"
+   ]
+  },
+  {
+   "id": "commentators-announcers",
+   "name": "Commentators & Announcers",
+   "options": [],
+   "categories": [
+    "CAT-08"
+   ]
+  },
+  {
+   "id": "bleachers-seating-setup",
+   "name": "Bleachers & Seating Setup",
+   "options": [],
+   "categories": [
+    "CAT-08"
+   ]
+  },
+  {
+   "id": "hydration-energy-drink-stations",
+   "name": "Hydration & Energy Drink Stations",
+   "options": [],
+   "categories": [
+    "CAT-08"
+   ]
+  },
+  {
+   "id": "empanelled-government-event-management-vendors",
+   "name": "Empanelled Government Event Management Vendors",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "private-government-security-coordination",
+   "name": "Private & Government Security Coordination",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "vip-vvip-general-seating-arrangements",
+   "name": "VIP, VVIP & General Seating Arrangements",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "press-conference-setup-media-desk",
+   "name": "Press Conference Setup & Media Desk",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "vip-protocol-escort-services",
+   "name": "VIP Protocol & Escort Services",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "walkie-talkie-satellite-comms",
+   "name": "Walkie-Talkie & Satellite Comms",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "official-emblem-signage-printing",
+   "name": "Official Emblem & Signage Printing",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "helicopter-landing-pad-arrangements",
+   "name": "Helicopter Landing Pad Arrangements",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "metal-detectors-scanning-gates",
+   "name": "Metal Detectors & Scanning Gates",
+   "options": [],
+   "categories": [
+    "CAT-09"
+   ]
+  },
+  {
+   "id": "non-profit-event-planners",
+   "name": "Non-Profit Event Planners",
+   "options": [],
+   "categories": [
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "fundraising-platform-payment-gateways",
+   "name": "Fundraising Platform & Payment Gateways",
+   "options": [],
+   "categories": [
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "donation-collection-systems",
+   "name": "Donation Collection Systems",
+   "options": [],
+   "categories": [
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "volunteer-coordination-teams",
+   "name": "Volunteer Coordination Teams",
+   "options": [],
+   "categories": [
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "celebrity-management-for-appearances",
+   "name": "Celebrity Management for Appearances",
+   "options": [],
+   "categories": [
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "auction-management-systems",
+   "name": "Auction Management Systems",
+   "options": [],
+   "categories": [
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "brochure-banner-printing",
+   "name": "Brochure & Banner Printing",
+   "options": [],
+   "categories": [
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "tax-exemption-80g-receipt-counter",
+   "name": "Tax Exemption (80G) Receipt Counter",
+   "options": [],
+   "categories": [
+    "CAT-10"
+   ]
+  },
+  {
+   "id": "fashion-event-producers",
+   "name": "Fashion Event Producers",
+   "options": [],
+   "categories": [
+    "CAT-11"
+   ]
+  },
+  {
+   "id": "runway-choreographers",
+   "name": "Runway Choreographers",
+   "options": [],
+   "categories": [
+    "CAT-11"
+   ]
+  },
+  {
+   "id": "model-agency-casting-coordinators",
+   "name": "Model Agency Casting & Coordinators",
+   "options": [],
+   "categories": [
+    "CAT-11"
+   ]
+  },
+  {
+   "id": "makeup-artists-hair-stylists",
+   "name": "Makeup Artists & Hair Stylists",
+   "options": [],
+   "categories": [
+    "CAT-11"
+   ]
+  },
+  {
+   "id": "backstage-dressers-wardrobe-assistants",
+   "name": "Backstage Dressers & Wardrobe Assistants",
+   "options": [],
+   "categories": [
+    "CAT-11"
+   ]
+  },
+  {
+   "id": "vip-front-row-seating-management",
+   "name": "VIP Front-Row Seating Management",
+   "options": [],
+   "categories": [
+    "CAT-11"
+   ]
+  },
+  {
+   "id": "red-carpet-photobooth-setup",
+   "name": "Red Carpet & Photobooth Setup",
+   "options": [],
+   "categories": [
+    "CAT-11"
+   ]
+  },
+  {
+   "id": "virtual-event-platform-software",
+   "name": "Virtual Event Platform Software",
+   "options": [
+    "Zoom",
+    "Hopin",
+    "Airmeet"
+   ],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "webinar-video-streaming-tech",
+   "name": "Webinar & Video Streaming Tech",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "green-screen-studio-leasing",
+   "name": "Green Screen Studio Leasing",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "live-multi-camera-stream-crew",
+   "name": "Live Multi-Camera Stream Crew",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "virtual-event-producers-tech-support",
+   "name": "Virtual Event Producers & Tech Support",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "3d-virtual-booth-designers",
+   "name": "3D Virtual Booth Designers",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "interactive-polling-live-q-a-software",
+   "name": "Interactive Polling & Live Q&A Software",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "digital-content-motion-graphics-creation",
+   "name": "Digital Content & Motion Graphics Creation",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "recording-on-demand-video-archiving",
+   "name": "Recording & On-Demand Video Archiving",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "cybersecurity-cloud-servers",
+   "name": "Cybersecurity & Cloud Servers",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "virtual-gift-digital-hamper-distribution",
+   "name": "Virtual Gift & Digital Hamper Distribution",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "multi-language-interpretation-services",
+   "name": "Multi-Language Interpretation Services",
+   "options": [],
+   "categories": [
+    "CAT-12"
+   ]
+  },
+  {
+   "id": "festival-organizers",
+   "name": "Festival Organizers",
+   "options": [],
+   "categories": [
+    "CAT-13"
+   ]
+  },
+  {
+   "id": "cultural-performers-folk-dancers",
+   "name": "Cultural Performers & Folk Dancers",
+   "options": [],
+   "categories": [
+    "CAT-13"
+   ]
+  },
+  {
+   "id": "carnival-games-rides",
+   "name": "Carnival Games & Rides",
+   "options": [],
+   "categories": [
+    "CAT-13"
+   ]
+  },
+  {
+   "id": "fire-safety-extinguishers-clearances",
+   "name": "Fire Safety Extinguishers & Clearances",
+   "options": [],
+   "categories": [
+    "CAT-13"
+   ]
+  },
+  {
+   "id": "hospitality-event-planners",
+   "name": "Hospitality Event Planners",
+   "options": [],
+   "categories": [
+    "CAT-14"
+   ]
+  },
+  {
+   "id": "table-setting-floral-styling",
+   "name": "Table Setting & Floral Styling",
+   "options": [],
+   "categories": [
+    "CAT-14"
+   ]
+  },
+  {
+   "id": "sommelier-services",
+   "name": "Sommelier Services",
+   "options": [],
+   "categories": [
+    "CAT-14"
+   ]
+  },
+  {
+   "id": "media-food-critic-coordination",
+   "name": "Media & Food Critic Coordination",
+   "options": [],
+   "categories": [
+    "CAT-14"
+   ]
+  },
+  {
+   "id": "custom-invitation-boxes-hampers",
+   "name": "Custom Invitation Boxes & Hampers",
+   "options": [],
+   "categories": [
+    "CAT-14"
+   ]
+  },
+  {
+   "id": "film-event-producers",
+   "name": "Film Event Producers",
+   "options": [],
+   "categories": [
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "multiplex-theater-leasing",
+   "name": "Multiplex Theater Leasing",
+   "options": [],
+   "categories": [
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "celebrity-management-security",
+   "name": "Celebrity Management & Security",
+   "options": [],
+   "categories": [
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "vip-lounge-setup",
+   "name": "VIP Lounge Setup",
+   "options": [],
+   "categories": [
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "priority-seating-management",
+   "name": "Priority Seating Management",
+   "options": [],
+   "categories": [
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "press-media-accreditation-desk",
+   "name": "Press & Media Accreditation Desk",
+   "options": [],
+   "categories": [
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "luxury-car-vanity-van-logistics",
+   "name": "Luxury Car & Vanity Van Logistics",
+   "options": [],
+   "categories": [
+    "CAT-15"
+   ]
+  },
+  {
+   "id": "tech-event-management-agencies",
+   "name": "Tech Event Management Agencies",
+   "options": [],
+   "categories": [
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "co-working-tech-park-leasing",
+   "name": "Co-Working / Tech Park Leasing",
+   "options": [],
+   "categories": [
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "continuous-power-drops-charging-outlets",
+   "name": "Continuous Power Drops & Charging Outlets",
+   "options": [],
+   "categories": [
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "event-apps-live-coding-rigs",
+   "name": "Event Apps & Live Coding Rigs",
+   "options": [],
+   "categories": [
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "24-7-technical-support-crew",
+   "name": "24/7 Technical Support Crew",
+   "options": [],
+   "categories": [
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "sleeping-pods-relaxation-mats-for-hackathons",
+   "name": "Sleeping Pods & Relaxation Mats for Hackathons",
+   "options": [],
+   "categories": [
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "mentor-judge-panel-desks",
+   "name": "Mentor & Judge Panel Desks",
+   "options": [],
+   "categories": [
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "swag-kit-merchandise-distribution",
+   "name": "Swag Kit & Merchandise Distribution",
+   "options": [],
+   "categories": [
+    "CAT-16"
+   ]
+  },
+  {
+   "id": "health-event-organizers",
+   "name": "Health Event Organizers",
+   "options": [],
+   "categories": [
+    "CAT-17"
+   ]
+  },
+  {
+   "id": "diagnostic-medical-equipment-rentals",
+   "name": "Diagnostic Medical Equipment Rentals",
+   "options": [],
+   "categories": [
+    "CAT-17"
+   ]
+  },
+  {
+   "id": "yoga-instructors-fitness-coaches",
+   "name": "Yoga Instructors & Fitness Coaches",
+   "options": [],
+   "categories": [
+    "CAT-17"
+   ]
+  },
+  {
+   "id": "health-education-pamphlets",
+   "name": "Health Education Pamphlets",
+   "options": [],
+   "categories": [
+    "CAT-17"
+   ]
+  },
+  {
+   "id": "community-event-coordinators",
+   "name": "Community Event Coordinators",
+   "options": [],
+   "categories": [
+    "CAT-18"
+   ]
+  },
+  {
+   "id": "local-dj-emcee-hosts",
+   "name": "Local DJ & Emcee Hosts",
+   "options": [],
+   "categories": [
+    "CAT-18"
+   ]
+  },
+  {
+   "id": "inflatable-bounce-castles-for-kids",
+   "name": "Inflatable Bounce Castles for Kids",
+   "options": [],
+   "categories": [
+    "CAT-18"
+   ]
+  },
+  {
+   "id": "rural-event-specialists",
+   "name": "Rural Event Specialists",
+   "options": [],
+   "categories": [
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "heavy-machinery-display-ramps",
+   "name": "Heavy Machinery Display Ramps",
+   "options": [],
+   "categories": [
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "high-power-horn-pa-speakers",
+   "name": "High-Power Horn PA Speakers",
+   "options": [],
+   "categories": [
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "animal-pens-fencing",
+   "name": "Animal Pens & Fencing",
+   "options": [],
+   "categories": [
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "bilingual-signage-banners",
+   "name": "Bilingual Signage & Banners",
+   "options": [],
+   "categories": [
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "veterinary-doctors-on-site",
+   "name": "Veterinary Doctors On-Site",
+   "options": [],
+   "categories": [
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "government-liaison-services",
+   "name": "Government Liaison Services",
+   "options": [],
+   "categories": [
+    "CAT-19"
+   ]
+  },
+  {
+   "id": "automotive-event-management-agencies",
+   "name": "Automotive Event Management Agencies",
+   "options": [],
+   "categories": [
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "vehicle-display-platforms-turntables",
+   "name": "Vehicle Display Platforms & Turntables",
+   "options": [],
+   "categories": [
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "car-unveil-silk-rigs",
+   "name": "Car Unveil Silk Rigs",
+   "options": [],
+   "categories": [
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "test-drive-track-setup-safety-cones",
+   "name": "Test Drive Track Setup & Safety Cones",
+   "options": [],
+   "categories": [
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "track-safety-marshals",
+   "name": "Track Safety Marshals",
+   "options": [],
+   "categories": [
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "velvet-rope-stanchions-lounges",
+   "name": "Velvet Rope Stanchions & Lounges",
+   "options": [],
+   "categories": [
+    "CAT-20"
+   ]
+  },
+  {
+   "id": "flatbed-vehicle-transporters",
+   "name": "Flatbed Vehicle Transporters",
+   "options": [],
+   "categories": [
+    "CAT-20"
+   ]
+  }
+ ]
+}

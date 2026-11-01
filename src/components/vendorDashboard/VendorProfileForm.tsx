@@ -4,17 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
-  CANCELLATION_PRESETS, CITY_OPTIONS, EVENT_TYPE_OPTIONS, LANGUAGE_OPTIONS, PRICE_UNITS, RESPONSE_TIMES,
-  SERVICE_GROUPS, inr, type VendorPrivate, type VendorProfileRow,
+  CANCELLATION_PRESETS, CITY_OPTIONS, LANGUAGE_OPTIONS, PRICE_UNITS, RESPONSE_TIMES,
+  inr, type VendorPrivate, type VendorProfileRow,
 } from "@/lib/vendorOptions";
 import { Card, ChipPicker, Field, FilePick, Select, TextArea, uploadTo } from "./Bits";
 import type { SaveFn } from "./useVendorProfile";
+import { ServicesSection } from "./ServicesSection";
 
 export type SectionId = "business" | "services" | "location" | "pricing" | "contact";
 
 const TITLES: Record<SectionId, { title: string; sub: string; step: string }> = {
   business: { title: "About your business", sub: "This is the first thing customers see on your card and profile.", step: "Business" },
-  services: { title: "What you offer", sub: "Pick your category and the events you work at, so you show up in the right searches.", step: "Services" },
+  services: { title: "What you offer", sub: "Pick your service. We fill in the rest, so you only change what is wrong.", step: "Services" },
   location: { title: "Where you work", sub: "Customers filter vendors by city.", step: "Location" },
   pricing: { title: "Pricing and availability", sub: "Your starting price appears on cards. The final quote is always agreed with the customer.", step: "Pricing" },
   contact: { title: "Contact and payouts", sub: "Private. Customers never see this, and chat keeps deals on the platform.", step: "Payouts" },
@@ -32,21 +33,18 @@ interface Props {
 
 export function VendorProfileForm({ userId, profile, priv, save, sections, wizard, onFinished }: Props) {
   const { toast } = useToast();
-  const [f, setF] = useState<VendorProfileRow>(profile);
+  const [f, setF] = useState<VendorProfileRow>({
+    ...profile,
+    services: profile.services?.length ? profile.services : profile.category ? [profile.category] : [],
+  });
   const [p, setP] = useState<VendorPrivate>(priv);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState("");
-  const [otherService, setOtherService] = useState(() => {
-    const g = SERVICE_GROUPS.find((x) => x.id === profile.category_id);
-    return !!profile.category && !g?.services.includes(profile.category);
-  });
-
   const set = <K extends keyof VendorProfileRow>(k: K, v: VendorProfileRow[K]) => setF((x) => ({ ...x, [k]: v }));
   const setPv = <K extends keyof VendorPrivate>(k: K, v: VendorPrivate[K]) => setP((x) => ({ ...x, [k]: v }));
   const num = (v: string) => Math.max(0, Number(v.replace(/[^\d]/g, "")) || 0);
 
-  const group = SERVICE_GROUPS.find((g) => g.id === f.category_id) ?? SERVICE_GROUPS[0];
   const perGuest = /plate|person|head|guest/i.test(String(f.price_unit));
 
   const problem = (id: SectionId): string | null => {
@@ -55,8 +53,8 @@ export function VendorProfileForm({ userId, profile, priv, save, sections, wizar
       if (f.description.trim().length < 40) return "Write a description of at least 40 characters.";
     }
     if (id === "services") {
-      if (!f.category.trim()) return "Choose or type your service.";
-      if (!f.event_types.length) return "Pick at least one event type.";
+      if (!f.services.length) return "Choose your service.";
+      if (!f.category_ids.length) return "Pick at least one event type.";
     }
     if (id === "location") {
       if (!f.home_city) return "Choose your home city.";
@@ -149,35 +147,7 @@ export function VendorProfileForm({ userId, profile, priv, save, sections, wizar
         );
 
       case "services":
-        return (
-          <div className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Event group" required hint="Customers booking this kind of event are shown your profile.">
-                <Select value={f.category_id} onChange={(v) => { set("category_id", v); set("category", ""); setOtherService(false); }}
-                  options={SERVICE_GROUPS.map((g) => ({ value: g.id, label: g.label }))} />
-              </Field>
-              <Field label="Your service" required>
-                <Select value={otherService ? "__other" : f.category} placeholder="Choose a service"
-                  onChange={(v) => { if (v === "__other") { setOtherService(true); set("category", ""); } else { setOtherService(false); set("category", v); } }}
-                  options={[...group.services, { value: "__other", label: "Other (type your own)" }]} />
-              </Field>
-            </div>
-            {otherService && (
-              <Field label="Type your service"><Input value={f.category} onChange={(e) => set("category", e.target.value)} placeholder="e.g. Puppet show artist" /></Field>
-            )}
-            <Field label="Speciality line" hint="Optional. For example: Bridal, Full planning, Cinematic films.">
-              <Input value={f.subcategory} onChange={(e) => set("subcategory", e.target.value)} maxLength={50} />
-            </Field>
-            <Field label="Events you work at" required><ChipPicker options={EVENT_TYPE_OPTIONS} value={f.event_types} onChange={(v) => set("event_types", v)} /></Field>
-            <Field label="Specialties" hint="Shown on your profile and compare page. For example: Mandap Design, Drone Coverage.">
-              <ChipPicker value={f.specialties} onChange={(v) => set("specialties", v)} allowCustom max={8} />
-            </Field>
-            <Field label="Card tags" hint="Up to 3 short tags on your vendor card. For example: Luxury, Florals.">
-              <ChipPicker value={f.tags} onChange={(v) => set("tags", v)} allowCustom max={3} />
-            </Field>
-            <Field label="Languages you work in"><ChipPicker options={LANGUAGE_OPTIONS} value={f.languages} onChange={(v) => set("languages", v)} /></Field>
-          </div>
-        );
+        return <ServicesSection f={f} set={set} />;
 
       case "location":
         return (

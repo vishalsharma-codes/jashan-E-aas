@@ -111,25 +111,27 @@ export function NavDrawer() {
               open ? "visible translate-x-0" : "invisible -translate-x-full"
             }`}
           >
-            {/* header */}
-            <div className="flex h-20 flex-shrink-0 items-center justify-between border-b border-border/60 px-5">
-              <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gold to-gold-dark">
-                  <span className="font-display text-lg font-bold text-primary-foreground">ج</span>
-                </div>
-                <span className="font-display text-lg text-foreground">
-                  Jashan<span className="text-gold">-E-Aas</span>
-                </span>
-              </Link>
-              <button
-                type="button"
-                aria-label="Close menu"
-                onClick={() => setOpen(false)}
-                className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+           {/* header */}
+<div className="flex h-20 flex-shrink-0 items-center justify-between border-b border-border/60 px-5">
+  <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
+    <img
+      src="/logo-mark.webp"
+      alt="Jashan-E-Aas logo"
+      className="h-11 w-11 object-contain"
+    />
+    <span className="font-display text-lg text-foreground">
+      Jashan<span className="text-gold">-E-Aas</span>
+    </span>
+  </Link>
+  <button
+    type="button"
+    aria-label="Close menu"
+    onClick={() => setOpen(false)}
+    className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+  >
+    <X className="h-5 w-5" />
+  </button>
+</div>
 
             {/* links */}
             <nav className="flex-shrink-0 space-y-1 px-3 py-4">

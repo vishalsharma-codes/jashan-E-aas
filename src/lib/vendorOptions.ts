@@ -52,6 +52,9 @@ export interface VendorProfileRow {
   description: string;
   category: string;
   category_id: string;
+  category_ids: string[];   // CAT-01 ... CAT-20
+  services: string[];       // first one is the main service
+  sub_events: string[];  
   subcategory: string;
   event_types: string[];
   specialties: string[];
@@ -103,7 +106,9 @@ export const EMPTY_PRIVATE: VendorPrivate = {
 
 export const emptyProfile = (userId: string, name = ""): VendorProfileRow => ({
   user_id: userId, business_name: name, tagline: "", description: "",
-  category: "", category_id: "wedding", subcategory: "",
+  category: "", category_id: "wedding",
+  category_ids: [], services: [], sub_events: [],
+  subcategory: "",
   event_types: [], specialties: [], tags: [], languages: ["Hindi", "English"],
   home_city: "", cities: [], travels_for_destination: false,
   years_experience: 0, events_completed: 0, team_size: 1,
