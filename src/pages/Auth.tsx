@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { VerifyEmailCode } from "./VerifyEmailCode";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [step, setStep] = useState<"signup" | "verify">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [otp, setOtp] = useState("");
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"customer" | "vendor">("customer");
@@ -23,6 +23,7 @@ const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     try {
       if (isLogin) {
@@ -38,10 +39,10 @@ const Auth = () => {
         toast({ title: "Welcome back!", description: "You've been signed in." });
         navigate(profile?.role === "vendor" ? "/vendor-dashboard" : "/");
       } else {
-        const { error } = await supabase.auth.signInWithOtp({
+        const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
+          password,
           options: {
-            shouldCreateUser: true,
             data: {
               full_name: name,
               role: selectedRole,
@@ -50,12 +51,21 @@ const Auth = () => {
         });
         if (error) throw error;
 
-        setOtp("");
-        setStep("verify");
-        toast({
-          title: "Verification code sent",
-          description: `Check your inbox for the code sent to ${email.trim()}.`,
-        });
+        if (data.user?.identities?.length === 0) {
+          toast({
+            title: "This email is already registered. Please sign in.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (data.session) {
+          navigate("/", { replace: true });
+          return;
+        }
+
+        // signUp sends the confirmation email. Do not send another OTP here.
+        setPendingEmail(email.trim());
       }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "An error occurred";
@@ -63,41 +73,6 @@ const Auth = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!/^\d{6}$/.test(otp.trim())) {
-      toast({
-        title: "Enter a valid code",
-        description: "The verification code must contain 6 digits.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otp.trim(),
-        type: "email",
-      });
-      if (error) throw error;
-
-      toast({ title: "Email verified successfully!", description: "Welcome to Jashan-E-Aas." });
-      navigate(selectedRole === "vendor" ? "/vendor-dashboard" : "/");
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Verification failed";
-      toast({ title: "Invalid or expired code", description: msg, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const changeEmail = () => {
-    setStep("signup");
-    setOtp("");
   };
 
   return (
@@ -123,17 +98,17 @@ const Auth = () => {
           </Link>
 
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            {step === "verify" ? "Verify your email" : isLogin ? "Welcome back" : "Join Jashan-E-Aas"}
+            {pendingEmail ? "Verify your email" : isLogin ? "Welcome back" : "Join Jashan-E-Aas"}
           </h1>
           <p className="text-muted-foreground">
-            {step === "verify"
+            {pendingEmail
               ? "Enter the 6-digit code we sent to your email."
               : isLogin
                 ? "Sign in to your account"
                 : "Create your free account"}
           </p>
 
-          {!isLogin && step === "signup" && (
+          {!isLogin && !pendingEmail && (
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -166,37 +141,12 @@ const Auth = () => {
         </div>
 
         <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
-          {step === "verify" ? (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="text-center">
-                <Mail className="mx-auto mb-3 h-8 w-8 text-gold" />
-                <p className="text-sm text-muted-foreground">
-                  We sent a 6-digit verification code to{" "}
-                  <strong className="text-foreground">{email}</strong>.
-                </p>
-              </div>
-              <Input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="Enter 6-digit code"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                maxLength={6}
-                className="text-center text-2xl tracking-[0.5em]"
-                required
-              />
-              <Button
-                type="submit"
-                className="w-full bg-gold hover:bg-gold-dark text-background font-semibold h-12"
-                disabled={loading || otp.length !== 6}
-              >
-                {loading ? "Verifying..." : "Verify & Continue"}
-              </Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={changeEmail} disabled={loading}>
-                Change email
-              </Button>
-            </form>
+          {pendingEmail ? (
+            <VerifyEmailCode
+              email={pendingEmail}
+              onVerified={() => navigate("/", { replace: true })}
+              onChangeEmail={() => setPendingEmail(null)}
+            />
           ) : (
             <form onSubmit={handleAuth} className="space-y-4">
               {!isLogin && (
@@ -260,7 +210,7 @@ const Auth = () => {
             </form>
           )}
 
-          {step === "signup" && (
+          {!pendingEmail && (
             <div className="mt-6 text-center">
               <p className="text-muted-foreground text-sm">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
@@ -268,8 +218,6 @@ const Auth = () => {
                   type="button"
                   onClick={() => {
                     setIsLogin(!isLogin);
-                    setStep("signup");
-                    setOtp("");
                   }}
                   className="ml-1 text-gold hover:text-gold-light font-medium"
                 >
