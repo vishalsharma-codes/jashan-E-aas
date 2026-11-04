@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowUp, BadgeCheck, Briefcase, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight,
+  ArrowUp,Film,Play, BadgeCheck, Briefcase, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight,
   Clock, Heart, Images, MapPin, MessageCircle, Plane, Share2, ShieldCheck, Sparkles, Star, Users, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReviewForm } from "@/components/vendor/ReviewForm";
+import ContactVendorButton from "@/components/vendor/ContactVendorButton";
 import { gradientFor, initialsOf, inr, priceLabel, type VendorProfileRow } from "@/lib/vendorOptions";
 
 /** Customer-facing vendor profile. Tabs switch content; the profile itself does not scroll-spy. */
@@ -18,8 +19,16 @@ export interface BookingSelection {
 }
 
 interface Pkg { id: string; name: string; price: number; description: string; inclusions: string[]; is_popular: boolean }
-interface Shot { id: string; image_url: string; title: string; event_type: string }
-interface Photo { src: string; title: string }
+interface Shot {
+  id: string;
+  image_url: string;
+  title: string;
+  event_type: string;
+  media_type?: "image" | "reel";
+  video_url?: string | null;
+  poster_url?: string | null;
+}
+interface Photo { src: string; title: string; video?: string }
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -142,11 +151,18 @@ function Lightbox({ photos, index, setIndex, onClose }: { photos: Photo[]; index
       <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 sm:px-16">
         {n > 1 && <button type="button" aria-label="Previous" onClick={(e) => { e.stopPropagation(); go(-1); }} className="absolute left-2 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/25 sm:left-6"><ChevronLeft className="h-6 w-6" /></button>}
         <AnimatePresence mode="wait" custom={dir}>
-          <motion.img key={ph.src} src={ph.src} alt={ph.title} custom={dir} drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.5}
-            onDragEnd={(_, info) => { if (info.offset.x < -70) go(1); else if (info.offset.x > 70) go(-1); }}
-            onClick={(e) => e.stopPropagation()}
-            initial={{ opacity: 0, x: dir * 60, scale: 0.97 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: dir * -60 }}
-            transition={{ duration: 0.28, ease: EASE }} className="max-h-full max-w-full cursor-grab rounded-xl object-contain active:cursor-grabbing" />
+          {ph.video ? (
+            <motion.video key={ph.video} src={ph.video} poster={ph.src} controls autoPlay playsInline
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, x: dir * 60, scale: 0.97 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: dir * -60 }}
+              transition={{ duration: 0.28, ease: EASE }} className="max-h-full max-w-full rounded-xl object-contain" />
+          ) : (
+            <motion.img key={ph.src} src={ph.src} alt={ph.title} custom={dir} drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.5}
+              onDragEnd={(_, info) => { if (info.offset.x < -70) go(1); else if (info.offset.x > 70) go(-1); }}
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, x: dir * 60, scale: 0.97 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: dir * -60 }}
+              transition={{ duration: 0.28, ease: EASE }} className="max-h-full max-w-full cursor-grab rounded-xl object-contain active:cursor-grabbing" />
+          )}
         </AnimatePresence>
         {n > 1 && <button type="button" aria-label="Next" onClick={(e) => { e.stopPropagation(); go(1); }} className="absolute right-2 z-10 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/25 sm:right-6"><ChevronRight className="h-6 w-6" /></button>}
       </div>
@@ -188,6 +204,7 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   const [hoverHero, setHoverHero] = useState(false);
   const [filter, setFilter] = useState("All");
   const [showAll, setShowAll] = useState(false);
+  const [kind, setKind] = useState<"all" | "reels" | "photos">("all");
   const [lb, setLb] = useState<{ list: Photo[]; i: number } | null>(null);
   const [pkgId, setPkgId] = useState<string | null>(null);
   const [date, setDate] = useState("");
@@ -197,7 +214,7 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   const [checked, setChecked] = useState(false);
   const [moreAbout, setMoreAbout] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [active, setActive] = useState<"about" | "packages" | "portfolio" | "services" | "areas" | "availability" | "reviews" | "faq">("about");
+  const [active, setActive] = useState<"portfolio" | "packages" | "about" | "services" | "areas" | "availability" | "reviews" | "faq">("portfolio");
   const [toast, setToast] = useState("");
 
 
@@ -209,13 +226,13 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
     void (async () => {
       const [a, b, c, d] = await Promise.all([
         supabase.from("vendor_packages").select("id,name,price,description,inclusions,is_popular").eq("vendor_id", p.user_id).order("price"),
-        supabase.from("vendor_portfolio").select("id,image_url,title,event_type").eq("vendor_id", p.user_id).order("created_at", { ascending: false }),
+        supabase.from("vendor_portfolio").select("id,image_url,title,event_type,media_type,video_url,poster_url").eq("vendor_id", p.user_id).order("created_at", { ascending: false }),
         supabase.from("vendor_blocked_dates").select("day").eq("vendor_id", p.user_id),
         reviewsProp.length ? Promise.resolve({ data: null }) : supabase.from("vendor_reviews").select("*").eq("vendor_id", p.user_id).order("created_at", { ascending: false }).limit(20),
       ]);
       if (off) return;
       setPkgs((a.data ?? []).map((k: any) => ({ ...k, inclusions: k.inclusions ?? [] })));
-      setShots(b.data ?? []);
+      setShots((b.data ?? []) as unknown as Shot[]);
       setBlocked(new Set((c.data ?? []).map((r: any) => r.day)));
       // vendor_reviews column names differ between projects, so map defensively
       setFetchedReviews(((d as any).data ?? []).map((r: any, i: number) => ({
@@ -238,13 +255,13 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   }, [lb]);
 
   const tabs = [
-    { id: "about", label: "About" },
-    { id: "packages", label: "Packages" },
     { id: "portfolio", label: "Portfolio" },
-    { id: "services", label: "Services" },
-    { id: "areas", label: "Areas" },
-    { id: "availability", label: "Availability" },
+    { id: "packages", label: "Packages" },
     { id: "reviews", label: "Reviews" },
+    { id: "about", label: "About" },
+    { id: "services", label: "Services" },
+    { id: "availability", label: "Availability" },
+    { id: "areas", label: "Areas" },
     { id: "faq", label: "FAQ" },
   ] as const;
 
@@ -255,10 +272,22 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
   const tags = (((p as any).tags ?? []) as string[]).slice(0, 6);
   const rated = p.reviews_count > 0;
   const eventTags = useMemo(() => Array.from(new Set(shots.map((s) => s.event_type).filter(Boolean))), [shots]);
-  const shown = filter === "All" ? shots : shots.filter((s) => s.event_type === filter);
-  const visible = showAll ? shown : shown.slice(0, 9);
+  const isReel = (s: Shot) => s.media_type === "reel" || !!s.video_url;
+  const reelCount = shots.filter(isReel).length;
+  const photoCount = shots.length - reelCount;
+  const shown = useMemo(
+    () => shots.filter((s) =>
+      (kind === "all" || (kind === "reels") === isReel(s)) &&
+      (filter === "All" || s.event_type === filter)),
+    [shots, kind, filter]
+  );
+  const featured = shown[0];
+  const rest = shown.slice(1);
+  const visible = showAll ? rest : rest.slice(0, 8);
+  const toPhoto = (x: Shot): Photo => ({ src: x.poster_url || x.image_url, title: x.title || x.event_type, video: x.video_url ?? undefined });
+  const openLb = (i: number) => setLb({ list: shown.map(toPhoto), i });
   const heroPhotos: Photo[] = useMemo(() => {
-    const all: Photo[] = [...covers.map((c) => ({ src: c, title: `${p.business_name} cover` })), ...shots.map((s) => ({ src: s.image_url, title: s.title || s.event_type }))];
+    const all: Photo[] = [...covers.map((c) => ({ src: c, title: `${p.business_name} cover` })), ...shots.map((s) => ({ src: s.poster_url || s.image_url, title: s.title || s.event_type, video: s.video_url ?? undefined }))];
     return all.filter((ph, i) => all.findIndex((x) => x.src === ph.src) === i);
   }, [covers, shots, p.business_name]);
   const hasServices = (p.event_types?.length ?? 0) > 0 || (p.specialties?.length ?? 0) > 0 || (p.languages?.length ?? 0) > 0;
@@ -377,6 +406,12 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
             </motion.p>
           )}
         </AnimatePresence>
+
+        <ContactVendorButton
+          vendorId={p.user_id}
+          vendorName={p.business_name}
+          className="mt-3 w-full"
+        />
       </div>
 
       <ul className="mt-4 space-y-2 text-xs text-[#4A3440]/75">
@@ -414,6 +449,11 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
             </button>
           )}
           <button type="button" onClick={share} aria-label="Share" className="grid h-9 w-9 place-items-center rounded-full border border-white/30 bg-black/40 text-white backdrop-blur transition hover:bg-black/60"><Share2 className="h-4 w-4" /></button>
+          <ContactVendorButton
+            vendorId={p.user_id}
+            vendorName={p.business_name}
+            className="w-44"
+          />
           {onToggleSaved && (
             <button type="button" onClick={onToggleSaved} aria-label={saved ? "Remove from shortlist" : "Shortlist"} className="grid h-9 w-9 place-items-center rounded-full border border-white/30 bg-black/40 text-white backdrop-blur transition hover:bg-black/60">
               <motion.span key={String(saved)} initial={{ scale: 0.6 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 14 }}>
@@ -488,17 +528,153 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
           {/* mobile booking card */}
           
 
-          {/* about */}
-          <section style={{ display: active === "about" ? "block" : "none" }}>
-            <SectionHead eyebrow="WHO THEY ARE" title={`About ${p.business_name}`} />
-            <Reveal>
-              <p className={`max-w-prose whitespace-pre-line leading-relaxed text-[#4A3440] ${!moreAbout && p.description.length > 260 ? "line-clamp-5" : ""}`}>{p.description}</p>
-              {p.description.length > 260 && (
-                <button type="button" onClick={() => setMoreAbout((v) => !v)} className="mt-2 text-sm font-semibold text-[#C44A68] hover:text-[#A8385A]">{moreAbout ? "Show less" : "Read more"}</button>
+           {/* portfolio */}
+<section style={{ display: active === "portfolio" ? "block" : "none" }}>
+  <SectionHead eyebrow="THEIR WORK" title={`Portfolio (${shots.length})`} />
+
+  {shots.length === 0 ? (
+    <div className="rounded-2xl border border-dashed border-[#C44A68]/30 bg-[#FFF1EC] p-10 text-center text-sm text-[#4A3440]/70">
+      No work added yet.
+    </div>
+  ) : (
+    <>
+      {/* All / Reels / Photos toggle (only when both types exist) */}
+      {reelCount > 0 && photoCount > 0 && (
+        <div className="mb-3 inline-flex rounded-full bg-[#F9DDE3] p-1">
+          {([
+            ["all", "All", shots.length, null],
+            ["reels", "Reels", reelCount, Film],
+            ["photos", "Photos", photoCount, Images],
+          ] as const).map(([k, label, n, Icon]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => { setKind(k); setShowAll(false); }}
+              className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                kind === k ? "bg-white text-[#C44A68] shadow-sm" : "text-[#4A3440]/70 hover:text-[#4A3440]"
+              }`}
+            >
+              {Icon && <Icon className="h-3.5 w-3.5" />}
+              {label} <span className="opacity-60">{n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* event type filter */}
+      {eventTags.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {["All", ...eventTags].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { setFilter(t); setShowAll(false); }}
+              className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
+                filter === t
+                  ? "border-[#C44A68] bg-[#C44A68] text-white"
+                  : "border-[#C44A68]/20 bg-[#FFF1EC] text-[#4A3440] hover:border-[#C44A68]/60"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {shown.length === 0 && (
+        <p className="py-10 text-center text-sm text-[#4A3440]/60">Nothing here for this filter.</p>
+      )}
+
+      {/* featured: first item, big */}
+      {featured && (
+        <motion.button
+          type="button"
+          onClick={() => openLb(0)}
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.45, ease: EASE }}
+          className="group relative mb-2 block aspect-[16/10] w-full overflow-hidden rounded-3xl sm:aspect-video"
+        >
+          <img
+            src={featured.poster_url || featured.image_url}
+            alt={featured.title}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+          <span className="absolute inset-0 bg-gradient-to-t from-[#2a0a1a]/70 via-transparent to-transparent" />
+          {isReel(featured) && (
+            <span className="absolute left-1/2 top-1/2 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/90 shadow-lg">
+              <Play className="ml-0.5 h-6 w-6 fill-[#C44A68] text-[#C44A68]" />
+            </span>
+          )}
+          <span className="absolute bottom-3 left-3 flex items-center gap-2 text-white">
+            <span className="rounded-full bg-[#C44A68] px-2.5 py-0.5 text-[11px] font-semibold">Featured</span>
+            {featured.event_type && (
+              <span className="rounded-full bg-black/50 px-2.5 py-0.5 text-[11px] backdrop-blur">{featured.event_type}</span>
+            )}
+          </span>
+        </motion.button>
+      )}
+
+      {/* mixed grid: reels are tall (2 rows), photos are normal */}
+      <div className="grid auto-rows-[120px] grid-cols-2 gap-2 [grid-auto-flow:dense] sm:auto-rows-[160px] sm:grid-cols-3">
+        {visible.map((s, i) => {
+          const reel = isReel(s);
+          const big = !reel && kind !== "reels" && i % 6 === 0;
+          return (
+            <motion.button
+              key={s.id}
+              layout
+              type="button"
+              initial={{ opacity: 0, scale: 0.94 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, margin: "0px 0px -40px 0px" }}
+              transition={{ duration: 0.45, delay: (i % 3) * 0.05, ease: EASE }}
+              onClick={() => openLb(i + 1)}   /* +1 because featured is index 0 */
+              className={`group relative overflow-hidden rounded-2xl ${
+                reel ? "row-span-2" : big ? "col-span-2 row-span-2" : ""
+              }`}
+            >
+              <img
+                src={reel ? s.poster_url || s.image_url : s.image_url}
+                alt={s.title}
+                loading="lazy"
+                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+              />
+              <span className="absolute inset-0 bg-gradient-to-t from-[#2a0a1a]/70 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+              {reel && (
+                <>
+                  <span className="absolute left-1/2 top-1/2 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/85 shadow-md">
+                    <Play className="ml-0.5 h-5 w-5 fill-[#C44A68] text-[#C44A68]" />
+                  </span>
+                  <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
+                    <Film className="h-3 w-3" /> Reel
+                  </span>
+                </>
               )}
-              {tags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{tags.map((t) => <Chip key={t}>{t}</Chip>)}</div>}
-            </Reveal>
-          </section>
+              {s.event_type && (
+                <span className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2.5 py-0.5 text-[11px] text-white backdrop-blur">
+                  {s.event_type}
+                </span>
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      {rest.length > 8 && (
+        <div className="mt-5 text-center">
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="rounded-full border border-[#C44A68]/40 px-6 py-2 text-sm font-semibold text-[#C44A68] transition hover:bg-[#C44A68] hover:text-white"
+          >
+            {showAll ? "Show fewer" : `View ${rest.length - 8} more`}
+          </button>
+        </div>
+      )}
+    </>
+  )}
+</section>
 
           {/* packages */}
           {pkgs.length > 0 && (
@@ -525,89 +701,6 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
               </div>
             </section>
           )}
-
-          {/* portfolio */}
-          {shots.length > 0 && (
-            <section style={{ display: active === "portfolio" ? "block" : "none" }}>
-              <SectionHead eyebrow="THEIR WORK" title={`Portfolio (${shots.length})`} />
-              {eventTags.length > 1 && (
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {["All", ...eventTags].map((t) => (
-                    <button key={t} type="button" onClick={() => { setFilter(t); setShowAll(false); }}
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${filter === t ? "border-[#C44A68] bg-[#C44A68] text-white" : "border-[#C44A68]/20 bg-[#FFF1EC] text-[#4A3440] hover:border-[#C44A68]/60"}`}>{t}</button>
-                  ))}
-                </div>
-              )}
-              <div className="grid auto-rows-[120px] grid-cols-2 gap-2 [grid-auto-flow:dense] sm:auto-rows-[160px] sm:grid-cols-3">
-                {visible.map((s, i) => (
-                  <motion.button key={s.id} layout type="button" initial={{ opacity: 0, scale: 0.94 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, margin: "0px 0px -40px 0px" }}
-                    transition={{ duration: 0.45, delay: (i % 3) * 0.05, ease: EASE }}
-                    onClick={() => setLb({ list: shown.map((x) => ({ src: x.image_url, title: x.title || x.event_type })), i })}
-                    className={`group relative overflow-hidden rounded-2xl ${i % 7 === 0 ? "col-span-2 row-span-2" : ""}`}>
-                    <img src={s.image_url} alt={s.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    <span className="absolute inset-0 bg-gradient-to-t from-[#2a0a1a]/70 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    {s.event_type && <span className="absolute bottom-2 left-2 rounded-full bg-black/50 px-2.5 py-0.5 text-[11px] text-white backdrop-blur">{s.event_type}</span>}
-                  </motion.button>
-                ))}
-              </div>
-              {shown.length > 9 && (
-                <div className="mt-5 text-center">
-                  <button type="button" onClick={() => setShowAll((v) => !v)} className="rounded-full border border-[#C44A68]/40 px-6 py-2 text-sm font-semibold text-[#C44A68] transition hover:bg-[#C44A68] hover:text-white">
-                    {showAll ? "Show fewer" : `View ${shown.length - 9} more`}
-                  </button>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* services */}
-          {hasServices && (
-            <section style={{ display: active === "services" ? "block" : "none" }}>
-              <SectionHead eyebrow="WHAT THEY DO" title="Services & specialities" />
-              <div className="space-y-6">
-                {[
-                  { label: "Events they cover", items: p.event_types ?? [] },
-                  { label: "Specialties", items: tidy(p.specialties ?? []) },
-                  { label: "Languages", items: p.languages ?? [] },
-                ].filter((g) => g.items.length > 0).map((g, gi) => (
-                  <Reveal key={g.label} delay={gi * 0.08}>
-                    <p className="mb-2 text-sm font-semibold text-[#4A3440]/70">{g.label}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {g.items.map((t, i) => (
-                        <motion.span key={t} initial={{ opacity: 0, scale: 0.85 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.035, duration: 0.35 }}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#C44A68]/15 bg-[#F9DDE3] px-3 py-1.5 text-xs font-medium text-[#4A3440]"><Check className="h-3 w-3 text-[#C44A68]" />{t}</motion.span>
-                      ))}
-                    </div>
-                  </Reveal>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* areas */}
-          <section style={{ display: active === "areas" ? "block" : "none" }}>
-            <SectionHead eyebrow="WHERE THEY WORK" title="Service areas" />
-            <Reveal>
-              <p className="mb-3 text-sm text-[#4A3440]/70">Based in <b className="text-[#4A1230]">{home}</b></p>
-              <div className="flex flex-wrap gap-2">{cities.map((c) => <Chip key={c}>{c}</Chip>)}</div>
-              {p.travels_for_destination && <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#C44A68]/10 px-4 py-2 text-sm font-medium text-[#A8385A]"><Plane className="h-4 w-4" />Also travels for destination events</p>}
-              {home && (
-                <div className="mt-5 overflow-hidden rounded-3xl border border-[#C44A68]/15">
-                  <iframe title={`Map of ${home}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-64 w-full sm:h-72"
-                    src={`https://www.google.com/maps?q=${encodeURIComponent(home)}&output=embed`} />
-                </div>
-              )}
-            </Reveal>
-          </section>
-
-          {/* availability */}
-          <section style={{ display: active === "availability" ? "block" : "none" }}>
-            <SectionHead eyebrow="PLAN YOUR DATE" title="Availability" />
-            <Reveal>
-              <Calendar blocked={blocked} minNotice={p.min_notice_days || 0} value={date} onPick={(d) => { setDate(d); setChecked(false); flash(`${longDate(d)} selected`); }} />
-              <p className="mt-3 text-xs text-[#4A3440]/60">Tap a free day to use it in the booking box.</p>
-            </Reveal>
-          </section>
 
           {/* reviews */}
           <section style={{ display: active === "reviews" ? "block" : "none" }}>
@@ -665,6 +758,68 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
               </Reveal>
             )}
           </section>
+
+          {/* about */}
+          <section style={{ display: active === "about" ? "block" : "none" }}>
+            <SectionHead eyebrow="WHO THEY ARE" title={`About ${p.business_name}`} />
+            <Reveal>
+              <p className={`max-w-prose whitespace-pre-line leading-relaxed text-[#4A3440] ${!moreAbout && p.description.length > 260 ? "line-clamp-5" : ""}`}>{p.description}</p>
+              {p.description.length > 260 && (
+                <button type="button" onClick={() => setMoreAbout((v) => !v)} className="mt-2 text-sm font-semibold text-[#C44A68] hover:text-[#A8385A]">{moreAbout ? "Show less" : "Read more"}</button>
+              )}
+              {tags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{tags.map((t) => <Chip key={t}>{t}</Chip>)}</div>}
+            </Reveal>
+          </section>
+
+          {/* services */}
+          {hasServices && (
+            <section style={{ display: active === "services" ? "block" : "none" }}>
+              <SectionHead eyebrow="WHAT THEY DO" title="Services & specialities" />
+              <div className="space-y-6">
+                {[
+                  { label: "Events they cover", items: p.event_types ?? [] },
+                  { label: "Specialties", items: tidy(p.specialties ?? []) },
+                  { label: "Languages", items: p.languages ?? [] },
+                ].filter((g) => g.items.length > 0).map((g, gi) => (
+                  <Reveal key={g.label} delay={gi * 0.08}>
+                    <p className="mb-2 text-sm font-semibold text-[#4A3440]/70">{g.label}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {g.items.map((t, i) => (
+                        <motion.span key={t} initial={{ opacity: 0, scale: 0.85 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.035, duration: 0.35 }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[#C44A68]/15 bg-[#F9DDE3] px-3 py-1.5 text-xs font-medium text-[#4A3440]"><Check className="h-3 w-3 text-[#C44A68]" />{t}</motion.span>
+                      ))}
+                    </div>
+                  </Reveal>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* availability */}
+          <section style={{ display: active === "availability" ? "block" : "none" }}>
+            <SectionHead eyebrow="PLAN YOUR DATE" title="Availability" />
+            <Reveal>
+              <Calendar blocked={blocked} minNotice={p.min_notice_days || 0} value={date} onPick={(d) => { setDate(d); setChecked(false); flash(`${longDate(d)} selected`); }} />
+              <p className="mt-3 text-xs text-[#4A3440]/60">Tap a free day to use it in the booking box.</p>
+            </Reveal>
+          </section>
+
+          {/* areas */}
+          <section style={{ display: active === "areas" ? "block" : "none" }}>
+            <SectionHead eyebrow="WHERE THEY WORK" title="Service areas" />
+            <Reveal>
+              <p className="mb-3 text-sm text-[#4A3440]/70">Based in <b className="text-[#4A1230]">{home}</b></p>
+              <div className="flex flex-wrap gap-2">{cities.map((c) => <Chip key={c}>{c}</Chip>)}</div>
+              {p.travels_for_destination && <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#C44A68]/10 px-4 py-2 text-sm font-medium text-[#A8385A]"><Plane className="h-4 w-4" />Also travels for destination events</p>}
+              {home && (
+                <div className="mt-5 overflow-hidden rounded-3xl border border-[#C44A68]/15">
+                  <iframe title={`Map of ${home}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-64 w-full sm:h-72"
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(home)}&output=embed`} />
+                </div>
+              )}
+            </Reveal>
+          </section>
+
 
           {/* faq */}
           <section style={{ display: active === "faq" ? "block" : "none" }}>
