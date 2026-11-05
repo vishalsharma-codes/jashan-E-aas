@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
+import heroBg from "@/assets/homepage/hero-bg.jpg";
 import { Star, Calendar, Search, MapPin, ChevronDown, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HeroVendorMatches } from "@/components/HeroVendorMatches";
@@ -43,13 +44,6 @@ const TRIGGER_CLASS =
 const ITEM_CLASS =
   "w-full text-left px-4 py-2 text-sm text-foreground hover:bg-gold/10 hover:text-gold transition-colors";
 
-// Soft drifting colour glows behind the hero (Blush Peach)
-const ORBS = [
-  { color: "255,200,212", left: "12%", top: "22%", size: 520, dur: 18 },
-  { color: "255,222,196", left: "86%", top: "18%", size: 460, dur: 22 },
-  { color: "246,205,236", left: "55%", top: "88%", size: 560, dur: 26 },
-];
-
 export const Hero = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
@@ -69,19 +63,6 @@ export const Hero = () => {
     setGuestsOpen(false);
     setBudgetOpen(false);
   };
-
-  // Sparkles: positions are created once (they used to jump every time a dropdown opened)
-  const sparkles = useMemo(
-    () =>
-      Array.from({ length: 22 }, () => ({
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        dur: 3 + Math.random() * 3,
-        delay: Math.random() * 2,
-        size: Math.random() > 0.7 ? 6 : 4,
-      })),
-    []
-  );
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -115,39 +96,17 @@ export const Hero = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Soft cream base + drifting pastel glows (replaces the old cream + dark overlay) */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#FFF6F2] via-[#FFF1EC] to-[#FFE9E6] pointer-events-none" aria-hidden="true" />
-
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        {ORBS.map((o, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              left: o.left,
-              top: o.top,
-              width: o.size,
-              height: o.size,
-              transform: "translate(-50%, -50%)",
-              background: `radial-gradient(circle, rgba(${o.color},0.75) 0%, rgba(${o.color},0.28) 55%, transparent 75%)`,
-              filter: "blur(60px)",
-            }}
-            animate={{ x: [0, 40, -20, 0], y: [0, -30, 25, 0], scale: [1, 1.1, 0.95, 1] }}
-            transition={{ duration: o.dur, repeat: Infinity, ease: "easeInOut" }}
-          />
-        ))}
-
-        {/* little twinkles */}
-        {sparkles.map((s, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full bg-gold/50"
-            style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size }}
-            animate={{ y: [0, -14, 0], opacity: [0.2, 0.9, 0.2] }}
-            transition={{ duration: s.dur, repeat: Infinity, delay: s.delay }}
-          />
-        ))}
-      </div>
+      <div
+        className="absolute inset-0 pointer-events-none"
+        aria-hidden="true"
+        style={{
+          backgroundImage: `url(${heroBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-[#FFF6F2] pointer-events-none" aria-hidden="true" />
 
       <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center px-4 text-center">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>

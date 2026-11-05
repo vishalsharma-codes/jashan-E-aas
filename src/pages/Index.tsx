@@ -160,7 +160,15 @@ export default function Index() {
 
   const topVendors = useMemo(() => topRatedOf(liveVendors, 8), [liveVendors]);
   const [demoPayOpen, setDemoPayOpen] = useState(false);
+  const [pastHero, setPastHero] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    const onScroll = () => setPastHero(window.scrollY > window.innerHeight * 0.8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const activeRef = useRef(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -257,11 +265,7 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Faint logo overlay across the WHOLE page (above sections, ignores clicks) */}
-      <LogoBackground
-  variant="depth"
-  opacity={0.14}
-  className="!z-30"
-/>
+      {pastHero && <LogoBackground variant="depth" opacity={0.14} className="!z-30" />}
       <Navbar />
 
       <main>
