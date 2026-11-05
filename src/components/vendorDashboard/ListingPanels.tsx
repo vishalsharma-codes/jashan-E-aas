@@ -6,12 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EVENT_TYPE_OPTIONS, inr } from "@/lib/vendorOptions";
 import { Card, Empty, Field, FilePick, Select, TextArea, uploadTo } from "./Bits";
-
 /* ───────── Packages ───────── */
-
 interface Pkg { id: string; name: string; price: number; description: string; inclusions: string[]; is_popular: boolean }
 const BLANK = { name: "", price: "", description: "", inclusions: "", is_popular: false };
-
 export function PackagesPanel({ userId }: { userId: string }) {
   const { toast } = useToast();
   const [rows, setRows] = useState<Pkg[]>([]);
@@ -19,19 +16,16 @@ export function PackagesPanel({ userId }: { userId: string }) {
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState(BLANK);
   const [saving, setSaving] = useState(false);
-
   const load = useCallback(async () => {
     const { data } = await supabase.from("vendor_packages").select("*").eq("vendor_id", userId).order("price");
     setRows(data ?? []);
     setLoading(false);
   }, [userId]);
   useEffect(() => { void load(); }, [load]);
-
   const open = (p?: Pkg) => {
     setEditing(p ? p.id : "new");
     setForm(p ? { name: p.name, price: String(p.price), description: p.description, inclusions: p.inclusions.join("\n"), is_popular: p.is_popular } : BLANK);
   };
-
   const submit = async () => {
     if (!form.name.trim() || !Number(form.price)) { toast({ title: "Add a package name and price.", variant: "destructive" }); return; }
     setSaving(true);
@@ -47,14 +41,12 @@ export function PackagesPanel({ userId }: { userId: string }) {
     setEditing(null);
     await load();
   };
-
   const remove = async (id: string) => {
     if (!window.confirm("Delete this package?")) return;
     const { error } = await supabase.from("vendor_packages").delete().eq("id", id);
     if (error) toast({ title: "Could not delete", description: error.message, variant: "destructive" });
     else await load();
   };
-
   return (
     <div className="space-y-5">
       <Card title="Your packages" subtitle="Ready-made options help customers choose faster."
@@ -81,7 +73,6 @@ export function PackagesPanel({ userId }: { userId: string }) {
           </div>
         )}
       </Card>
-
       {editing && (
         <Card title={editing === "new" ? "New package" : "Edit package"} action={<button type="button" aria-label="Close" onClick={() => setEditing(null)}><X className="h-5 w-5" /></button>}>
           <div className="space-y-4">
@@ -102,25 +93,21 @@ export function PackagesPanel({ userId }: { userId: string }) {
     </div>
   );
 }
-
 /* ───────── Portfolio ───────── */
-
-interface Shot { id: string; image_url: string; storage_path: string; title: string; event_type: string }
-
+interface Shot { id: string; image_url: string; storage_path: string; title: string; event_type: string; is_featured?: boolean }
 export function PortfolioPanel({ userId }: { userId: string }) {
   const { toast } = useToast();
   const [rows, setRows] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [eventType, setEventType] = useState("");
-
+  const [featuredBusy, setFeaturedBusy] = useState<string | null>(null);
   const load = useCallback(async () => {
     const { data } = await supabase.from("vendor_portfolio").select("*").eq("vendor_id", userId).order("created_at", { ascending: false });
     setRows(data ?? []);
     setLoading(false);
   }, [userId]);
   useEffect(() => { void load(); }, [load]);
-
   const add = async (files: File[]) => {
     const room = 40 - rows.length;
     if (room <= 0) { toast({ title: "You can keep up to 40 photos.", variant: "destructive" }); return; }
@@ -140,14 +127,23 @@ export function PortfolioPanel({ userId }: { userId: string }) {
     }
     setBusy(false);
   };
-
+  const setFeatured = async (id: string) => {
+    setFeaturedBusy(id);
+    const { error } = await supabase.rpc("set_featured_portfolio", { item_id: id });
+    if (error) {
+      toast({ title: "Could not feature photo", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Featured photo updated", description: "This photo will lead your portfolio." });
+      await load();
+    }
+    setFeaturedBusy(null);
+  };
   const remove = async (s: Shot) => {
     const { error } = await supabase.from("vendor_portfolio").delete().eq("id", s.id);
     if (error) { toast({ title: "Could not delete", description: error.message, variant: "destructive" }); return; }
     if (s.storage_path) await supabase.storage.from("vendor-media").remove([s.storage_path]);
     await load();
   };
-
   return (
     <Card title="Portfolio photos" subtitle={`${rows.length} of 40 photos. Four or more are needed before you can go live.`}
       action={
@@ -164,10 +160,18 @@ export function PortfolioPanel({ userId }: { userId: string }) {
             <figure key={s.id} className="group relative overflow-hidden rounded-xl border border-border">
               <img src={s.image_url} alt={s.title} loading="lazy" className="aspect-square w-full object-cover" />
               {s.event_type && <figcaption className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-6 text-xs text-white">{s.event_type}</figcaption>}
-              <button type="button" aria-label={`Delete ${s.title}`} onClick={() => remove(s)}
-                className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white opacity-100 transition hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="absolute left-2 right-2 top-2 flex items-center justify-between gap-2">
+                <Button type="button" size="sm" variant={s.is_featured ? "default" : "secondary"}
+                  disabled={featuredBusy === s.id || !!s.is_featured} onClick={() => setFeatured(s.id)}
+                  className={s.is_featured ? "h-8 bg-gold text-background hover:bg-gold-dark" : "h-8 bg-black/65 text-white hover:bg-black/80"}>
+                  {featuredBusy === s.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Star className="mr-1 h-3.5 w-3.5" />}
+                  {s.is_featured ? "Featured" : "Set featured"}
+                </Button>
+                <button type="button" aria-label={`Delete ${s.title}`} onClick={() => remove(s)}
+                  className="grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white transition hover:bg-red-600">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </figure>
           ))}
         </div>
@@ -175,12 +179,9 @@ export function PortfolioPanel({ userId }: { userId: string }) {
     </Card>
   );
 }
-
 /* ───────── Calendar ───────── */
-
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
 export function CalendarPanel({ userId, minNotice }: { userId: string; minNotice: number }) {
   const { toast } = useToast();
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
@@ -189,7 +190,6 @@ export function CalendarPanel({ userId, minNotice }: { userId: string; minNotice
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const today = iso(new Date());
-
   const load = useCallback(async () => {
     const { data } = await supabase.from("vendor_blocked_dates").select("day, source, reason").eq("vendor_id", userId);
     const m: Record<string, { source: string; reason: string }> = {};
@@ -197,7 +197,6 @@ export function CalendarPanel({ userId, minNotice }: { userId: string; minNotice
     setRows(m);
   }, [userId]);
   useEffect(() => { void load(); }, [load]);
-
   const toggle = async (day: string) => {
     const cur = rows[day];
     if (cur?.source === "booking") { toast({ title: "This day is booked", description: cur.reason }); return; }
@@ -209,7 +208,6 @@ export function CalendarPanel({ userId, minNotice }: { userId: string; minNotice
     await load();
     setBusy("");
   };
-
   const blockRange = async () => {
     if (!from || !to || to < from) { toast({ title: "Pick a start date and an end date after it.", variant: "destructive" }); return; }
     const days: string[] = [];
@@ -223,12 +221,10 @@ export function CalendarPanel({ userId, minNotice }: { userId: string; minNotice
     else { toast({ title: `${days.length} day${days.length > 1 ? "s" : ""} blocked` }); setFrom(""); setTo(""); }
     await load();
   };
-
   const y = month.getFullYear(), m = month.getMonth();
   const lead = new Date(y, m, 1).getDay();
   const count = new Date(y, m + 1, 0).getDate();
   const cells = [...Array(lead).fill(null), ...Array.from({ length: count }, (_, i) => iso(new Date(y, m, i + 1)))];
-
   return (
     <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
       <Card title="Availability" subtitle="Tap a day to block or open it. Customers only see you for days you are free.">
@@ -259,7 +255,6 @@ export function CalendarPanel({ userId, minNotice }: { userId: string; minNotice
           <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded border border-border" />Free</span>
         </div>
       </Card>
-
       <div className="space-y-5">
         <Card title="Block a range" subtitle="Holiday, family function, or a long job elsewhere.">
           <div className="space-y-3">

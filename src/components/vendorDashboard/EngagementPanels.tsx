@@ -14,7 +14,7 @@ import { Card, Empty, Pill, inputCls } from "./Bits";
 
 /* ───────── My Jhalaks: upload, see, delete ───────── */
 
-interface MyReel { id: string; video_path: string; caption: string | null; status: string; created_at: string; url: string; likes: number; comments: number }
+interface MyReel { id: string; video_path: string; caption: string | null; status: string; created_at: string; url: string; likes: number; comments: number; is_featured?: boolean }
 
 export function ReelsPanel({ userId }: { userId: string }) {
   const { toast } = useToast();
@@ -22,9 +22,10 @@ export function ReelsPanel({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [playing, setPlaying] = useState<MyReel | null>(null);
+  const [featuredBusy, setFeaturedBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("reels").select("id, video_path, caption, status, created_at")
+    const { data, error } = await supabase.from("reels").select("id, video_path, caption, status, created_at, is_featured")
       .eq("user_id", userId).order("created_at", { ascending: false });
     if (error) { toast({ title: "Could not load your jhalaks", description: error.message, variant: "destructive" }); setLoading(false); return; }
     const list = data ?? [];
@@ -45,6 +46,18 @@ export function ReelsPanel({ userId }: { userId: string }) {
     setLoading(false);
   }, [userId, toast]);
   useEffect(() => { void load(); }, [load]);
+
+  const setFeatured = async (id: string) => {
+    setFeaturedBusy(id);
+    const { error } = await supabase.rpc("set_featured_reel", { item_id: id });
+    if (error) {
+      toast({ title: "Could not feature Jhalak", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Featured Jhalak updated", description: "This Jhalak will lead your reels." });
+      await load();
+    }
+    setFeaturedBusy(null);
+  };
 
   const remove = async (r: MyReel) => {
     if (!window.confirm("Delete this jhalak for good?")) return;
@@ -88,6 +101,12 @@ export function ReelsPanel({ userId }: { userId: string }) {
                       </span>
                       <button type="button" onClick={() => remove(r)} aria-label="Delete jhalak" className="text-muted-foreground hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
                     </div>
+                    <Button type="button" size="sm" variant={r.is_featured ? "default" : "outline"}
+                      disabled={featuredBusy === r.id || !!r.is_featured} onClick={() => setFeatured(r.id)}
+                      className={r.is_featured ? "w-full bg-gold text-background hover:bg-gold-dark" : "w-full"}>
+                      {featuredBusy === r.id ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Star className="mr-1.5 h-4 w-4" />}
+                      {r.is_featured ? "Featured Jhalak" : "Set as featured"}
+                    </Button>
                   </div>
                 </article>
               ))}

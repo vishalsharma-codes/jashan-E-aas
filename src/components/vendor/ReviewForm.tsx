@@ -3,12 +3,8 @@ import { Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { PublicReview } from "@/components/vendor/VendorProfileView";
 
-// Change this to your real login route.
 const LOGIN_PATH = "/auth";
-
 const LABELS = ["", "Poor", "Fair", "Good", "Very good", "Excellent"];
-
-// vendor_reviews may not be in your generated Supabase types yet, so use an untyped client here.
 const db = supabase as any;
 
 export function ReviewForm({ vendorId, vendorName, onSaved }: {
@@ -16,7 +12,7 @@ export function ReviewForm({ vendorId, vendorName, onSaved }: {
   vendorName: string;
   onSaved: (review: PublicReview) => void;
 }) {
-  const [userId, setUserId] = useState<string | null | undefined>(undefined); // undefined = still checking
+  const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [authorName, setAuthorName] = useState("Guest");
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
@@ -37,7 +33,7 @@ export function ReviewForm({ vendorId, vendorName, onSaved }: {
 
       const [prof, mine] = await Promise.all([
         db.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
-        db.from("vendor_reviews").select("*").eq("vendor_id", vendorId).eq("user_id", user.id).maybeSingle(),
+        db.from("vendor_reviews").select("*").eq("vendor_id", vendorId).eq("customer_id", user.id).maybeSingle(),
       ]);
       if (off) return;
 
@@ -54,28 +50,42 @@ export function ReviewForm({ vendorId, vendorName, onSaved }: {
   }, [vendorId]);
 
   const submit = async () => {
-    if (!userId) return;
-    if (rating < 1) { setError("Choose a star rating first."); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError("Please log in to post a review.");
+      return;
+    }
+    if (rating < 1) {
+      setError("Choose a star rating first.");
+      return;
+    }
+
     setBusy(true);
     setError("");
     const text = comment.trim();
+
     const { data, error: err } = await db
       .from("vendor_reviews")
       .upsert(
-        { vendor_id: vendorId, user_id: userId, rating, comment: text, author: authorName },
-        { onConflict: "vendor_id,user_id" },
+        { vendor_id: vendorId, customer_id: user.id, rating, comment: text },
+        { onConflict: "vendor_id,customer_id" },
       )
       .select()
       .single();
+
     setBusy(false);
-    if (err || !data) { setError(err?.message ?? "Could not save your review. Try again."); return; }
+    if (err || !data) {
+      setError(err?.message ?? "Could not save your review. Try again.");
+      return;
+    }
+
     setHasReview(true);
     setSaved(true);
     onSaved({
       id: String(data.id),
-      author: authorName,
-      rating,
-      text,
+      author: "You",
+      rating: data.rating,
+      text: data.comment ?? "",
       created_at: data.created_at ?? new Date().toISOString(),
     });
   };
