@@ -1,13 +1,14 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import type { ReactNode, ChangeEvent, FormEvent, ButtonHTMLAttributes } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { EveBuddy } from "@/components/EveBuddy";
 import {
   Users, Heart, MessageSquare, Calendar, Plus, MapPin, Lock, Globe,
   X, Search, Check, Minus, Send, CheckCircle2, ShieldCheck,
-  Image as ImageIcon, Tag, TrendingUp, Star,
+  Image as ImageIcon, Tag, TrendingUp, Star, BarChart3, Flame,
 } from "lucide-react";
 
 /* ----------------------------- Types & data ----------------------------- */
@@ -55,9 +56,12 @@ interface Comment {
   text: string;
 }
 
+interface PollOption { text: string; votes: number }
+
 interface PostMedia {
-  url: string;
+  key: string;
   type: "image" | "video";
+  url?: string;
 }
 
 interface Post {
@@ -73,6 +77,7 @@ interface Post {
   commentCount: number;
   tags: string[];
   media?: PostMedia;
+  poll?: { options: PollOption[] };
   event?: string;
   location?: string;
 }
@@ -217,6 +222,7 @@ const initialPosts: Post[] = [
 ];
 
 const CURRENT_USER = "You";
+const isMine = (c: Community) => c.admin === CURRENT_USER;
 
 /* ------------------------------ Helpers ----------------------------- */
 
@@ -401,15 +407,206 @@ const pill = (active: boolean) =>
       : "bg-white text-[#3D3735] border border-[#E9E1D5] hover:border-[#1A1818]/40"
   }`;
 
+const LS = {
+  communities: "jea.community.communities.v1",
+  membership: "jea.community.membership.v1",
+  posts: "jea.community.posts.v1",
+  votes: "jea.community.votes.v1",
+};
+
+function loadJSON<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveJSON(key: string, value: unknown): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* Resize + convert to a data URL so the image survives a refresh */
+function fileToDataUrl(file: File, maxSize: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const context = canvas.getContext("2d");
+      if (!context) {
+        URL.revokeObjectURL(url);
+        reject(new Error("Canvas unavailable"));
+        return;
+      }
+      context.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Bad image"));
+    };
+    img.src = url;
+  });
+}
+
+/* ---- IndexedDB for post images/videos ---- */
+const MEDIA_DB = "jea-community-media";
+const MEDIA_STORE = "files";
+
+function openMediaDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(MEDIA_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(MEDIA_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveMedia(key: string, blob: Blob): Promise<void> {
+  const db = await openMediaDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(MEDIA_STORE, "readwrite");
+    tx.objectStore(MEDIA_STORE).put(blob, key);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+async function loadMedia(key: string): Promise<Blob | undefined> {
+  const db = await openMediaDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(MEDIA_STORE, "readonly").objectStore(MEDIA_STORE).get(key);
+    req.onsuccess = () => { const result = req.result as Blob | undefined; db.close(); resolve(result); };
+    req.onerror = () => { db.close(); reject(req.error); };
+  });
+}
+
+function getVideoDuration(url: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.onloadedmetadata = () => resolve(v.duration);
+    v.onerror = () => reject(new Error("Bad video"));
+    v.src = url;
+  });
+}
+
+function PostMediaView({ media }: { media: PostMedia }) {
+  const [src, setSrc] = useState<string | null>(media.url ?? null);
+  const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    if (src || !media.key) return;
+    let alive = true;
+    let objectUrl: string | null = null;
+    loadMedia(media.key)
+      .then((blob) => {
+        if (!alive) return;
+        if (!blob) return setMissing(true);
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => alive && setMissing(true));
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [media.key]);
+
+  if (missing) return <p className="text-xs text-[#8A827E] mb-4">Attachment unavailable</p>;
+  if (!src) return <div className="mb-4 h-48 rounded-xl bg-[#F5EFE6] animate-pulse" />;
+  return (
+    <div className="mb-4 -mx-1">
+      {media.type === "image" ? (
+        <img src={src} alt="Post attachment" className="rounded-xl w-full max-h-96 object-cover" />
+      ) : (
+        <video src={src} controls playsInline className="rounded-xl w-full max-h-96 bg-black" />
+      )}
+    </div>
+  );
+}
+
+const compact = (n: number) =>
+  n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n);
+
+function PollView({ poll, voted, onVote }: {
+  poll: { options: PollOption[] }; voted?: number; onVote: (i: number) => void;
+}) {
+  const total = poll.options.reduce((s, o) => s + o.votes, 0);
+  const done = voted !== undefined;
+  return (
+    <div className="mb-4 space-y-2">
+      {poll.options.map((o, i) => {
+        const pct = total ? Math.round((o.votes / total) * 100) : 0;
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={done}
+            onClick={() => onVote(i)}
+            className={`relative w-full overflow-hidden rounded-xl border px-4 py-2.5 text-left text-sm transition-colors ${
+              voted === i ? "border-[#8B1E3F]" : "border-[#E9E1D5]"
+            } ${done ? "cursor-default" : "hover:border-[#8B1E3F]/50"}`}
+          >
+            {done && <span className="absolute inset-y-0 left-0 bg-[#F5EFE6]" style={{ width: `${pct}%` }} />}
+            <span className="relative flex items-center justify-between gap-3">
+              <span className="font-medium text-[#1A1818]">{o.text}{voted === i ? " ✓" : ""}</span>
+              {done && <b className="text-xs text-[#8B1E3F]">{pct}%</b>}
+            </span>
+          </button>
+        );
+      })}
+      <p className="text-xs text-[#5E5754]">
+        {total} vote{total === 1 ? "" : "s"}{done ? "" : " · tap to vote"}
+      </p>
+    </div>
+  );
+}
+
+const slugify = (s: string) =>
+  s.toLowerCase().trim().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
 /* --------------------------------- Page --------------------------------- */
 
 export default function Community() {
-  const [activeTab, setActiveTab] = useState<TabKey>("communities");
-  const [communities, setCommunities] = useState<Community[]>(initialCommunities);
-  const [events, setEvents] = useState<EventItem[]>(initialEvents);
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [communities, setCommunities] = useState<Community[]>(() => loadJSON(LS.communities, initialCommunities));
+  const navigate = useNavigate();
+  const { pathname, search: queryString } = useLocation();
+  const { slug } = useParams<{ slug?: string }>();
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
 
-  const [membership, setMembership] = useState<Record<string, Membership>>({});
+  const activeTab: TabKey = slug
+    ? "feed"
+    : tabParam === "events" || tabParam === "feed"
+    ? tabParam
+    : "communities";
+
+  const goTab = (tab: TabKey, community?: Community | null) => {
+    let target = "/community";
+    if (tab === "feed" && community) target = `/community/${slugify(community.name)}`;
+    else if (tab !== "communities") target = `/community?tab=${tab}`;
+    if (target === pathname + queryString) return;
+    navigate(target);
+  };
+  const setActiveTab = (tab: TabKey) => goTab(tab);
+  const setFeedCommunityId = (id: string | null) =>
+    goTab("feed", id ? communities.find((c) => c.id === id) ?? null : null);
+  const [events, setEvents] = useState<EventItem[]>(initialEvents);
+  const [posts, setPosts] = useState<Post[]>(() => loadJSON(LS.posts, initialPosts));
+
+  const [membership, setMembership] = useState<Record<string, Membership>>(() => loadJSON(LS.membership, {}));
   const [bookings, setBookings] = useState<Record<string, number>>({});
   const [waitlist, setWaitlist] = useState<Record<string, boolean>>({});
   const [liked, setLiked] = useState<Record<string, boolean>>({});
@@ -426,12 +623,41 @@ export default function Community() {
   const emptyForm = { name: "", type: COMMUNITY_TYPES[0], city: "", purpose: "", tags: "", isPrivate: false };
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const pickImage = async (e: ChangeEvent<HTMLInputElement>, kind: "banner" | "avatar") => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return setFormError("Please choose an image file.");
+    if (f.size > 5 * 1024 * 1024) return setFormError("Image must be under 5 MB.");
+    setFormError("");
+    try {
+      const url = await fileToDataUrl(f, kind === "banner" ? 1000 : 240);
+      kind === "banner" ? setBannerPreview(url) : setAvatarPreview(url);
+    } catch {
+      setFormError("Couldn't read that image. Try another one.");
+    }
+  };
+
+  const discardImages = () => {
+    setBannerPreview(null);
+    setAvatarPreview(null);
+  };
 
   // composer
   const [composerText, setComposerText] = useState("");
-  const [composerOpen, setComposerOpen] = useState(false);
   const [composerCommunity, setComposerCommunity] = useState("");
-  const [composerMedia, setComposerMedia] = useState<PostMedia | null>(null);
+  const [composerMedia, setComposerMedia] = useState<{ url: string; type: "image" | "video"; file: File } | null>(null);
+  const [posting, setPosting] = useState(false);
+  const [pollOpen, setPollOpen] = useState(false);
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  const [pollVotes, setPollVotes] = useState<Record<string, number>>(() => loadJSON(LS.votes, {}));
+
+  useEffect(() => { saveJSON(LS.votes, pollVotes); }, [pollVotes]);
   const [composerEvent, setComposerEvent] = useState("");
   const [composerLocation, setComposerLocation] = useState("");
   const [showEventPicker, setShowEventPicker] = useState(false);
@@ -448,6 +674,23 @@ export default function Community() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2800);
   }, []);
 
+  useEffect(() => {
+    if (!saveJSON(LS.communities, communities)) {
+      toast("Storage full — community saved only for this session");
+    }
+  }, [communities, toast]);
+
+  useEffect(() => {
+    saveJSON(LS.membership, membership);
+  }, [membership]);
+
+  useEffect(() => {
+    saveJSON(
+      LS.posts,
+      posts.map((p) => (p.media ? { ...p, media: { key: p.media.key, type: p.media.type } } : p))
+    );
+  }, [posts]);
+
   const listRef = useRef<HTMLDivElement>(null);
 
   /* ---------------------------- Derived values ---------------------------- */
@@ -455,20 +698,61 @@ export default function Community() {
   const filteredCommunities = useMemo(() => {
     const q = search.trim().toLowerCase();
     return communities.filter((c) => {
-      const matchType = typeFilter === "All" || c.type === typeFilter;
+      const matchType =
+        typeFilter === "All" ||
+        (typeFilter === "My Communities"
+          ? isMine(c)
+          : typeFilter === "Joined"
+          ? membership[c.id] === "joined"
+          : c.type === typeFilter);
       const matchSearch =
         !q || [c.name, c.purpose, c.city, c.type, ...c.tags].some((s) => s.toLowerCase().includes(q));
       return matchType && matchSearch;
     });
-  }, [communities, search, typeFilter]);
+  }, [communities, search, typeFilter, membership]);
 
   const totalMembers = communities.reduce((s, c) => s + c.members, 0);
   const joinedCommunities = communities.filter((c) => membership[c.id] === "joined");
   const joinedNames = new Set(joinedCommunities.map((c) => c.name));
-  const visiblePosts = feedFilter === "mine" ? posts.filter((p) => joinedNames.has(p.community)) : posts;
+  const feedCommunity = slug ? communities.find((c) => slugify(c.name) === slug) ?? null : null;
+  const memberLabel = `${(Math.floor(totalMembers / 500) * 500).toLocaleString("en-IN")}+`;
+const canPost = feedCommunity ? membership[feedCommunity.id] === "joined" : joinedCommunities.length > 0;
+
+const trendingPosts = useMemo(
+  () => [...posts].sort((a, b) => (b.likes + b.commentCount) - (a.likes + a.commentCount)).slice(0, 3),
+  [posts]
+);
+const upcomingEvents = useMemo(
+  () => [...events].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3),
+  [events]
+);
+
+  useEffect(() => {
+    if (slug && !feedCommunity) navigate("/community", { replace: true });
+  }, [slug, feedCommunity, navigate]);
+
+  useEffect(() => {
+    if (!feedCommunity) return;
+    const prev = document.title;
+    document.title = `${feedCommunity.name} · Jashan-E-Aas`;
+    return () => { document.title = prev; };
+  }, [feedCommunity]);
+
+  const visiblePosts = feedCommunity
+    ? posts.filter((p) => p.community === feedCommunity.name)
+    : feedFilter === "mine"
+    ? posts.filter((p) => joinedNames.has(p.community))
+    : posts;
 
   const detailCommunity = communities.find((c) => c.id === detailId) || null;
   const bookingEvent = events.find((e) => e.id === bookingEventId) || null;
+
+  const openCommunity = (c: Community) => {
+    setFeedFilter("all");
+    goTab("feed", c);
+    if (membership[c.id] === "joined") setComposerCommunity(c.name);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useEffect(() => {
     if (!composerCommunity && joinedCommunities.length) setComposerCommunity(joinedCommunities[0].name);
@@ -522,7 +806,8 @@ export default function Community() {
     e.preventDefault();
     if (form.name.trim().length < 3) return setFormError("Community name must be at least 3 characters.");
     if (form.purpose.trim().length < 10) return setFormError("Please describe the purpose (at least 10 characters).");
-    if (communities.some((c) => c.name.toLowerCase() === form.name.trim().toLowerCase()))
+    if (!slugify(form.name)) return setFormError("Name needs at least one letter or number.");
+    if (communities.some((c) => slugify(c.name) === slugify(form.name)))
       return setFormError("A community with this name already exists.");
 
     const style = TYPE_STYLES[form.type];
@@ -537,8 +822,8 @@ export default function Community() {
       purpose: form.purpose.trim(),
       tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 5),
       banner: isPrivate ? BANNERS.private : style.banner,
-      cover: photo((TYPE_PHOTO_KEYWORDS[form.type] || TYPE_PHOTO_KEYWORDS["Interest Community"])[0], hash(form.name) % 1000),
-      avatar: photo((TYPE_PHOTO_KEYWORDS[form.type] || TYPE_PHOTO_KEYWORDS["Interest Community"])[1], hash(form.name + "a") % 1000, 200, 200),
+      cover: bannerPreview ?? photo((TYPE_PHOTO_KEYWORDS[form.type] || TYPE_PHOTO_KEYWORDS["Interest Community"])[0], hash(form.name) % 1000),
+      avatar: avatarPreview ?? photo((TYPE_PHOTO_KEYWORDS[form.type] || TYPE_PHOTO_KEYWORDS["Interest Community"])[1], hash(form.name + "a") % 1000, 200, 200),
       isVerified: false,
       posts: 0,
       city: form.city.trim() || "All India",
@@ -547,6 +832,8 @@ export default function Community() {
     setCommunities((cs) => [newCommunity, ...cs]);
     setMembership((m) => ({ ...m, [newCommunity.id]: "joined" }));
     setForm(emptyForm);
+    setBannerPreview(null);
+    setAvatarPreview(null);
     setFormError("");
     setCreateOpen(false);
     setActiveTab("communities");
@@ -610,18 +897,47 @@ export default function Community() {
     setCommentDrafts((d) => ({ ...d, [id]: "" }));
   };
 
-  const onPickFile = (e: ChangeEvent<HTMLInputElement>) => {
+const votePoll = (postId: string, idx: number) => {
+  if (pollVotes[postId] !== undefined) return;
+  setPollVotes((v) => ({ ...v, [postId]: idx }));
+  setPosts((ps) =>
+    ps.map((p) =>
+      p.id === postId && p.poll
+        ? { ...p, poll: { options: p.poll.options.map((o, i) => (i === idx ? { ...o, votes: o.votes + 1 } : o)) } }
+        : p
+    )
+  );
+};
+
+  const MAX_IMAGE_MB = 8;
+  const MAX_VIDEO_MB = 20;
+  const MAX_VIDEO_SECONDS = 60;
+
+  const onPickFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
     const isVideo = f.type.startsWith("video/");
     const isImage = f.type.startsWith("image/");
     if (!isImage && !isVideo) return toast("Please choose an image or video");
-    const maxMb = isVideo ? 25 : 8;
-    if (f.size > maxMb * 1024 * 1024) return toast(`File too large (max ${maxMb} MB)`);
+    if (f.size > (isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB) * 1024 * 1024)
+      return toast(`File too large (max ${isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB} MB)`);
+
+    const url = URL.createObjectURL(f);
+    if (isVideo) {
+      try {
+        const d = await getVideoDuration(url);
+        if (d > MAX_VIDEO_SECONDS) {
+          URL.revokeObjectURL(url);
+          return toast(`Video too long (max ${MAX_VIDEO_SECONDS} seconds)`);
+        }
+      } catch {
+        URL.revokeObjectURL(url);
+        return toast("Couldn't read that video");
+      }
+    }
     if (composerMedia) URL.revokeObjectURL(composerMedia.url);
-    setComposerMedia({ url: URL.createObjectURL(f), type: isVideo ? "video" : "image" });
-    setComposerOpen(true);
+    setComposerMedia({ url, type: isVideo ? "video" : "image", file: f });
   };
 
   const removeMedia = () => {
@@ -629,44 +945,65 @@ export default function Community() {
     setComposerMedia(null);
   };
 
-  const resetComposer = (keepMedia = false) => {
-    setComposerText("");
-    setComposerEvent("");
-    setComposerLocation("");
-    setShowEventPicker(false);
-    setShowLocation(false);
-    setComposerOpen(false);
-    if (!keepMedia) removeMedia();
-    else setComposerMedia(null);
-  };
+const resetComposer = (keepMedia = false) => {
+  setComposerText("");
+  setComposerEvent("");
+  setComposerLocation("");
+  setShowEventPicker(false);
+  setShowLocation(false);
+  setPollOpen(false);
+  setPollOptions(["", ""]);
+  if (!keepMedia) removeMedia();
+  else setComposerMedia(null);
+};
 
-  const publishPost = () => {
-    const text = composerText.trim();
-    if (!text && !composerMedia) return toast("Write something or add a photo first");
-    if (!composerCommunity) return toast("Join a community to post");
-    const tags = Array.from(new Set((text.match(/#(\w+)/g) || []).map((t) => t.slice(1)))).slice(0, 5);
-    const newPost: Post = {
-      id: `p-${Date.now()}`,
-      author: CURRENT_USER,
-      avatar: "YO",
-      gradient: "linear-gradient(135deg,#8B1E3F,#c2416a)",
-      community: composerCommunity,
-      time: "Just now",
-      content: text.replace(/#(\w+)/g, "$1"),
-      likes: 0,
-      comments: [],
-      commentCount: 0,
-      tags,
-      media: composerMedia ?? undefined,
-      event: composerEvent || undefined,
-      location: composerLocation.trim() || undefined,
-    };
-    setPosts((ps) => [newPost, ...ps]);
-    setCommunities((cs) => cs.map((c) => (c.name === composerCommunity ? { ...c, posts: c.posts + 1 } : c)));
-    const where = composerCommunity;
-    resetComposer(true);
-    toast("Posted to " + where);
+const publishPost = async () => {
+  const text = composerText.trim();
+  const target = feedCommunity ? feedCommunity.name : composerCommunity;
+  const pollItems = pollOpen ? pollOptions.map((o) => o.trim()).filter(Boolean) : [];
+
+  if (pollOpen && pollItems.length < 2) return toast("Add at least 2 poll options");
+  if (!text && !composerMedia && pollItems.length === 0)
+    return toast("Write something or add a photo, video or poll first");
+  if (!target) return toast("Join a community to post");
+
+  setPosting(true);
+  let media: PostMedia | undefined;
+  try {
+    if (composerMedia) {
+      const key = `m-${Date.now()}`;
+      await saveMedia(key, composerMedia.file);
+      media = { key, type: composerMedia.type, url: composerMedia.url };
+    }
+  } catch {
+    setPosting(false);
+    return toast("Couldn't save the attachment. Try a smaller file.");
+  }
+
+  const tags = Array.from(new Set((text.match(/#(\w+)/g) || []).map((t) => t.slice(1)))).slice(0, 5);
+  const newPost: Post = {
+    id: `p-${Date.now()}`,
+    author: CURRENT_USER,
+    avatar: "YO",
+    gradient: "linear-gradient(135deg,#8B1E3F,#c2416a)",
+    community: target,
+    time: "Just now",
+    content: text.replace(/#(\w+)/g, "$1"),
+    likes: 0,
+    comments: [],
+    commentCount: 0,
+    tags,
+    media,
+    poll: pollItems.length >= 2 ? { options: pollItems.map((t) => ({ text: t, votes: 0 })) } : undefined,
+    event: composerEvent || undefined,
+    location: composerLocation.trim() || undefined,
   };
+  setPosts((ps) => [newPost, ...ps]);
+  setCommunities((cs) => cs.map((c) => (c.name === target ? { ...c, posts: c.posts + 1 } : c)));
+  resetComposer(true);
+  setPosting(false);
+  toast("Posted to " + target);
+};
 
   const sharePost = async (p: Post) => {
     const text = `${p.author} in ${p.community}: ${p.content}`;
@@ -680,8 +1017,6 @@ export default function Community() {
 
   /* --------------------------------- Render -------------------------------- */
 
-  const composerActive = composerOpen || !!composerText || !!composerMedia;
-
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1A1818]">
       <Navbar />
@@ -691,10 +1026,12 @@ export default function Community() {
           @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
           .cm-root { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; }
           .cm-serif { font-family: 'Playfair Display', Georgia, serif; }
+          @keyframes cm-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(139,30,63,.45); } 50% { box-shadow: 0 0 0 9px rgba(139,30,63,0); } }
+          .cm-pulse { animation: cm-pulse 1.8s ease-in-out infinite; }
         `}</style>
 
         {/* Hero */}
-        <section className="pt-32 pb-10">
+        <section className="pt-28 pb-6">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="container mx-auto px-4 text-center">
             <p className="text-[#8B1E3F] text-xs font-bold uppercase tracking-[0.22em] mb-4">
               From Venue Scouting to Stage Lights
@@ -702,33 +1039,23 @@ export default function Community() {
             <h1 className="cm-serif text-4xl md:text-6xl font-bold leading-[1.1] mb-5 text-[#1A1818]">
               Join India's <span className="text-[#8B1E3F] italic">Event Community</span>
             </h1>
-            <p className="text-[#4A4442] text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
-              Connect with event professionals and enthusiasts across city communities. Attend events, share knowledge, build your network.
-            </p>
-            <div className="flex gap-3 justify-center flex-wrap mb-10">
-              <Btn onClick={() => setCreateOpen(true)}>
-                <Plus className="w-4 h-4" /> Create Community
-              </Btn>
-              <Btn variant="outline" onClick={handleBrowseAll}>Browse All Communities</Btn>
-            </div>
-
-            <div className="inline-flex items-center divide-x divide-[#E9E1D5] bg-white rounded-2xl px-2 py-4 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]">
-              {[
-                { n: totalMembers.toLocaleString("en-IN"), l: "Members" },
-                { n: String(communities.length), l: "Communities" },
-                { n: String(events.length), l: "Upcoming events" },
-              ].map((s) => (
-                <div key={s.l} className="px-6 md:px-10 text-center">
-                  <p className="text-2xl md:text-3xl font-extrabold text-[#8B1E3F] leading-none">{s.n}</p>
-                  <p className="text-xs text-[#5E5754] mt-1.5 font-medium">{s.l}</p>
-                </div>
-              ))}
-            </div>
+<p className="text-[#4A4442] text-lg max-w-2xl mx-auto mb-3 leading-relaxed">
+  Connect with event professionals and enthusiasts across city communities. Attend events, share knowledge, build your network.
+</p>
+<p className="text-sm text-[#5E5754] mb-7">
+  Join <b className="text-[#8B1E3F]">{memberLabel}</b> professionals across{" "}
+  <b className="text-[#1A1818]">{communities.length}</b> active communities and{" "}
+  <b className="text-[#1A1818]">{events.length}</b> upcoming offline meetups.
+</p>
+<div className="flex gap-3 justify-center flex-wrap">
+  <Btn onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /> Create Community</Btn>
+  <Btn variant="outline" onClick={handleBrowseAll}>Browse All Communities</Btn>
+</div>
           </motion.div>
         </section>
 
         {/* Tabs */}
-        <div className="container mx-auto px-4 mb-10">
+        <div className="container mx-auto px-4 mb-8">
           <div className="flex gap-1 bg-white rounded-full p-1.5 max-w-md mx-auto shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)]">
             {(["communities", "events", "feed"] as const).map((tab) => (
               <button
@@ -744,7 +1071,7 @@ export default function Community() {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 pb-24" ref={listRef}>
+        <div className={`container mx-auto px-4 ${activeTab === "feed" ? "pb-16" : "pb-24"}`} ref={listRef}>
           <AnimatePresence mode="wait">
             {/* ------------------------- Communities ------------------------- */}
             {activeTab === "communities" && (
@@ -769,7 +1096,7 @@ export default function Community() {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2 justify-center">
-                    {["All", ...COMMUNITY_TYPES].map((t) => (
+                    {["All", "My Communities", "Joined", ...COMMUNITY_TYPES].map((t) => (
                       <button key={t} onClick={() => setTypeFilter(t)} className={pill(typeFilter === t)}>
                         {t}
                       </button>
@@ -785,99 +1112,74 @@ export default function Community() {
                     </Btn>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 grid-flow-dense">
-                    {filteredCommunities.map((c, i) => {
-                      const large = c.featured === "large";
-                      const trending = c.featured === "trending";
-                      const extraTags = c.tags.filter(
-                        (t) => t.toLowerCase() !== c.city.toLowerCase() && !["all india", "pan india"].includes(t.toLowerCase())
-                      );
-                      return (
-                        <motion.article
-                          key={c.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          onClick={() => setDetailId(c.id)}
-                          className={`flex flex-col bg-white rounded-2xl overflow-hidden cursor-pointer ${cardHover} ${
-                            trending ? "ring-2 ring-[#D4AF37]/70 shadow-[0_8px_28px_-8px_rgba(212,175,55,0.45)]" : cardShadow
-                          } ${large ? "lg:col-span-2 md:col-span-2" : ""}`}
-                        >
-                          <Cover src={c.cover} bg={c.banner} className={large ? "h-48" : "h-28"}>
-                            <div className="absolute top-3 left-3 flex items-center gap-2">
-                              <span className="bg-white/90 backdrop-blur text-[#1A1818] text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                                {c.type}
-                              </span>
-                              {large && (
-                                <span className="bg-[#D4AF37] text-[#1A1818] text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
-                                  <Star className="w-3 h-3 fill-current" /> Featured
-                                </span>
-                              )}
-                              {trending && (
-                                <span className="bg-[#D4AF37] text-[#1A1818] text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
-                                  <TrendingUp className="w-3 h-3" /> Trending
-                                </span>
-                              )}
-                            </div>
-                            <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[#1A1818]" title={c.isPrivate ? "Private" : "Public"}>
-                              {c.isPrivate ? <Lock className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
-                            </span>
-                          </Cover>
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  {filteredCommunities.map((c, i) => (
+    <motion.article
+      key={c.id}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.04 }}
+      onClick={() => openCommunity(c)}
+      className={`flex flex-col h-full bg-white rounded-2xl overflow-hidden cursor-pointer ${cardHover} ${cardShadow}`}
+    >
+      <Cover src={c.cover} bg={c.banner} className="h-[120px] shrink-0">
+        <div className="absolute top-3 left-3">
+          {isMine(c) ? (
+            <span className="bg-[#8B1E3F] text-white text-[11px] font-bold px-2.5 py-1 rounded-full">My Community</span>
+          ) : c.featured === "large" ? (
+            <span className="bg-[#D4AF37] text-[#1A1818] text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
+              <Star className="w-3 h-3 fill-current" /> Featured
+            </span>
+          ) : c.featured === "trending" ? (
+            <span className="bg-[#D4AF37] text-[#1A1818] text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" /> Trending
+            </span>
+          ) : null}
+        </div>
+        <span
+          className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[#1A1818]"
+          title={c.isPrivate ? "Private" : "Public"}
+        >
+          {c.isPrivate ? <Lock className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
+        </span>
+      </Cover>
 
-                          <div className="relative px-5 pb-5 flex-1 flex flex-col">
-                            <div className="-mt-5 flex items-start justify-between">
-                              <LogoAvatar src={c.avatar} icon={c.icon} className={large ? "w-16 h-16 text-4xl -mt-3" : "w-12 h-12 text-2xl"} />
-                              <Facepile seed={c.id} total={c.members} max={large ? 5 : 3} size={28} />
-                            </div>
+      <div className="relative px-5 pb-5 flex-1 flex flex-col">
+        <LogoAvatar src={c.avatar} icon={c.icon} className="relative z-10 -mt-7 w-14 h-14 text-3xl" />
 
-                            <h3 className={`mt-3 font-bold text-[#1A1818] flex items-center gap-1.5 ${large ? "cm-serif text-2xl" : "text-base"}`}>
-                              {c.name}
-                              {c.isVerified && <CheckCircle2 className="w-4 h-4 text-[#8B1E3F] shrink-0" aria-label="Verified" />}
-                            </h3>
-                            <p className={`text-sm text-[#5E5754] mt-1.5 leading-relaxed ${large ? "" : "line-clamp-2"}`}>{c.purpose}</p>
+        <h3 className="mt-3 font-bold text-base text-[#1A1818] flex items-center gap-1.5 min-w-0">
+          <span className="truncate">{c.name}</span>
+          {c.isVerified && <CheckCircle2 className="w-4 h-4 text-[#8B1E3F] shrink-0" aria-label="Verified" />}
+        </h3>
 
-                            <div className="flex items-center gap-5 mt-4 text-sm">
-                              <span className="flex items-baseline gap-1">
-                                <b className="text-[#8B1E3F] text-lg font-extrabold leading-none">{c.members.toLocaleString("en-IN")}</b>
-                                <span className="text-[#5E5754] text-xs">members</span>
-                              </span>
-                              <span className="flex items-baseline gap-1">
-                                <b className="text-[#1A1818] text-lg font-extrabold leading-none">{c.posts.toLocaleString("en-IN")}</b>
-                                <span className="text-[#5E5754] text-xs">posts</span>
-                              </span>
-                            </div>
+        <div className="mt-2 flex items-center gap-2 min-w-0">
+          <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[#1A1818] bg-[#F5EFE6] px-2.5 py-1 rounded-full">
+            <MapPin className="w-3 h-3 text-[#8B1E3F]" /> {c.city}
+          </span>
+          <span className="text-xs text-[#5E5754] truncate">{c.type}</span>
+        </div>
 
-                            <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-2">
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#1A1818] bg-[#F5EFE6] px-2.5 py-1 rounded-full">
-                                <MapPin className="w-3 h-3 text-[#8B1E3F]" /> {c.city}
-                              </span>
-                              {extraTags.length > 0 && <span className="w-px h-4 bg-[#E9E1D5]" />}
-                              {extraTags.map((tag) => (
-                                <button
-                                  key={tag}
-                                  onClick={(e) => { e.stopPropagation(); setSearch(tag); }}
-                                  className="text-xs text-[#5E5754] hover:text-[#8B1E3F] font-medium transition-colors"
-                                >
-                                  #{tag}
-                                </button>
-                              ))}
-                            </div>
+        <p className="text-sm text-[#5E5754] mt-2 line-clamp-1">{c.purpose}</p>
 
-                            <div className="mt-auto pt-5">
-                              <Btn
-                                size="sm"
-                                variant={membershipVariant(c)}
-                                onClick={(e) => { e.stopPropagation(); handleMembership(c); }}
-                                className="w-full"
-                              >
-                                {membershipLabel(c)}
-                              </Btn>
-                            </div>
-                          </div>
-                        </motion.article>
-                      );
-                    })}
-                  </div>
+        <div className="mt-3 flex items-center justify-between">
+          <Facepile seed={c.id} total={Math.min(c.members, 3)} max={3} size={26} />
+          <span className="text-xs font-semibold text-[#1A1818]">{compact(c.members)} members</span>
+        </div>
+
+        <div className="mt-auto pt-4">
+          <Btn
+            size="sm"
+            variant={membershipVariant(c)}
+            onClick={(e) => { e.stopPropagation(); handleMembership(c); }}
+            className="w-full"
+          >
+            {membershipLabel(c)}
+          </Btn>
+        </div>
+      </div>
+    </motion.article>
+  ))}
+</div>
                 )}
               </motion.div>
             )}
@@ -991,134 +1293,272 @@ export default function Community() {
 
             {/* ----------------------------- Feed ----------------------------- */}
             {activeTab === "feed" && (
-              <motion.div key="feed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5 max-w-2xl mx-auto">
-                {/* Composer */}
-                <div className={`bg-white rounded-2xl p-5 ${cardShadow}`}>
-                  <div className="flex gap-3">
-                    <span
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-                      style={{ background: "linear-gradient(135deg,#8B1E3F,#c2416a)" }}
-                    >
-                      YO
-                    </span>
-                    <textarea
-                      value={composerText}
-                      onFocus={() => setComposerOpen(true)}
-                      onChange={(e) => setComposerText(e.target.value)}
-                      rows={composerActive ? 3 : 1}
-                      placeholder="Share an event update, ask for vendor recommendations, or show your work…"
-                      className="flex-1 resize-none bg-[#FAF8F5] rounded-2xl px-4 py-2.5 text-sm text-[#1A1818] placeholder:text-[#8A827E] focus:outline-none focus:ring-2 focus:ring-[#8B1E3F]/25"
-                    />
-                  </div>
+              <motion.div
+  key="feed"
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  exit={{ opacity: 0 }}
+  className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6"
+>
+  {/* ---------- Left sidebar ---------- */}
+  <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-28 self-start space-y-4">
+    <div className={`bg-white rounded-2xl p-4 ${cardShadow}`}>
+      <h3 className="text-xs font-bold uppercase tracking-wider text-[#8B1E3F] mb-3">My Communities</h3>
+      <button
+        onClick={() => setFeedCommunityId(null)}
+        className={`w-full text-left text-sm font-semibold px-2 py-2 rounded-xl hover:bg-[#F5EFE6] ${!feedCommunity ? "bg-[#F5EFE6]" : ""}`}
+      >
+        All posts
+      </button>
+      {joinedCommunities.length === 0 ? (
+        <p className="text-xs text-[#5E5754] px-2 py-2">You haven't joined any community yet.</p>
+      ) : (
+        joinedCommunities.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => openCommunity(c)}
+            className={`flex items-center gap-2 w-full px-2 py-2 rounded-xl text-left text-sm hover:bg-[#F5EFE6] ${feedCommunity?.id === c.id ? "bg-[#F5EFE6]" : ""}`}
+          >
+            <LogoAvatar src={c.avatar} icon={c.icon} className="w-8 h-8 text-base" />
+            <span className="truncate font-semibold">{c.name}</span>
+          </button>
+        ))
+      )}
+    </div>
 
-                  {composerMedia && (
-                    <div className="relative mt-3 ml-[52px]">
-                      {composerMedia.type === "image" ? (
-                        <img src={composerMedia.url} alt="Attachment preview" className="rounded-xl max-h-64 w-auto object-cover" />
-                      ) : (
-                        <video src={composerMedia.url} controls className="rounded-xl max-h-64 w-auto" />
-                      )}
-                      <button
-                        onClick={removeMedia}
-                        aria-label="Remove attachment"
-                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#1A1818]/75 text-white flex items-center justify-center hover:bg-[#1A1818]"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+    <div className={`bg-white rounded-2xl p-4 space-y-1 ${cardShadow}`}>
+      <h3 className="text-xs font-bold uppercase tracking-wider text-[#8B1E3F] mb-2">Quick links</h3>
+      {[
+        { label: "Browse communities", onClick: () => setActiveTab("communities") },
+        { label: "Upcoming events", onClick: () => setActiveTab("events") },
+        { label: "Create a community", onClick: () => setCreateOpen(true) },
+      ].map((l) => (
+        <button key={l.label} onClick={l.onClick} className="w-full text-left text-sm text-[#3D3735] px-2 py-1.5 rounded-lg hover:bg-[#F5EFE6]">
+          {l.label}
+        </button>
+      ))}
+    </div>
+  </aside>
 
-                  {(composerEvent || composerLocation.trim()) && (
-                    <div className="flex flex-wrap gap-2 mt-3 ml-[52px]">
-                      {composerEvent && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#F5EFE6] text-[#8B1E3F] px-3 py-1 rounded-full">
-                          <Calendar className="w-3 h-3" /> {composerEvent}
-                          <button onClick={() => setComposerEvent("")} aria-label="Remove event tag"><X className="w-3 h-3" /></button>
-                        </span>
-                      )}
-                      {composerLocation.trim() && !showLocation && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#F5EFE6] text-[#8B1E3F] px-3 py-1 rounded-full">
-                          <MapPin className="w-3 h-3" /> {composerLocation.trim()}
-                          <button onClick={() => setComposerLocation("")} aria-label="Remove location"><X className="w-3 h-3" /></button>
-                        </span>
-                      )}
-                    </div>
-                  )}
+  {/* ---------- Center column ---------- */}
+  <div className="lg:col-span-2 space-y-5 min-w-0">
+    {feedCommunity && (
+      <div className={`bg-white rounded-2xl overflow-hidden ${cardShadow}`}>
+        <Cover src={feedCommunity.cover} bg={feedCommunity.banner} className="h-24">
+          <button
+            onClick={() => setFeedCommunityId(null)}
+            className="absolute top-3 left-3 bg-white/90 backdrop-blur text-[#1A1818] text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-white"
+          >
+            ← All posts
+          </button>
+        </Cover>
+        <div className="relative px-4 pb-4">
+          <div className="flex items-start justify-between gap-3">
+            <LogoAvatar src={feedCommunity.avatar} icon={feedCommunity.icon} className="relative z-10 -mt-7 w-14 h-14 text-3xl" />
+            <div className="flex gap-2 pt-2">
+              <Btn size="sm" variant="outline" onClick={() => setDetailId(feedCommunity.id)}>About</Btn>
+              <Btn size="sm" variant={membershipVariant(feedCommunity)} onClick={() => handleMembership(feedCommunity)}>
+                {membershipLabel(feedCommunity)}
+              </Btn>
+            </div>
+          </div>
+          <h2 className="cm-serif text-lg font-bold mt-2 flex items-center gap-2 flex-wrap">
+            {feedCommunity.name}
+            {feedCommunity.isVerified && <CheckCircle2 className="w-4 h-4 text-[#8B1E3F]" />}
+            {isMine(feedCommunity) && (
+              <span className="text-[11px] font-bold bg-[#F5EFE6] text-[#8B1E3F] px-2.5 py-1 rounded-full">My Community</span>
+            )}
+          </h2>
+          <p className="text-xs text-[#5E5754] mt-1">
+            {compact(feedCommunity.members)} members · {feedCommunity.posts.toLocaleString("en-IN")} posts · {feedCommunity.city}
+          </p>
+        </div>
+      </div>
+    )}
 
-                  {showEventPicker && (
-                    <div className="mt-3 ml-[52px]">
-                      <select
-                        value={composerEvent}
-                        onChange={(e) => { setComposerEvent(e.target.value); setShowEventPicker(false); }}
-                        className={inputCls}
-                      >
-                        <option value="">Select an event to tag…</option>
-                        {events.map((ev) => <option key={ev.id} value={ev.title}>{ev.title}</option>)}
-                      </select>
-                    </div>
-                  )}
+    {/* Post composer card */}
+    <div className={`bg-white rounded-2xl p-4 ${cardShadow}`}>
+      {!canPost ? (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-[#3D3735]">
+            {feedCommunity
+              ? feedCommunity.isPrivate
+                ? "Private community. Request access to post."
+                : "Join this community to post, comment and get updates."
+              : "Join a community to start posting."}
+          </p>
+          {feedCommunity ? (
+            <Btn
+              size="sm"
+              variant={membershipVariant(feedCommunity)}
+              className={membership[feedCommunity.id] ? "" : "cm-pulse"}
+              onClick={() => handleMembership(feedCommunity)}
+            >
+              {membershipLabel(feedCommunity)}
+            </Btn>
+          ) : (
+            <Btn size="sm" className="cm-pulse" onClick={() => setActiveTab("communities")}>Browse</Btn>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="flex gap-3">
+            <span
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+              style={{ background: "linear-gradient(135deg,#8B1E3F,#c2416a)" }}
+            >
+              YO
+            </span>
+            <textarea
+              value={composerText}
+              onChange={(e) => setComposerText(e.target.value)}
+              rows={composerText || composerMedia || pollOpen ? 3 : 2}
+              placeholder="Share an insight, vendor review, or event update…"
+              className="flex-1 resize-none bg-[#FAF8F5] rounded-2xl px-4 py-2.5 text-sm text-[#1A1818] placeholder:text-[#8A827E] focus:outline-none focus:ring-2 focus:ring-[#8B1E3F]/25"
+            />
+          </div>
 
-                  {showLocation && (
-                    <div className="mt-3 ml-[52px]">
-                      <input
-                        autoFocus
-                        value={composerLocation}
-                        onChange={(e) => setComposerLocation(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && setShowLocation(false)}
-                        onBlur={() => setShowLocation(false)}
-                        placeholder="Add a location, e.g. Udaipur, Rajasthan"
-                        className={inputCls}
-                      />
-                    </div>
-                  )}
+          {composerMedia && (
+            <div className="relative mt-3 ml-[52px] inline-block">
+              {composerMedia.type === "image" ? (
+                <img src={composerMedia.url} alt="Attachment preview" className="max-h-56 rounded-xl object-cover" />
+              ) : (
+                <video src={composerMedia.url} controls className="max-h-56 rounded-xl" />
+              )}
+              <button
+                onClick={removeMedia}
+                aria-label="Remove attachment"
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#1A1818]/75 text-white flex items-center justify-center hover:bg-[#1A1818]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
-                  <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-[#F0E9DD]">
-                    <div className="flex items-center gap-1">
-                      <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={onPickFile} />
-                      <Btn size="sm" variant="ghost" onClick={() => fileRef.current?.click()}>
-                        <ImageIcon className="w-4 h-4 text-[#8B1E3F]" /> Photo
-                      </Btn>
-                      <Btn size="sm" variant="ghost" onClick={() => { setShowEventPicker((v) => !v); setComposerOpen(true); }}>
-                        <Tag className="w-4 h-4 text-[#8B1E3F]" /> Event Tag
-                      </Btn>
-                      <Btn size="sm" variant="ghost" onClick={() => { setShowLocation(true); setComposerOpen(true); }}>
-                        <MapPin className="w-4 h-4 text-[#8B1E3F]" /> Location
-                      </Btn>
-                    </div>
+          {pollOpen && (
+            <div className="mt-3 ml-[52px] space-y-2 rounded-xl border border-[#E9E1D5] p-3">
+              <div className="flex items-center justify-between text-xs font-semibold text-[#5E5754]">
+                Poll options
+                <button onClick={() => { setPollOpen(false); setPollOptions(["", ""]); }} aria-label="Remove poll">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {pollOptions.map((o, i) => (
+                <input
+                  key={i}
+                  value={o}
+                  maxLength={60}
+                  onChange={(e) => setPollOptions((p) => p.map((x, j) => (j === i ? e.target.value : x)))}
+                  placeholder={`Option ${i + 1}`}
+                  className={inputCls}
+                />
+              ))}
+              {pollOptions.length < 4 && (
+                <button onClick={() => setPollOptions((p) => [...p, ""])} className="text-xs font-semibold text-[#8B1E3F]">
+                  + Add option
+                </button>
+              )}
+            </div>
+          )}
 
-                    <div className="flex items-center gap-2">
-                      {joinedCommunities.length > 0 && (
-                        <select
-                          value={composerCommunity}
-                          onChange={(e) => setComposerCommunity(e.target.value)}
-                          className="text-xs font-semibold bg-white border border-[#E9E1D5] rounded-full px-3 py-2 text-[#1A1818] max-w-[190px] focus:outline-none focus:ring-2 focus:ring-[#8B1E3F]/25"
-                          aria-label="Post to community"
-                        >
-                          {joinedCommunities.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                        </select>
-                      )}
-                      {joinedCommunities.length === 0 ? (
-                        <Btn size="sm" variant="outline" onClick={() => setActiveTab("communities")}>Join a community to post</Btn>
-                      ) : (
-                        <Btn size="sm" onClick={publishPost} disabled={!composerText.trim() && !composerMedia}>
-                          <Send className="w-3.5 h-3.5" /> Post
-                        </Btn>
-                      )}
-                    </div>
-                  </div>
-                </div>
+          {(composerEvent || composerLocation.trim()) && (
+            <div className="flex flex-wrap gap-2 mt-3 ml-[52px]">
+              {composerEvent && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#F5EFE6] text-[#8B1E3F] px-3 py-1 rounded-full">
+                  <Calendar className="w-3 h-3" /> {composerEvent}
+                  <button onClick={() => setComposerEvent("")} aria-label="Remove event tag"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+              {composerLocation.trim() && !showLocation && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#F5EFE6] text-[#8B1E3F] px-3 py-1 rounded-full">
+                  <MapPin className="w-3 h-3" /> {composerLocation.trim()}
+                  <button onClick={() => setComposerLocation("")} aria-label="Remove location"><X className="w-3 h-3" /></button>
+                </span>
+              )}
+            </div>
+          )}
 
-                <div className="flex gap-2 justify-center">
-                  {([["all", "All posts"], ["mine", "My communities"]] as const).map(([k, label]) => (
-                    <button key={k} onClick={() => setFeedFilter(k)} className={pill(feedFilter === k)}>{label}</button>
-                  ))}
-                </div>
+          {showEventPicker && (
+            <div className="mt-3 ml-[52px]">
+              <select
+                value={composerEvent}
+                onChange={(e) => { setComposerEvent(e.target.value); setShowEventPicker(false); }}
+                className={inputCls}
+              >
+                <option value="">Select an event to tag…</option>
+                {events.map((ev) => <option key={ev.id} value={ev.title}>{ev.title}</option>)}
+              </select>
+            </div>
+          )}
 
-                {visiblePosts.length === 0 && (
-                  <p className="text-center text-[#5E5754] text-sm py-10">
-                    No posts yet from your communities. Join one or write the first post!
-                  </p>
-                )}
+          {showLocation && (
+            <div className="mt-3 ml-[52px]">
+              <input
+                autoFocus
+                value={composerLocation}
+                onChange={(e) => setComposerLocation(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && setShowLocation(false)}
+                onBlur={() => setShowLocation(false)}
+                placeholder="Add a location, e.g. Udaipur, Rajasthan"
+                className={inputCls}
+              />
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-[#F0E9DD]">
+            <div className="flex items-center gap-1 flex-wrap">
+              <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={onPickFile} />
+              <Btn size="sm" variant="ghost" onClick={() => fileRef.current?.click()}>
+                <ImageIcon className="w-4 h-4 text-[#8B1E3F]" /> Photo
+              </Btn>
+              <Btn size="sm" variant="ghost" onClick={() => setPollOpen((v) => !v)}>
+                <BarChart3 className="w-4 h-4 text-[#8B1E3F]" /> Poll
+              </Btn>
+              <Btn size="sm" variant="ghost" onClick={() => setShowEventPicker((v) => !v)}>
+                <Tag className="w-4 h-4 text-[#8B1E3F]" /> Event
+              </Btn>
+              <Btn size="sm" variant="ghost" onClick={() => setShowLocation(true)}>
+                <MapPin className="w-4 h-4 text-[#8B1E3F]" /> Location
+              </Btn>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!feedCommunity && (
+                <select
+                  value={composerCommunity}
+                  onChange={(e) => setComposerCommunity(e.target.value)}
+                  className="text-xs font-semibold bg-white border border-[#E9E1D5] rounded-full px-3 py-2 text-[#1A1818] max-w-[170px] focus:outline-none focus:ring-2 focus:ring-[#8B1E3F]/25"
+                  aria-label="Post to community"
+                >
+                  {joinedCommunities.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+              )}
+              <Btn size="sm" onClick={publishPost} disabled={posting}>
+                <Send className="w-3.5 h-3.5" /> Post
+              </Btn>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+
+    {!feedCommunity && (
+      <div className="flex gap-2 justify-center lg:hidden">
+        {([["all", "All posts"], ["mine", "My communities"]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setFeedFilter(k)} className={pill(feedFilter === k)}>{label}</button>
+        ))}
+      </div>
+    )}
+
+    {visiblePosts.length === 0 && (
+      <p className="text-center text-[#5E5754] text-sm py-10">
+        {feedCommunity
+          ? membership[feedCommunity.id] === "joined"
+            ? "No posts yet. Write the first one!"
+            : "No posts yet. Join to start the conversation."
+          : "No posts yet from your communities. Join one or write the first post!"}
+      </p>
+    )}
 
                 {visiblePosts.map((post, i) => (
                   <motion.article
@@ -1145,14 +1585,9 @@ export default function Community() {
 
                     {post.content && <p className="text-sm text-[#1A1818] leading-relaxed mb-4">{post.content}</p>}
 
-                    {post.media && (
-                      <div className="mb-4 -mx-1">
-                        {post.media.type === "image" ? (
-                          <img src={post.media.url} alt="Post attachment" className="rounded-xl w-full max-h-96 object-cover" />
-                        ) : (
-                          <video src={post.media.url} controls className="rounded-xl w-full max-h-96" />
-                        )}
-                      </div>
+                    {post.media && <PostMediaView media={post.media} />}
+                    {post.poll && (
+                      <PollView poll={post.poll} voted={pollVotes[post.id]} onVote={(i) => votePoll(post.id, i)} />
                     )}
 
                     {(post.event || post.location) && (
@@ -1236,14 +1671,129 @@ export default function Community() {
                     </AnimatePresence>
                   </motion.article>
                 ))}
-              </motion.div>
+  </div>
+
+  {/* ---------- Right sidebar ---------- */}
+  <aside className="hidden lg:block lg:col-span-1 lg:sticky lg:top-28 self-start space-y-4">
+    <div className={`bg-white rounded-2xl p-4 ${cardShadow}`}>
+      <h3 className="text-xs font-bold uppercase tracking-wider text-[#8B1E3F] mb-3 flex items-center gap-1.5">
+        <Flame className="w-3.5 h-3.5" /> Trending discussions
+      </h3>
+      <div className="space-y-3">
+        {trendingPosts.map((p) => {
+          const c = communities.find((x) => x.name === p.community);
+          return (
+            <button
+              key={p.id}
+              onClick={() => c && openCommunity(c)}
+              className="block w-full text-left rounded-xl p-2 -mx-2 hover:bg-[#F5EFE6]"
+            >
+              <p className="text-xs font-semibold text-[#8B1E3F] truncate">{p.community}</p>
+              <p className="text-sm text-[#1A1818] line-clamp-2 mt-0.5">
+                {p.content || (p.poll ? "New poll" : "Shared an attachment")}
+              </p>
+              <p className="text-[11px] text-[#5E5754] mt-1">{p.likes} likes · {p.commentCount} comments</p>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+
+    <div className={`bg-white rounded-2xl p-4 ${cardShadow}`}>
+      <h3 className="text-xs font-bold uppercase tracking-wider text-[#8B1E3F] mb-3 flex items-center gap-1.5">
+        <Calendar className="w-3.5 h-3.5" /> Upcoming events
+      </h3>
+      <div className="space-y-3">
+        {upcomingEvents.map((ev) => (
+          <button
+            key={ev.id}
+            onClick={() => setActiveTab("events")}
+            className="flex items-start gap-3 w-full text-left rounded-xl p-2 -mx-2 hover:bg-[#F5EFE6]"
+          >
+            <span className="shrink-0 w-11 rounded-lg bg-[#F5EFE6] text-center py-1">
+              <span className="block text-[9px] font-bold tracking-wider text-[#8B1E3F] leading-none">{monthShort(ev.date)}</span>
+              <span className="block text-lg font-extrabold leading-none mt-0.5">{dayNum(ev.date)}</span>
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-[#1A1818] line-clamp-2">{ev.title}</span>
+              <span className="block text-[11px] text-[#5E5754] truncate mt-0.5">{ev.location}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </aside>
+</motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* Create community modal */}
-        <Modal open={createOpen} onClose={() => { setCreateOpen(false); setFormError(""); }} title="Create a Community">
+        <Modal open={createOpen} onClose={() => { setCreateOpen(false); setFormError(""); discardImages(); }} title="Create a Community">
           <form onSubmit={handleCreateCommunity} className="space-y-4">
+            <div>
+              {/* Banner upload */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => bannerInputRef.current?.click()}
+                onKeyDown={(e) => e.key === "Enter" && bannerInputRef.current?.click()}
+                className={`relative h-32 rounded-xl overflow-hidden cursor-pointer border-2 border-dashed border-[#D98AA5] bg-[#FFF7FA] hover:bg-[#FFF0F5] transition-colors ${bannerPreview ? "border-solid" : ""}`}
+                aria-label="Upload community banner"
+              >
+                {bannerPreview ? (
+                  <img src={bannerPreview} alt="Banner preview" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[#A52A55]">
+                    <Plus className="w-7 h-7" strokeWidth={2.2} />
+                    <span className="text-xs font-semibold">Upload banner</span>
+                  </div>
+                )}
+                {bannerPreview && (
+                  <button
+                    type="button"
+                    aria-label="Remove banner"
+                    onClick={(e) => { e.stopPropagation(); setBannerPreview(null); }}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#1A1818]/75 text-white flex items-center justify-center hover:bg-[#1A1818]"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickImage(e, "banner")} />
+
+              {/* Profile picture upload */}
+              <div className="-mt-8 ml-4 flex items-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  aria-label="Upload profile picture"
+                  className={`relative w-16 h-16 rounded-full overflow-hidden flex items-center justify-center shrink-0 border-2 border-dashed border-[#D98AA5] bg-[#FFF0F5] text-[#A52A55] shadow-md ${avatarPreview ? "border-solid bg-white" : "hover:bg-[#FFE5EE]"}`}
+                >
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Profile preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Plus className="w-6 h-6" strokeWidth={2.2} />
+                  )}
+                </button>
+                <div className="pb-0 text-xs text-[#5E5754]">
+                  <p className="font-semibold text-[#1A1818]">Profile picture</p>
+                  <p>
+                    Square works best.{" "}
+                    {avatarPreview && (
+                      <button
+                        type="button"
+                        className="text-[#8B1E3F] font-semibold"
+                        onClick={() => setAvatarPreview(null)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickImage(e, "avatar")} />
+            </div>
             <div>
               <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Name *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} placeholder="e.g. Jaipur Decorators Circle" maxLength={60} />
@@ -1274,7 +1824,7 @@ export default function Community() {
             </label>
             {formError && <p className="text-sm text-red-600">{formError}</p>}
             <div className="flex justify-end gap-2 pt-2">
-              <Btn variant="ghost" onClick={() => { setCreateOpen(false); setFormError(""); }}>Cancel</Btn>
+              <Btn variant="ghost" onClick={() => { setCreateOpen(false); setFormError(""); discardImages(); }}>Cancel</Btn>
               <Btn type="submit">Create</Btn>
             </div>
           </form>
@@ -1319,8 +1869,7 @@ export default function Community() {
                 </Btn>
                 <Btn
                   variant="outline"
-                  onClick={() => { setDetailId(null); setActiveTab("feed"); setFeedFilter("mine"); }}
-                  disabled={membership[detailCommunity.id] !== "joined"}
+                  onClick={() => { const c = detailCommunity; setDetailId(null); openCommunity(c); }}
                 >
                   View Feed
                 </Btn>
@@ -1395,7 +1944,7 @@ export default function Community() {
         </div>
       </main>
 
-      <Footer />
+      {activeTab !== "feed" && <Footer />}
       <EveBuddy />
     </div>
   );

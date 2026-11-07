@@ -1,4 +1,5 @@
 import SubCategoryPage from "./pages/SubCategoryPage";
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,8 +23,8 @@ import TrustSafety from "./pages/TrustSafety";
 import NotFound from "./pages/NotFound";
 import ChooseRole from "./pages/ChooseRole";
 import Reels from "./pages/Reels";
-import Chat from "./pages/Chat"; // NEW
-import { ChatProvider } from "@/components/chat/ChatProvider"; // NEW
+import Chat from "./pages/Chat";
+import { ChatProvider } from "@/components/chat/ChatProvider";
 // import { SmoothScroll } from "@/components/SmoothScroll";
 import { ModerationToasts, AdminModeration } from "@/components/chat/moderation";
 import MyReels from "./pages/MyReels";
@@ -33,44 +34,43 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      {/* NEW: ChatProvider = online presence + incoming/outgoing voice & video calls (works on every page) */}
+      {/* ChatProvider = online presence + incoming/outgoing voice & video calls */}
       <ChatProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <ModerationToasts />
-        <BrowserRouter>
-                    {/* <SmoothScroll /> */}
-          <Routes>
-            <Route path="/category/:categoryId" element={<CategoryPage />} />
-            <Route path="/subcategory/:subcategoryName" element={<SubCategoryPage />} />
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/vendors" element={<Vendors />} />
-            <Route path="/for-partners" element={<ForPartners />} />
-            <Route path="/category/:categoryId" element={<CategoryPage />} />
-            <Route path="/vendor-dashboard" element={<VendorDashboard />} />
-            <Route path="/how-it-works" element={<HowItWorks />} />
-            <Route path="/ultra-gold" element={<UltraGold />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/account" element={<CustomerAccount />} />
-            <Route path="/booking-system" element={<BookingSystem />} />
-            <Route path="/rewards" element={<GamificationPage />} />
-            <Route path="/compare" element={<VendorComparison />} />
-            <Route path="/trust-safety" element={<TrustSafety />} />
-            {/* NEW: chat */}
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/chat/:conversationId" element={<Chat />} />
-            <Route path="*" element={<NotFound />} />
-            <Route path="/choose-role" element={<ChooseRole />} />
-            <Route path="/reels" element={<Reels />} />
-            <Route path="/my-reels" element={<MyReels />} />
-            <Route path="/admin/moderation" element={<AdminModeration />} />
-            <Route path="/vendors" element={<Vendors />} />
-<Route path="/vendors/:slug" element={<Vendors />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <ModerationToasts />
+          <BrowserRouter>
+            {/* <SmoothScroll /> */}
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/choose-role" element={<ChooseRole />} />
+              <Route path="/vendors" element={<Vendors />} />
+              <Route path="/vendors/:slug" element={<Vendors />} />
+              <Route path="/for-partners" element={<ForPartners />} />
+              <Route path="/category/:categoryId" element={<CategoryPage />} />
+              <Route path="/subcategory/:subcategoryName" element={<SubCategoryPage />} />
+              <Route path="/vendor-dashboard" element={<VendorDashboard />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/ultra-gold" element={<UltraGold />} />
+              <Route path="/community" element={<Community />} />
+              <Route path="/community/:slug" element={<Community />} />
+              <Route path="/account" element={<CustomerAccount />} />
+              <Route path="/booking-system" element={<BookingSystem />} />
+              <Route path="/rewards" element={<GamificationPage />} />
+              <Route path="/compare" element={<VendorComparison />} />
+              <Route path="/trust-safety" element={<TrustSafety />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/chat/:conversationId" element={<Chat />} />
+              <Route path="/reels" element={<Reels />} />
+              <Route path="/my-reels" element={<MyReels />} />
+              <Route path="/admin/moderation" element={<AdminModeration />} />
+              {/* Keep the catch-all route last. */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
       </ChatProvider>
     </AuthProvider>
   </QueryClientProvider>
