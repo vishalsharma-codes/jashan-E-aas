@@ -6,9 +6,17 @@ import type { Conversation, Message, MessageKind } from "@/lib/chatTypes";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-/* ------------------------------------------------------------------ */
-/* Conversation list (live)                                            */
-/* ------------------------------------------------------------------ */
+const markRead = async (conv: string) => {
+  const { error } = await supabase.rpc("mark_conversation_read", { conv });
+
+  if (error) {
+    console.error("mark_conversation_read failed:", error);
+  } else {
+    window.dispatchEvent(new Event("chat:unread-changed"));
+  }
+};
+
+/* Conversation list (live) */
 export function useConversations() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -16,11 +24,14 @@ export function useConversations() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+
+    const { data, error } = await supabase
       .from("conversations")
       .select("*")
       .or(`customer_id.eq.${user.id},vendor_id.eq.${user.id}`)
       .order("last_message_at", { ascending: false });
+
+    if (error) console.error("Failed to load conversations:", error);
     setConversations((data ?? []) as Conversation[]);
     setLoading(false);
   }, [user?.id]);
@@ -31,22 +42,26 @@ export function useConversations() {
       setLoading(false);
       return;
     }
-    load();
+
+    void load();
+    const onUnreadChanged = () => void load();
+    window.addEventListener("chat:unread-changed", onUnreadChanged);
+
     const ch = supabase
       .channel(`conv-list-${user.id}-${uid()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => void load())
       .subscribe();
+
     return () => {
-      supabase.removeChannel(ch);
+      window.removeEventListener("chat:unread-changed", onUnreadChanged);
+      void supabase.removeChannel(ch);
     };
   }, [user?.id, load]);
 
   return { conversations, loading, reload: load };
 }
 
-/* ------------------------------------------------------------------ */
-/* Total unread count (used by the navbar badge)                       */
-/* ------------------------------------------------------------------ */
+/* Total unread count (Navbar badge) */
 export function useUnreadCount() {
   const { user } = useAuth();
   const [count, setCount] = useState(0);
@@ -56,33 +71,47 @@ export function useUnreadCount() {
       setCount(0);
       return;
     }
+
     const load = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("conversations")
         .select("customer_id, customer_unread, vendor_unread")
         .or(`customer_id.eq.${user.id},vendor_id.eq.${user.id}`);
+
+      if (error) {
+        console.error("Failed to load unread count:", error);
+        return;
+      }
+
       const total = (data ?? []).reduce(
-        (sum: number, c: any) => sum + (c.customer_id === user.id ? c.customer_unread : c.vendor_unread),
+        (sum: number, c: any) =>
+          sum + (c.customer_id === user.id
+            ? Number(c.customer_unread ?? 0)
+            : Number(c.vendor_unread ?? 0)),
         0
       );
       setCount(total);
     };
-    load();
+
+    void load();
+    const onUnreadChanged = () => void load();
+    window.addEventListener("chat:unread-changed", onUnreadChanged);
+
     const ch = supabase
       .channel(`unread-${user.id}-${uid()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => void load())
       .subscribe();
+
     return () => {
-      supabase.removeChannel(ch);
+      window.removeEventListener("chat:unread-changed", onUnreadChanged);
+      void supabase.removeChannel(ch);
     };
   }, [user?.id]);
 
   return count;
 }
 
-/* ------------------------------------------------------------------ */
-/* Messages of one conversation (live) + typing indicator              */
-/* ------------------------------------------------------------------ */
+/* Messages of one conversation (live) + typing indicator */
 export interface SendInput {
   kind?: MessageKind;
   body?: string | null;
@@ -108,16 +137,18 @@ export function useMessages(conversationId: string | null) {
     setLoading(true);
 
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true })
         .limit(500);
+
       if (!active) return;
+      if (error) console.error("Failed to load messages:", error);
       setMessages((data ?? []) as Message[]);
       setLoading(false);
-      supabase.rpc("mark_conversation_read", { conv: conversationId });
+      void markRead(conversationId);
     })();
 
     const filter = `conversation_id=eq.${conversationId}`;
@@ -125,15 +156,16 @@ export function useMessages(conversationId: string | null) {
       .channel(`msgs-${conversationId}-${uid()}`, { config: { broadcast: { self: false } } })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter }, (p) => {
         const m = p.new as Message;
-        setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+        setMessages((prev) => prev.some((x) => x.id === m.id) ? prev : [...prev, m]);
+
         if (m.sender_id !== user.id) {
           setOtherTyping(false);
-          supabase.rpc("mark_conversation_read", { conv: conversationId });
+          void markRead(conversationId);
         }
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter }, (p) => {
         const m = p.new as Message;
-        setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)));
+        setMessages((prev) => prev.map((x) => x.id === m.id ? { ...x, ...m } : x));
       })
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload?.user_id === user.id) return;
@@ -142,52 +174,49 @@ export function useMessages(conversationId: string | null) {
         typingTimer.current = window.setTimeout(() => setOtherTyping(false), 3000);
       })
       .subscribe();
+
     channelRef.current = ch;
 
     return () => {
       active = false;
       window.clearTimeout(typingTimer.current);
       channelRef.current = null;
-      supabase.removeChannel(ch);
+      void supabase.removeChannel(ch);
     };
   }, [conversationId, user?.id]);
 
-  const send = useCallback(
-    async (input: SendInput) => {
-      if (!conversationId || !user) return;
-      const { data, error } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          kind: input.kind ?? "text",
-          body: input.body ?? null,
-          media_url: input.media_url ?? null,
-          duration_seconds: input.duration_seconds ?? null,
-        })
-          .select()
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return; // message was held back by moderation; the warning arrives via the alert popup
-      const m = data as Message;
-      setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
-    },
-    [conversationId, user?.id]
-  );
+  const send = useCallback(async (input: SendInput) => {
+    if (!conversationId || !user) return;
 
-  const upload = useCallback(
-    async (file: Blob, fileName: string) => {
-      if (!conversationId) throw new Error("No conversation");
-      const safe = fileName.replace(/[^\w.\-]/g, "_");
-      const path = `${conversationId}/${Date.now()}-${safe}`;
-      const { error } = await supabase.storage
-        .from("chat-media")
-        .upload(path, file, { contentType: file.type || undefined });
-      if (error) throw error;
-      return supabase.storage.from("chat-media").getPublicUrl(path).data.publicUrl;
-    },
-    [conversationId]
-  );
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        kind: input.kind ?? "text",
+        body: input.body ?? null,
+        media_url: input.media_url ?? null,
+        duration_seconds: input.duration_seconds ?? null,
+      })
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return;
+    const m = data as Message;
+    setMessages((prev) => prev.some((x) => x.id === m.id) ? prev : [...prev, m]);
+  }, [conversationId, user?.id]);
+
+  const upload = useCallback(async (file: Blob, fileName: string) => {
+    if (!conversationId) throw new Error("No conversation");
+    const safe = fileName.replace(/[^\w.\-]/g, "_");
+    const path = `${conversationId}/${Date.now()}-${safe}`;
+    const { error } = await supabase.storage
+      .from("chat-media")
+      .upload(path, file, { contentType: file.type || undefined });
+    if (error) throw error;
+    return supabase.storage.from("chat-media").getPublicUrl(path).data.publicUrl;
+  }, [conversationId]);
 
   const notifyTyping = useCallback(() => {
     const now = Date.now();
