@@ -10,77 +10,21 @@ import {
   X, Search, Check, Minus, Send, CheckCircle2, ShieldCheck,
   Image as ImageIcon, Tag, TrendingUp, Star, BarChart3, Flame,
 } from "lucide-react";
+import * as api from "@/lib/communityApi";
+import { useAuthUser } from "@/lib/communityApi";
 
 /* ----------------------------- Types & data ----------------------------- */
 
 type TabKey = "communities" | "events" | "feed";
 type Membership = "joined" | "pending";
 
-interface Community {
-  id: string;
-  icon: string;
-  type: string;
-  name: string;
-  members: number;
-  admin: string;
-  purpose: string;
-  tags: string[];
-  banner: string; // CSS background used when there is no cover photo
-  cover?: string; // cover photo URL or /public path
-  avatar?: string; // profile picture URL or /public path
-  isVerified: boolean;
-  posts: number;
-  city: string;
-  isPrivate?: boolean;
-  featured?: "large" | "trending";
-}
-
-interface EventItem {
-  id: string;
-  title: string;
-  organizer: string;
-  community: string;
-  date: string; // ISO yyyy-mm-dd
-  time: string;
-  price: number;
-  capacity: number;
-  filled: number;
-  location: string;
-  icon: string;
-  banner: string;
-  image?: string; // optional real 16:9 photo
-}
-
-interface Comment {
-  author: string;
-  text: string;
-}
-
+type Community = api.ApiCommunity & { banner: string; featured?: "large" | "trending" };
+type EventItem = api.ApiEvent & { banner: string };
+type Post = api.ApiPost;
 interface PollOption { text: string; votes: number }
 
-interface PostMedia {
-  key: string;
-  type: "image" | "video";
-  url?: string;
-}
-
-interface Post {
-  id: string;
-  author: string;
-  avatar: string;
-  gradient: string;
-  community: string;
-  time: string;
-  content: string;
-  likes: number;
-  comments: Comment[];
-  commentCount: number;
-  tags: string[];
-  media?: PostMedia;
-  poll?: { options: PollOption[] };
-  event?: string;
-  location?: string;
-}
+/** Where signed-out visitors are sent when they try to join / post / book. */
+const LOGIN_ROUTE = "/login";
 
 /* Rich CSS "photo-like" banners, used until real cover photos are supplied */
 const BANNERS = {
@@ -108,121 +52,18 @@ const TYPE_STYLES: Record<string, { icon: string; banner: string }> = {
 };
 const COMMUNITY_TYPES = Object.keys(TYPE_STYLES);
 
-/* Placeholder stock photos (keyword based). Replace with your own files in /public when ready. */
-const photo = (keywords: string, lock: number, w = 900, h = 400) =>
-  `https://picsum.photos/seed/${keywords.split(",")[0]}-${lock}/${w}/${h}`;
 const face = (n: number) => `https://i.pravatar.cc/80?img=${n}`;
-const TYPE_PHOTO_KEYWORDS: Record<string, [string, string]> = {
-  "Vendor Community": ["photography,camera", "camera,lens"],
-  "Event Category": ["wedding,decoration", "wedding,flowers"],
-  "City Community": ["conference,event", "office,building"],
-  "Interest Community": ["garden,plants", "leaves,green"],
-  "Private Planning Group": ["family,celebration", "family,home"],
-};
 
-const initialCommunities: Community[] = [
-  {
-    id: "c2", icon: "💒", type: "Event Category", name: "Wedding Planning India", members: 4230,
-    admin: "Platform Moderator",
-    purpose: "Wedding planning tips, vendor recommendations and real experiences from couples and planners across India.",
-    tags: ["Weddings", "All India", "Tips"], banner: BANNERS.floral,
-    cover: photo("wedding,decoration", 21), avatar: photo("wedding,flowers", 22, 200, 200),
-    isVerified: true, posts: 1890, city: "Pan India", featured: "large",
-  },
-  {
-    id: "c1", icon: "📸", type: "Vendor Community", name: "Delhi Photographers Guild", members: 847,
-    admin: "Rohan Kapoor Photography",
-    purpose: "Showcase work, discuss industry, refer clients to each other",
-    tags: ["Photography", "Delhi", "Networking"], banner: BANNERS.golden,
-    cover: photo("photography,camera", 23), avatar: photo("camera,lens", 24, 200, 200),
-    isVerified: true, posts: 234, city: "Delhi", featured: "trending",
-  },
-  {
-    id: "c3", icon: "🏢", type: "City Community", name: "Mumbai Corporate Events", members: 1560,
-    admin: "EventPro Mumbai",
-    purpose: "Local vendor recommendations, Mumbai event trends, venue reviews",
-    tags: ["Corporate", "Mumbai", "Venues"], banner: BANNERS.city,
-    cover: photo("conference,event", 25), avatar: photo("office,building", 26, 200, 200),
-    isVerified: true, posts: 567, city: "Mumbai",
-  },
-  {
-    id: "c4", icon: "🌿", type: "Interest Community", name: "Eco-Friendly Events", members: 329,
-    admin: "GreenEvent Collective",
-    purpose: "DIY decoration, sustainable vendor lists, zero-waste event ideas",
-    tags: ["Eco", "Sustainable", "DIY"], banner: BANNERS.eco,
-    cover: photo("garden,plants", 27), avatar: photo("leaves,green", 28, 200, 200),
-    isVerified: false, posts: 89, city: "All India",
-  },
-  {
-    id: "c5", icon: "🎵", type: "Vendor Community", name: "Choreographers Network India", members: 612,
-    admin: "National Dance Association",
-    purpose: "Performer community — share reels, find collaborators, discuss rates",
-    tags: ["Dance", "Performance", "Sangeet"], banner: BANNERS.stage,
-    cover: photo("dance,stage", 29), avatar: photo("dancer,performance", 30, 200, 200),
-    isVerified: true, posts: 443, city: "Pan India",
-  },
-  {
-    id: "c6", icon: "🔒", type: "Private Planning Group", name: "Sharma-Mehta Wedding 2026", members: 12,
-    admin: "Priya Sharma",
-    purpose: "Private group for family + selected vendors to co-plan the wedding",
-    tags: ["Private", "Wedding", "Family"], banner: BANNERS.private,
-    cover: photo("family,celebration", 31), avatar: photo("family,home", 32, 200, 200),
-    isVerified: false, posts: 56, city: "Jaipur", isPrivate: true,
-  },
-];
-
-const initialEvents: EventItem[] = [
-  {
-    id: "e1", title: "Photography Workshop — Golden Hour Portraits", organizer: "Rohan Kapoor Photography",
-    community: "Delhi Photographers Guild", date: "2026-11-21", time: "4:00 PM", price: 1500,
-    capacity: 20, filled: 14, location: "Lodhi Garden, Delhi", icon: "📸", banner: BANNERS.golden,
-    image: photo("photography,portrait", 41, 800, 450),
-  },
-  {
-    id: "e2", title: "Pre-Wedding Vendor Speed Dating", organizer: "EventPro Mumbai",
-    community: "Mumbai Corporate Events", date: "2026-11-28", time: "11:00 AM", price: 500,
-    capacity: 50, filled: 38, location: "The Leela, Mumbai", icon: "💑", banner: BANNERS.floral,
-    image: photo("wedding,vendors", 42, 800, 450),
-  },
-  {
-    id: "e3", title: "Sangeet Choreography Group Session", organizer: "Natya Academy",
-    community: "Choreographers Network India", date: "2026-12-05", time: "6:00 PM", price: 2000,
-    capacity: 30, filled: 30, location: "Andheri West, Mumbai", icon: "💃", banner: BANNERS.stage,
-    image: photo("dance,sangeet", 43, 800, 450),
-  },
-  {
-    id: "e4", title: "Wedding Exhibition — Venue & Decor Showcase", organizer: "Wedding Planning India",
-    community: "Wedding Planning India", date: "2026-12-12", time: "10:00 AM", price: 0,
-    capacity: 200, filled: 87, location: "Pragati Maidan, Delhi", icon: "🏛️", banner: BANNERS.gold,
-    image: photo("wedding,venue", 44, 800, 450),
-  },
-];
-
-const initialPosts: Post[] = [
-  {
-    id: "p1", author: "Kavitha Nair", avatar: "KN", gradient: "linear-gradient(135deg,#f472b6,#be185d)",
-    community: "Wedding Planning India", time: "2h ago",
-    content: "Finally found the perfect mehandi artist in Kochi after searching for 3 months! Her Arabic style is absolutely stunning. DM me for her contact — she has slots for December.",
-    likes: 47, comments: [], commentCount: 12, tags: ["Mehandi", "Kochi", "Recommendation"],
-    location: "Kochi, Kerala",
-  },
-  {
-    id: "p2", author: "Arun Photography", avatar: "AP", gradient: "linear-gradient(135deg,#3b82f6,#4338ca)",
-    community: "Delhi Photographers Guild", time: "5h ago",
-    content: "Shooting tip of the week: For golden hour sangeet shots, position the couple with the light source at 45° behind them. Creates that magical rim lighting every bride loves. See sample shot in comments 📸",
-    likes: 89, comments: [], commentCount: 23, tags: ["Photography", "Tip", "Sangeet"],
-    event: "Photography Workshop — Golden Hour Portraits",
-  },
-  {
-    id: "p3", author: "Green Events India", avatar: "GE", gradient: "linear-gradient(135deg,#10b981,#0f766e)",
-    community: "Eco-Friendly Events", time: "1d ago",
-    content: "We just completed a zero-waste Diwali corporate event for 300 guests. Total waste: 2.3 kg. Traditional events generate 50+ kg for same size. AMA in comments!",
-    likes: 134, comments: [], commentCount: 45, tags: ["Eco", "Corporate", "ZeroWaste"],
-  },
-];
-
-const CURRENT_USER = "You";
-const isMine = (c: Community) => c.admin === CURRENT_USER;
+/* Add the CSS gradient fallback used when a community / event has no photo */
+const decorateCommunity = (c: api.ApiCommunity): Community => ({
+  ...c,
+  banner: c.isPrivate ? BANNERS.private : TYPE_STYLES[c.type]?.banner ?? BANNERS.eco,
+});
+const EVENT_BANNERS = [BANNERS.golden, BANNERS.floral, BANNERS.stage, BANNERS.gold];
+const decorateEvent = (e: api.ApiEvent): EventItem => ({
+  ...e,
+  banner: EVENT_BANNERS[hash(e.id) % EVENT_BANNERS.length],
+});
 
 /* ------------------------------ Helpers ----------------------------- */
 
@@ -407,31 +248,6 @@ const pill = (active: boolean) =>
       : "bg-white text-[#3D3735] border border-[#E9E1D5] hover:border-[#1A1818]/40"
   }`;
 
-const LS = {
-  communities: "jea.community.communities.v1",
-  membership: "jea.community.membership.v1",
-  posts: "jea.community.posts.v1",
-  votes: "jea.community.votes.v1",
-};
-
-function loadJSON<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveJSON(key: string, value: unknown): boolean {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /* Resize + convert to a data URL so the image survives a refresh */
 function fileToDataUrl(file: File, maxSize: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -460,38 +276,6 @@ function fileToDataUrl(file: File, maxSize: number): Promise<string> {
   });
 }
 
-/* ---- IndexedDB for post images/videos ---- */
-const MEDIA_DB = "jea-community-media";
-const MEDIA_STORE = "files";
-
-function openMediaDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(MEDIA_DB, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(MEDIA_STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function saveMedia(key: string, blob: Blob): Promise<void> {
-  const db = await openMediaDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(MEDIA_STORE, "readwrite");
-    tx.objectStore(MEDIA_STORE).put(blob, key);
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  });
-}
-
-async function loadMedia(key: string): Promise<Blob | undefined> {
-  const db = await openMediaDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(MEDIA_STORE, "readonly").objectStore(MEDIA_STORE).get(key);
-    req.onsuccess = () => { const result = req.result as Blob | undefined; db.close(); resolve(result); };
-    req.onerror = () => { db.close(); reject(req.error); };
-  });
-}
-
 function getVideoDuration(url: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const v = document.createElement("video");
@@ -502,27 +286,18 @@ function getVideoDuration(url: string): Promise<number> {
   });
 }
 
-function PostMediaView({ media }: { media: PostMedia }) {
-  const [src, setSrc] = useState<string | null>(media.url ?? null);
+function PostMediaView({ media }: { media: { path: string; type: "image" | "video" } }) {
+  const [src, setSrc] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
-    if (src || !media.key) return;
     let alive = true;
-    let objectUrl: string | null = null;
-    loadMedia(media.key)
-      .then((blob) => {
-        if (!alive) return;
-        if (!blob) return setMissing(true);
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-      })
-      .catch(() => alive && setMissing(true));
-    return () => {
-      alive = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [media.key]);
+    api
+      .getMediaUrl(media.path)
+      .then((u) => { if (alive) setSrc(u); })
+      .catch(() => { if (alive) setMissing(true); });
+    return () => { alive = false; };
+  }, [media.path]);
 
   if (missing) return <p className="text-xs text-[#8A827E] mb-4">Attachment unavailable</p>;
   if (!src) return <div className="mb-4 h-48 rounded-xl bg-[#F5EFE6] animate-pulse" />;
@@ -574,13 +349,16 @@ function PollView({ poll, voted, onVote }: {
   );
 }
 
-const slugify = (s: string) =>
-  s.toLowerCase().trim().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+const slugify = api.slugify;
 
 /* --------------------------------- Page --------------------------------- */
 
 export default function Community() {
-  const [communities, setCommunities] = useState<Community[]>(() => loadJSON(LS.communities, initialCommunities));
+  const { user } = useAuthUser();
+  const isMine = useCallback((c: Community) => !!user && c.adminId === user.id, [user]);
+  const myInitials = initialsOf(String(user?.user_metadata?.full_name ?? user?.email ?? "You"));
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { pathname, search: queryString } = useLocation();
   const { slug } = useParams<{ slug?: string }>();
@@ -603,13 +381,10 @@ export default function Community() {
   const setActiveTab = (tab: TabKey) => goTab(tab);
   const setFeedCommunityId = (id: string | null) =>
     goTab("feed", id ? communities.find((c) => c.id === id) ?? null : null);
-  const [events, setEvents] = useState<EventItem[]>(initialEvents);
-  const [posts, setPosts] = useState<Post[]>(() => loadJSON(LS.posts, initialPosts));
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
 
-  const [membership, setMembership] = useState<Record<string, Membership>>(() => loadJSON(LS.membership, {}));
-  const [bookings, setBookings] = useState<Record<string, number>>({});
-  const [waitlist, setWaitlist] = useState<Record<string, boolean>>({});
-  const [liked, setLiked] = useState<Record<string, boolean>>({});
+  const [membership, setMembership] = useState<Record<string, Membership>>({});
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("All");
@@ -655,12 +430,12 @@ export default function Community() {
   const [posting, setPosting] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
-  const [pollVotes, setPollVotes] = useState<Record<string, number>>(() => loadJSON(LS.votes, {}));
-
-  useEffect(() => { saveJSON(LS.votes, pollVotes); }, [pollVotes]);
+  
   const [composerEvent, setComposerEvent] = useState("");
   const [composerLocation, setComposerLocation] = useState("");
   const [showEventPicker, setShowEventPicker] = useState(false);
+  const [customEventOpen, setCustomEventOpen] = useState(false);
+  const [customEventText, setCustomEventText] = useState("");
   const [showLocation, setShowLocation] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -674,22 +449,27 @@ export default function Community() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2800);
   }, []);
 
-  useEffect(() => {
-    if (!saveJSON(LS.communities, communities)) {
-      toast("Storage full — community saved only for this session");
+  const requireLogin = () => {
+    if (user) return true;
+    toast("Please sign in first");
+    navigate(LOGIN_ROUTE);
+    return false;
+  };
+
+  const refreshAll = useCallback(async () => {
+    try {
+      const [cs, es, ms] = await Promise.all([api.listCommunities(), api.listEvents(), api.myMemberships()]);
+      setCommunities(cs.map(decorateCommunity));
+      setEvents(es.map(decorateEvent));
+      setMembership(ms);
+    } catch (e: any) {
+      toast(e?.message || "Couldn't load communities");
+    } finally {
+      setLoading(false);
     }
-  }, [communities, toast]);
+  }, [toast]);
 
-  useEffect(() => {
-    saveJSON(LS.membership, membership);
-  }, [membership]);
-
-  useEffect(() => {
-    saveJSON(
-      LS.posts,
-      posts.map((p) => (p.media ? { ...p, media: { key: p.media.key, type: p.media.type } } : p))
-    );
-  }, [posts]);
+  useEffect(() => { refreshAll(); }, [refreshAll, user?.id]);
 
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -709,13 +489,16 @@ export default function Community() {
         !q || [c.name, c.purpose, c.city, c.type, ...c.tags].some((s) => s.toLowerCase().includes(q));
       return matchType && matchSearch;
     });
-  }, [communities, search, typeFilter, membership]);
+  }, [communities, search, typeFilter, membership, isMine]);
 
   const totalMembers = communities.reduce((s, c) => s + c.members, 0);
   const joinedCommunities = communities.filter((c) => membership[c.id] === "joined");
   const joinedNames = new Set(joinedCommunities.map((c) => c.name));
   const feedCommunity = slug ? communities.find((c) => slugify(c.name) === slug) ?? null : null;
-  const memberLabel = `${(Math.floor(totalMembers / 500) * 500).toLocaleString("en-IN")}+`;
+  const memberLabel =
+    totalMembers >= 500
+      ? `${(Math.floor(totalMembers / 500) * 500).toLocaleString("en-IN")}+`
+      : totalMembers.toLocaleString("en-IN");
 const canPost = feedCommunity ? membership[feedCommunity.id] === "joined" : joinedCommunities.length > 0;
 
 const trendingPosts = useMemo(
@@ -728,8 +511,18 @@ const upcomingEvents = useMemo(
 );
 
   useEffect(() => {
-    if (slug && !feedCommunity) navigate("/community", { replace: true });
-  }, [slug, feedCommunity, navigate]);
+    if (slug && !feedCommunity && !loading) navigate("/community", { replace: true });
+  }, [slug, feedCommunity, loading, navigate]);
+
+  // posts: reload when the viewed community (or the signed-in user) changes
+  useEffect(() => {
+    let alive = true;
+    api
+      .listPosts(feedCommunity?.id)
+      .then((p) => { if (alive) setPosts(p); })
+      .catch((e) => toast(e?.message || "Couldn't load posts"));
+    return () => { alive = false; };
+  }, [feedCommunity?.id, user?.id, toast]);
 
   useEffect(() => {
     if (!feedCommunity) return;
@@ -767,22 +560,24 @@ const upcomingEvents = useMemo(
   const adjustMembers = (id: string, delta: number) =>
     setCommunities((cs) => cs.map((c) => (c.id === id ? { ...c, members: Math.max(0, c.members + delta) } : c)));
 
-  const handleMembership = (c: Community) => {
+  const handleMembership = async (c: Community) => {
+    if (!requireLogin()) return;
+    if (isMine(c)) return toast("You're the admin of this community");
     const status = membership[c.id];
-    if (status === "joined") {
-      setMembership((m) => { const n = { ...m }; delete n[c.id]; return n; });
-      adjustMembers(c.id, -1);
-      toast(`You left ${c.name}`);
-    } else if (status === "pending") {
-      setMembership((m) => { const n = { ...m }; delete n[c.id]; return n; });
-      toast("Join request cancelled");
-    } else if (c.isPrivate) {
-      setMembership((m) => ({ ...m, [c.id]: "pending" }));
-      toast(`Request sent to ${c.admin}`);
-    } else {
-      setMembership((m) => ({ ...m, [c.id]: "joined" }));
-      adjustMembers(c.id, 1);
-      toast(`Welcome to ${c.name}! 🎉`);
+    try {
+      if (status) {
+        await api.leaveCommunity(c.id);
+        setMembership((m) => { const n = { ...m }; delete n[c.id]; return n; });
+        if (status === "joined") adjustMembers(c.id, -1);
+        toast(status === "joined" ? `You left ${c.name}` : "Join request cancelled");
+      } else {
+        const st = await api.joinCommunity(c);
+        setMembership((m) => ({ ...m, [c.id]: st }));
+        if (st === "joined") adjustMembers(c.id, 1);
+        toast(st === "joined" ? `Welcome to ${c.name}! 🎉` : `Request sent to ${c.admin}`);
+      }
+    } catch (e: any) {
+      toast(e?.message || "Something went wrong");
     }
   };
 
@@ -802,8 +597,9 @@ const upcomingEvents = useMemo(
     setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
   };
 
-  const handleCreateCommunity = (e: FormEvent) => {
+  const handleCreateCommunity = async (e: FormEvent) => {
     e.preventDefault();
+    if (!requireLogin()) return;
     if (form.name.trim().length < 3) return setFormError("Community name must be at least 3 characters.");
     if (form.purpose.trim().length < 10) return setFormError("Please describe the purpose (at least 10 characters).");
     if (!slugify(form.name)) return setFormError("Name needs at least one letter or number.");
@@ -812,102 +608,159 @@ const upcomingEvents = useMemo(
 
     const style = TYPE_STYLES[form.type];
     const isPrivate = form.isPrivate || form.type === "Private Planning Group";
-    const newCommunity: Community = {
-      id: `c-${Date.now()}`,
-      icon: isPrivate ? "🔒" : style.icon,
-      type: form.type,
-      name: form.name.trim(),
-      members: 1,
-      admin: CURRENT_USER,
-      purpose: form.purpose.trim(),
-      tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 5),
-      banner: isPrivate ? BANNERS.private : style.banner,
-      cover: bannerPreview ?? photo((TYPE_PHOTO_KEYWORDS[form.type] || TYPE_PHOTO_KEYWORDS["Interest Community"])[0], hash(form.name) % 1000),
-      avatar: avatarPreview ?? photo((TYPE_PHOTO_KEYWORDS[form.type] || TYPE_PHOTO_KEYWORDS["Interest Community"])[1], hash(form.name + "a") % 1000, 200, 200),
-      isVerified: false,
-      posts: 0,
-      city: form.city.trim() || "All India",
-      isPrivate,
-    };
-    setCommunities((cs) => [newCommunity, ...cs]);
-    setMembership((m) => ({ ...m, [newCommunity.id]: "joined" }));
-    setForm(emptyForm);
-    setBannerPreview(null);
-    setAvatarPreview(null);
-    setFormError("");
-    setCreateOpen(false);
-    setActiveTab("communities");
-    setSearch("");
-    setTypeFilter("All");
-    toast(`"${newCommunity.name}" created 🎉`);
+    try {
+      const created = await api.createCommunity({
+        name: form.name.trim(),
+        type: form.type,
+        city: form.city.trim(),
+        purpose: form.purpose.trim(),
+        tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 5),
+        icon: isPrivate ? "🔒" : style.icon,
+        isPrivate,
+        coverDataUrl: bannerPreview,
+        avatarDataUrl: avatarPreview,
+      });
+      setCommunities((cs) => [decorateCommunity(created), ...cs]);
+      setMembership((m) => ({ ...m, [created.id]: "joined" }));
+      setForm(emptyForm);
+      setBannerPreview(null);
+      setAvatarPreview(null);
+      setFormError("");
+      setCreateOpen(false);
+      setActiveTab("communities");
+      setSearch("");
+      setTypeFilter("All");
+      toast(`"${created.name}" created 🎉`);
+    } catch (err: any) {
+      setFormError(err?.message || "Couldn't create the community. Try again.");
+    }
   };
 
   /* --------------------------------- Events ------------------------------- */
 
-  const openBooking = (ev: EventItem) => {
-    if (bookings[ev.id]) return;
+  const openBooking = async (ev: EventItem) => {
+    if (!requireLogin() || ev.myBooking) return;
     if (ev.filled >= ev.capacity) {
-      const on = !waitlist[ev.id];
-      setWaitlist((w) => ({ ...w, [ev.id]: on }));
-      toast(on ? "You're on the waitlist — we'll notify you if a spot opens" : "Removed from waitlist");
+      const on = !ev.onWaitlist;
+      try {
+        await api.setWaitlist(ev.id, on);
+        setEvents((es) => es.map((e) => (e.id === ev.id ? { ...e, onWaitlist: on } : e)));
+        toast(on ? "You're on the waitlist — we'll notify you if a spot opens" : "Removed from waitlist");
+      } catch (err: any) {
+        toast(err?.message || "Something went wrong");
+      }
       return;
     }
     setSeats(1);
     setBookingEventId(ev.id);
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
     if (!bookingEvent) return;
-    setBookings((b) => ({ ...b, [bookingEvent.id]: seats }));
-    setEvents((es) => es.map((e) => (e.id === bookingEvent.id ? { ...e, filled: e.filled + seats } : e)));
-    toast(
-      bookingEvent.price === 0
-        ? `Registered for ${bookingEvent.title}`
-        : `Booked ${seats} seat${seats > 1 ? "s" : ""} — ₹${(seats * bookingEvent.price).toLocaleString("en-IN")} held in escrow`
-    );
-    setBookingEventId(null);
+    try {
+      await api.bookEventApi(bookingEvent.id, seats);
+      setEvents((es) =>
+        es.map((e) =>
+          e.id === bookingEvent.id ? { ...e, filled: e.filled + seats, myBooking: seats, onWaitlist: false } : e
+        )
+      );
+      toast(
+        bookingEvent.price === 0
+          ? `Registered for ${bookingEvent.title}`
+          : `Booked ${seats} seat${seats > 1 ? "s" : ""} — ₹${(seats * bookingEvent.price).toLocaleString("en-IN")}`
+      );
+      setBookingEventId(null);
+    } catch (err: any) {
+      toast(err?.message || "Booking failed");
+      refreshAll();
+    }
   };
 
-  const cancelBooking = (ev: EventItem) => {
-    const n = bookings[ev.id];
-    if (!n) return;
-    setBookings((b) => { const x = { ...b }; delete x[ev.id]; return x; });
-    setEvents((es) => es.map((e) => (e.id === ev.id ? { ...e, filled: Math.max(0, e.filled - n) } : e)));
-    toast("Booking cancelled — escrow refunded");
+  const cancelBooking = async (ev: EventItem) => {
+    if (!ev.myBooking) return;
+    const n = ev.myBooking;
+    try {
+      await api.cancelBookingApi(ev.id);
+      setEvents((es) =>
+        es.map((e) => (e.id === ev.id ? { ...e, filled: Math.max(0, e.filled - n), myBooking: undefined } : e))
+      );
+      toast("Booking cancelled");
+    } catch (err: any) {
+      toast(err?.message || "Couldn't cancel");
+    }
   };
 
   /* ---------------------------------- Feed -------------------------------- */
 
-  const toggleLike = (id: string) => {
-    const was = !!liked[id];
-    setLiked((l) => ({ ...l, [id]: !was }));
-    setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, likes: p.likes + (was ? -1 : 1) } : p)));
+  const adjustPosts = (id: string, delta: number) =>
+    setCommunities((cs) => cs.map((c) => (c.id === id ? { ...c, posts: Math.max(0, c.posts + delta) } : c)));
+
+  const toggleLike = async (id: string) => {
+    if (!requireLogin()) return;
+    const p = posts.find((x) => x.id === id);
+    if (!p) return;
+    const like = !p.liked;
+    setPosts((ps) => ps.map((x) => (x.id === id ? { ...x, liked: like, likes: x.likes + (like ? 1 : -1) } : x)));
+    try {
+      await api.setLike(id, like);
+    } catch (e: any) {
+      setPosts((ps) => ps.map((x) => (x.id === id ? { ...x, liked: !like, likes: x.likes + (like ? -1 : 1) } : x)));
+      toast(e?.message || "Couldn't update like");
+    }
   };
 
-  const addComment = (id: string) => {
+  const addComment = async (id: string) => {
+    if (!requireLogin()) return;
     const text = (commentDrafts[id] || "").trim();
     if (!text) return;
-    setPosts((ps) =>
-      ps.map((p) =>
-        p.id === id
-          ? { ...p, comments: [...p.comments, { author: CURRENT_USER, text }], commentCount: p.commentCount + 1 }
-          : p
-      )
-    );
-    setCommentDrafts((d) => ({ ...d, [id]: "" }));
+    try {
+      const c = await api.addCommentApi(id, text);
+      setPosts((ps) =>
+        ps.map((p) => (p.id === id ? { ...p, comments: [...p.comments, c], commentCount: p.commentCount + 1 } : p))
+      );
+      setCommentDrafts((d) => ({ ...d, [id]: "" }));
+    } catch (e: any) {
+      toast(e?.message || "Couldn't post comment");
+    }
   };
 
-const votePoll = (postId: string, idx: number) => {
-  if (pollVotes[postId] !== undefined) return;
-  setPollVotes((v) => ({ ...v, [postId]: idx }));
-  setPosts((ps) =>
-    ps.map((p) =>
-      p.id === postId && p.poll
-        ? { ...p, poll: { options: p.poll.options.map((o, i) => (i === idx ? { ...o, votes: o.votes + 1 } : o)) } }
-        : p
-    )
-  );
-};
+  const votePoll = async (postId: string, idx: number) => {
+    if (!requireLogin()) return;
+    const p = posts.find((x) => x.id === postId);
+    if (!p?.poll || p.poll.voted !== undefined) return;
+    try {
+      await api.votePollApi(postId, idx);
+      setPosts((ps) =>
+        ps.map((x) =>
+          x.id === postId && x.poll
+            ? {
+                ...x,
+                poll: {
+                  voted: idx,
+                  options: x.poll.options.map((o, i) => (i === idx ? { ...o, votes: o.votes + 1 } : o)),
+                },
+              }
+            : x
+        )
+      );
+    } catch (e: any) {
+      toast(e?.message || "Couldn't record vote");
+    }
+  };
+
+  const addCustomEvent = () => {
+    const title = customEventText.trim();
+    if (!title) return;
+    setComposerEvent(title);
+    setCustomEventText("");
+    setCustomEventOpen(false);
+    setShowEventPicker(false);
+  };
+
+  const closeCustomEvent = () => {
+    setCustomEventOpen(false);
+    setCustomEventText("");
+  };
 
   const MAX_IMAGE_MB = 8;
   const MAX_VIDEO_MB = 20;
@@ -949,6 +802,8 @@ const resetComposer = (keepMedia = false) => {
   setComposerText("");
   setComposerEvent("");
   setComposerLocation("");
+  setCustomEventOpen(false);
+  setCustomEventText("");
   setShowEventPicker(false);
   setShowLocation(false);
   setPollOpen(false);
@@ -958,8 +813,9 @@ const resetComposer = (keepMedia = false) => {
 };
 
 const publishPost = async () => {
+  if (!requireLogin()) return;
   const text = composerText.trim();
-  const target = feedCommunity ? feedCommunity.name : composerCommunity;
+  const target = feedCommunity ?? communities.find((c) => c.name === composerCommunity) ?? null;
   const pollItems = pollOpen ? pollOptions.map((o) => o.trim()).filter(Boolean) : [];
 
   if (pollOpen && pollItems.length < 2) return toast("Add at least 2 poll options");
@@ -968,41 +824,26 @@ const publishPost = async () => {
   if (!target) return toast("Join a community to post");
 
   setPosting(true);
-  let media: PostMedia | undefined;
   try {
-    if (composerMedia) {
-      const key = `m-${Date.now()}`;
-      await saveMedia(key, composerMedia.file);
-      media = { key, type: composerMedia.type, url: composerMedia.url };
-    }
-  } catch {
+    const tags = Array.from(new Set((text.match(/#(\w+)/g) || []).map((t) => t.slice(1)))).slice(0, 5);
+    const post = await api.createPost({
+      communityId: target.id,
+      content: text.replace(/#(\w+)/g, "$1"),
+      tags,
+      event: composerEvent || undefined,
+      location: composerLocation.trim() || undefined,
+      pollOptions: pollItems,
+      media: composerMedia ? { file: composerMedia.file, type: composerMedia.type } : null,
+    });
+    setPosts((ps) => [post, ...ps]);
+    adjustPosts(target.id, 1);
+    resetComposer();
+    toast("Posted to " + target.name);
+  } catch (e: any) {
+    toast(e?.message || "Couldn't publish your post");
+  } finally {
     setPosting(false);
-    return toast("Couldn't save the attachment. Try a smaller file.");
   }
-
-  const tags = Array.from(new Set((text.match(/#(\w+)/g) || []).map((t) => t.slice(1)))).slice(0, 5);
-  const newPost: Post = {
-    id: `p-${Date.now()}`,
-    author: CURRENT_USER,
-    avatar: "YO",
-    gradient: "linear-gradient(135deg,#8B1E3F,#c2416a)",
-    community: target,
-    time: "Just now",
-    content: text.replace(/#(\w+)/g, "$1"),
-    likes: 0,
-    comments: [],
-    commentCount: 0,
-    tags,
-    media,
-    poll: pollItems.length >= 2 ? { options: pollItems.map((t) => ({ text: t, votes: 0 })) } : undefined,
-    event: composerEvent || undefined,
-    location: composerLocation.trim() || undefined,
-  };
-  setPosts((ps) => [newPost, ...ps]);
-  setCommunities((cs) => cs.map((c) => (c.name === target ? { ...c, posts: c.posts + 1 } : c)));
-  resetComposer(true);
-  setPosting(false);
-  toast("Posted to " + target);
 };
 
   const sharePost = async (p: Post) => {
@@ -1106,7 +947,13 @@ const publishPost = async () => {
 
                 {filteredCommunities.length === 0 ? (
                   <div className="text-center py-16 text-[#5E5754]">
-                    <p className="mb-4">No communities match your search.</p>
+                    <p className="mb-4">
+                      {loading
+                        ? "Loading communities…"
+                        : communities.length === 0
+                        ? "No communities yet. Be the first to create one!"
+                        : "No communities match your search."}
+                    </p>
                     <Btn variant="outline" onClick={() => { setSearch(""); setTypeFilter("All"); }}>
                       Clear filters
                     </Btn>
@@ -1195,10 +1042,15 @@ const publishPost = async () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {events.length === 0 && (
+                    <p className="col-span-full text-center text-sm text-[#5E5754] py-10">
+                      {loading ? "Loading events…" : "No upcoming events yet."}
+                    </p>
+                  )}
                   {events.map((ev, i) => {
                     const full = ev.filled >= ev.capacity;
                     const remaining = ev.capacity - ev.filled;
-                    const booked = bookings[ev.id];
+                    const booked = ev.myBooking;
                     return (
                       <motion.article
                         key={ev.id}
@@ -1274,8 +1126,8 @@ const publishPost = async () => {
                                 <Btn size="sm" variant="ghost" onClick={() => cancelBooking(ev)}>Cancel</Btn>
                               </>
                             ) : full ? (
-                              <Btn size="sm" variant={waitlist[ev.id] ? "ghost" : "outline"} onClick={() => openBooking(ev)}>
-                                {waitlist[ev.id] ? "On waitlist ✓" : "Join Waitlist"}
+                              <Btn size="sm" variant={ev.onWaitlist ? "ghost" : "outline"} onClick={() => openBooking(ev)}>
+                                {ev.onWaitlist ? "On waitlist ✓" : "Join Waitlist"}
                               </Btn>
                             ) : (
                               <Btn size="sm" onClick={() => openBooking(ev)}>
@@ -1407,7 +1259,7 @@ const publishPost = async () => {
               className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
               style={{ background: "linear-gradient(135deg,#8B1E3F,#c2416a)" }}
             >
-              YO
+              {myInitials}
             </span>
             <textarea
               value={composerText}
@@ -1480,14 +1332,41 @@ const publishPost = async () => {
 
           {showEventPicker && (
             <div className="mt-3 ml-[52px]">
-              <select
-                value={composerEvent}
-                onChange={(e) => { setComposerEvent(e.target.value); setShowEventPicker(false); }}
-                className={inputCls}
-              >
-                <option value="">Select an event to tag…</option>
-                {events.map((ev) => <option key={ev.id} value={ev.title}>{ev.title}</option>)}
-              </select>
+              {!customEventOpen ? (
+                <select
+                  value={composerEvent}
+                  onChange={(e) => {
+                    if (e.target.value === "__custom__") {
+                      setCustomEventOpen(true);
+                      return;
+                    }
+                    setComposerEvent(e.target.value);
+                    setShowEventPicker(false);
+                  }}
+                  className={inputCls}
+                >
+                  <option value="">Select an event to tag…</option>
+                  {events.map((ev) => <option key={ev.id} value={ev.title}>{ev.title}</option>)}
+                  <option value="__custom__">＋ Add my own event…</option>
+                </select>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    autoFocus
+                    value={customEventText}
+                    maxLength={80}
+                    onChange={(e) => setCustomEventText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); addCustomEvent(); }
+                      if (e.key === "Escape") closeCustomEvent();
+                    }}
+                    placeholder="Type your event name, e.g. Haldi Ceremony – Jaipur"
+                    className={inputCls}
+                  />
+                  <Btn size="sm" onClick={addCustomEvent} disabled={!customEventText.trim()} className="!h-auto">Add</Btn>
+                  <Btn size="sm" variant="ghost" onClick={closeCustomEvent} className="!h-auto">Back</Btn>
+                </div>
+              )}
             </div>
           )}
 
@@ -1514,7 +1393,7 @@ const publishPost = async () => {
               <Btn size="sm" variant="ghost" onClick={() => setPollOpen((v) => !v)}>
                 <BarChart3 className="w-4 h-4 text-[#8B1E3F]" /> Poll
               </Btn>
-              <Btn size="sm" variant="ghost" onClick={() => setShowEventPicker((v) => !v)}>
+              <Btn size="sm" variant="ghost" onClick={() => { setShowEventPicker((v) => !v); closeCustomEvent(); }}>
                 <Tag className="w-4 h-4 text-[#8B1E3F]" /> Event
               </Btn>
               <Btn size="sm" variant="ghost" onClick={() => setShowLocation(true)}>
@@ -1587,7 +1466,7 @@ const publishPost = async () => {
 
                     {post.media && <PostMediaView media={post.media} />}
                     {post.poll && (
-                      <PollView poll={post.poll} voted={pollVotes[post.id]} onVote={(i) => votePoll(post.id, i)} />
+                      <PollView poll={post.poll} voted={post.poll.voted} onVote={(i) => votePoll(post.id, i)} />
                     )}
 
                     {(post.event || post.location) && (
@@ -1622,9 +1501,9 @@ const publishPost = async () => {
                     <div className="flex items-center gap-5 text-sm text-[#5E5754] pt-3 border-t border-[#F0E9DD]">
                       <button
                         onClick={() => toggleLike(post.id)}
-                        className={`flex items-center gap-1.5 font-semibold transition-colors ${liked[post.id] ? "text-[#8B1E3F]" : "hover:text-[#8B1E3F]"}`}
+                        className={`flex items-center gap-1.5 font-semibold transition-colors ${post.liked ? "text-[#8B1E3F]" : "hover:text-[#8B1E3F]"}`}
                       >
-                        <Heart className={`w-4 h-4 ${liked[post.id] ? "fill-current" : ""}`} /> {post.likes}
+                        <Heart className={`w-4 h-4 ${post.liked ? "fill-current" : ""}`} /> {post.likes}
                       </button>
                       <button
                         onClick={() => setOpenComments((o) => ({ ...o, [post.id]: !o[post.id] }))}
