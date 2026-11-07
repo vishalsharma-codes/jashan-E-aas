@@ -417,3 +417,18 @@ export async function setWaitlist(eventId: string, on: boolean) {
     : db.from("cm_event_waitlist").delete().eq("event_id", eventId).eq("user_id", user.id);
   fail((await q).error);
 }
+
+/* --------------------------------- Unread --------------------------------- */
+
+/** { communityId: posts by other people since the user last opened that community } */
+export async function unreadCounts(): Promise<Record<string, number>> {
+  const { data: s } = await supabase.auth.getSession();
+  if (!s.session) return {};
+  const { data, error } = await db.rpc("cm_unread_counts");
+  if (error) return {}; // unread.sql not applied yet: the page still works, just without badges
+  return Object.fromEntries((data ?? []).map((r: any) => [r.community_id, Number(r.unread)]));
+}
+
+export async function markRead(communityId: string) {
+  fail((await db.rpc("cm_mark_read", { cid: communityId })).error);
+}

@@ -8,7 +8,7 @@ import { EveBuddy } from "@/components/EveBuddy";
 import {
   Users, Heart, MessageSquare, Calendar, Plus, MapPin, Lock, Globe,
   X, Search, Check, Minus, Send, CheckCircle2, ShieldCheck,
-  Image as ImageIcon, Tag, TrendingUp, Star, BarChart3, Flame,
+  Image as ImageIcon, Tag, TrendingUp, Star, BarChart3, Flame, Share2,
 } from "lucide-react";
 import * as api from "@/lib/communityApi";
 import { useAuthUser } from "@/lib/communityApi";
@@ -188,6 +188,19 @@ function Btn({
   return <button type="button" className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props} />;
 }
 
+function UnreadBadge({ count, inline = false, className = "" }: { count: number; inline?: boolean; className?: string }) {
+  if (!count) return null;
+  return (
+    <span
+      aria-label={`${count} unread post${count === 1 ? "" : "s"}`}
+      title={`${count} new post${count === 1 ? "" : "s"}`}
+      className={`${inline ? "ml-auto shrink-0" : "absolute"} min-w-[20px] h-5 px-1.5 rounded-full bg-[#8B1E3F] text-white text-[11px] font-bold leading-5 text-center ring-2 ring-white shadow ${className}`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 function EscrowBadge({ label = "Escrow protected" }: { label?: string }) {
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-[#E8F3EC] text-[#1F6B45] text-[11px] font-semibold px-2.5 py-1">
@@ -351,6 +364,11 @@ function PollView({ poll, voted, onVote }: {
 
 const slugify = api.slugify;
 
+const SITE_URL: string =
+  (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/$/, "") ||
+  (typeof window !== "undefined" ? window.location.origin : "");
+const inviteUrl = (c: { name: string }) => `${SITE_URL}/community/${slugify(c.name)}?invite=1`;
+
 /* --------------------------------- Page --------------------------------- */
 
 export default function Community() {
@@ -359,6 +377,8 @@ export default function Community() {
   const myInitials = initialsOf(String(user?.user_metadata?.full_name ?? user?.email ?? "You"));
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unread, setUnread] = useState<Record<string, number>>({});
+  const viewingRef = useRef<string | null>(null); // community feed currently open (and joined)
   const navigate = useNavigate();
   const { pathname, search: queryString } = useLocation();
   const { slug } = useParams<{ slug?: string }>();
@@ -452,16 +472,41 @@ export default function Community() {
   const requireLogin = () => {
     if (user) return true;
     toast("Please sign in first");
+    try { sessionStorage.setItem("cm_return_to", pathname + queryString); } catch { /* ignore */ }
     navigate(LOGIN_ROUTE);
     return false;
   };
 
+  const shareCommunity = async (c: Community) => {
+    const url = inviteUrl(c);
+    const text = `Join "${c.name}" on Jashan-E-Aas`;
+    try {
+      // phones: open the native share sheet (WhatsApp, Instagram, ...)
+      if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        await navigator.share({ title: c.name, text, url });
+        return;
+      }
+    } catch (e: any) {
+      if (e?.name === "AbortError") return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast("Invite link copied");
+    } catch {
+      window.prompt("Copy this invite link:", url);
+    }
+  };
+
   const refreshAll = useCallback(async () => {
     try {
-      const [cs, es, ms] = await Promise.all([api.listCommunities(), api.listEvents(), api.myMemberships()]);
+      const [cs, es, ms, un] = await Promise.all([
+        api.listCommunities(), api.listEvents(), api.myMemberships(), api.unreadCounts(),
+      ]);
       setCommunities(cs.map(decorateCommunity));
       setEvents(es.map(decorateEvent));
       setMembership(ms);
+      if (viewingRef.current) un[viewingRef.current] = 0;
+      setUnread(un);
     } catch (e: any) {
       toast(e?.message || "Couldn't load communities");
     } finally {
@@ -470,6 +515,34 @@ export default function Community() {
   }, [toast]);
 
   useEffect(() => { refreshAll(); }, [refreshAll, user?.id]);
+
+  // Keep unread badges fresh: every 30s and whenever the tab becomes visible again.
+  useEffect(() => {
+    if (!user) { setUnread({}); return; }
+    let alive = true;
+    const tick = async () => {
+      if (document.hidden) return;
+      const viewing = viewingRef.current;
+      if (viewing) {
+        // the open community is live: show new posts and keep it marked as read
+        api.listPosts(viewing)
+          .then((p) => { if (alive && viewingRef.current === viewing) setPosts(p); })
+          .catch(() => {});
+        api.markRead(viewing).catch(() => {});
+      }
+      const un = await api.unreadCounts();
+      if (!alive) return;
+      if (viewing) un[viewing] = 0;
+      setUnread(un);
+    };
+    const timer = window.setInterval(tick, 30000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [user?.id]);
 
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -493,6 +566,7 @@ export default function Community() {
 
   const totalMembers = communities.reduce((s, c) => s + c.members, 0);
   const joinedCommunities = communities.filter((c) => membership[c.id] === "joined");
+  const totalUnread = joinedCommunities.reduce((sum, c) => sum + (unread[c.id] ?? 0), 0);
   const joinedNames = new Set(joinedCommunities.map((c) => c.name));
   const feedCommunity = slug ? communities.find((c) => slugify(c.name) === slug) ?? null : null;
   const memberLabel =
@@ -523,6 +597,16 @@ const upcomingEvents = useMemo(
       .catch((e) => toast(e?.message || "Couldn't load posts"));
     return () => { alive = false; };
   }, [feedCommunity?.id, user?.id, toast]);
+
+  // Opening a joined community's feed marks it as read (badge clears)
+  useEffect(() => {
+    const id = feedCommunity?.id ?? null;
+    if (!id || membership[id] !== "joined") { viewingRef.current = null; return; }
+    viewingRef.current = id;
+    setUnread((u) => (u[id] ? { ...u, [id]: 0 } : u));
+    api.markRead(id).catch(() => {});
+    return () => { if (viewingRef.current === id) viewingRef.current = null; };
+  }, [feedCommunity?.id, membership]);
 
   useEffect(() => {
     if (!feedCommunity) return;
@@ -907,6 +991,11 @@ const publishPost = async () => {
                 }`}
               >
                 {tab}
+                {tab === "feed" && totalUnread > 0 && (
+                  <span className={`ml-1.5 inline-block min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-[18px] align-middle ${activeTab === "feed" ? "bg-white text-[#8B1E3F]" : "bg-[#8B1E3F] text-white"}`}>
+                    {totalUnread > 99 ? "99+" : totalUnread}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -992,7 +1081,10 @@ const publishPost = async () => {
       </Cover>
 
       <div className="relative px-5 pb-5 flex-1 flex flex-col">
-        <LogoAvatar src={c.avatar} icon={c.icon} className="relative z-10 -mt-7 w-14 h-14 text-3xl" />
+        <div className="relative z-10 -mt-7 w-14 h-14">
+          <LogoAvatar src={c.avatar} icon={c.icon} className="w-14 h-14 text-3xl" />
+          <UnreadBadge count={membership[c.id] === "joined" ? unread[c.id] ?? 0 : 0} className="-top-1 -right-2" />
+        </div>
 
         <h3 className="mt-3 font-bold text-base text-[#1A1818] flex items-center gap-1.5 min-w-0">
           <span className="truncate">{c.name}</span>
@@ -1013,15 +1105,24 @@ const publishPost = async () => {
           <span className="text-xs font-semibold text-[#1A1818]">{compact(c.members)} members</span>
         </div>
 
-        <div className="mt-auto pt-4">
+        <div className="mt-auto pt-4 flex items-center gap-2">
           <Btn
             size="sm"
             variant={membershipVariant(c)}
             onClick={(e) => { e.stopPropagation(); handleMembership(c); }}
-            className="w-full"
+            className="flex-1"
           >
             {membershipLabel(c)}
           </Btn>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); shareCommunity(c); }}
+            aria-label={`Share ${c.name}`}
+            title="Copy invite link"
+            className="shrink-0 w-8 h-8 rounded-full border border-[#1A1818]/20 bg-white text-[#1A1818] flex items-center justify-center hover:border-[#1A1818]/50 hover:bg-[#F5EFE6] transition-colors"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </motion.article>
@@ -1173,6 +1274,7 @@ const publishPost = async () => {
           >
             <LogoAvatar src={c.avatar} icon={c.icon} className="w-8 h-8 text-base" />
             <span className="truncate font-semibold">{c.name}</span>
+            <UnreadBadge inline count={unread[c.id] ?? 0} />
           </button>
         ))
       )}
@@ -1208,6 +1310,9 @@ const publishPost = async () => {
           <div className="flex items-start justify-between gap-3">
             <LogoAvatar src={feedCommunity.avatar} icon={feedCommunity.icon} className="relative z-10 -mt-7 w-14 h-14 text-3xl" />
             <div className="flex gap-2 pt-2">
+              <Btn size="sm" variant="outline" onClick={() => shareCommunity(feedCommunity)}>
+                <Share2 className="w-3.5 h-3.5" /> Share
+              </Btn>
               <Btn size="sm" variant="outline" onClick={() => setDetailId(feedCommunity.id)}>About</Btn>
               <Btn size="sm" variant={membershipVariant(feedCommunity)} onClick={() => handleMembership(feedCommunity)}>
                 {membershipLabel(feedCommunity)}
@@ -1225,6 +1330,17 @@ const publishPost = async () => {
             {compact(feedCommunity.members)} members · {feedCommunity.posts.toLocaleString("en-IN")} posts · {feedCommunity.city}
           </p>
         </div>
+      </div>
+    )}
+
+    {feedCommunity && searchParams.get("invite") && membership[feedCommunity.id] === undefined && (
+      <div className={`bg-[#F5EFE6] rounded-2xl px-4 py-3 flex items-center justify-between gap-3 ${cardShadow}`}>
+        <p className="text-sm text-[#3D3735]">
+          You have been invited to join <b>{feedCommunity.name}</b>.
+        </p>
+        <Btn size="sm" onClick={() => handleMembership(feedCommunity)}>
+          {feedCommunity.isPrivate ? "Request to join" : "Join now"}
+        </Btn>
       </div>
     )}
 
@@ -1751,6 +1867,9 @@ const publishPost = async () => {
                   onClick={() => { const c = detailCommunity; setDetailId(null); openCommunity(c); }}
                 >
                   View Feed
+                </Btn>
+                <Btn variant="outline" onClick={() => shareCommunity(detailCommunity)}>
+                  <Share2 className="w-4 h-4" /> Share invite link
                 </Btn>
               </div>
             </div>
