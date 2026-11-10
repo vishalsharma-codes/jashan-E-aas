@@ -20,7 +20,17 @@ type Membership = "joined" | "pending";
 
 type Community = api.ApiCommunity & { banner: string; featured?: "large" | "trending" };
 type EventItem = api.ApiEvent & { banner: string };
-type Post = api.ApiPost;
+interface SharedPost {
+  author: string;
+  avatar: string;
+  gradient: string;
+  community: string;
+  time: string;
+  content: string;
+  media?: { path: string; type: "image" | "video" };
+  hasPoll?: boolean;
+}
+type Post = api.ApiPost & { shared?: SharedPost; shares?: number };
 interface PollOption { text: string; votes: number }
 
 /** Where signed-out visitors are sent when they try to join / post / book. */
@@ -250,14 +260,14 @@ function Modal({ open, onClose, title, children }: {
 const inputCls =
   "w-full bg-white border border-[#E9E1D5] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1818] placeholder:text-[#8A827E] focus:outline-none focus:ring-2 focus:ring-[#8B1E3F]/25 focus:border-[#8B1E3F]/50";
 const cardShadow =
-  "shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.03]";
+  "shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)] ring-1 ring-[#EADFD6]";
 const cardHover =
   "hover:shadow-[0_14px_36px_-10px_rgba(0,0,0,0.16)] hover:-translate-y-0.5 transition-all duration-300";
 
 const pill = (active: boolean) =>
   `text-xs font-semibold px-4 py-2 rounded-full transition-colors ${
     active
-      ? "bg-[#1A1818] text-white shadow-sm"
+      ? "bg-[#8B1E3F] text-white shadow-sm"
       : "bg-white text-[#3D3735] border border-[#E9E1D5] hover:border-[#1A1818]/40"
   }`;
 
@@ -327,6 +337,23 @@ function PostMediaView({ media }: { media: { path: string; type: "image" | "vide
 
 const compact = (n: number) =>
   n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n);
+
+const COMMUNITY_SHARES_KEY = "jea.community.shared-posts.v1";
+const readCommunityShares = (): Post[] => {
+  try {
+    const value = JSON.parse(localStorage.getItem(COMMUNITY_SHARES_KEY) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+};
+const saveCommunityShares = (items: Post[]) => {
+  try {
+    localStorage.setItem(COMMUNITY_SHARES_KEY, JSON.stringify(items));
+  } catch {
+    // Shares remain visible for the current session if browser storage is unavailable.
+  }
+};
 
 function PollView({ poll, voted, onVote }: {
   poll: { options: PollOption[] }; voted?: number; onVote: (i: number) => void;
@@ -403,10 +430,14 @@ export default function Community() {
     goTab("feed", id ? communities.find((c) => c.id === id) ?? null : null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [shareTarget, setShareTarget] = useState<Post | null>(null);
+  const [shareNote, setShareNote] = useState("");
+  const [shareDest, setShareDest] = useState<string[]>([]);
 
   const [membership, setMembership] = useState<Record<string, Membership>>({});
 
   const [search, setSearch] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("All");
   const [feedFilter, setFeedFilter] = useState<"all" | "mine">("all");
 
@@ -526,7 +557,13 @@ export default function Community() {
       if (viewing) {
         // the open community is live: show new posts and keep it marked as read
         api.listPosts(viewing)
-          .then((p) => { if (alive && viewingRef.current === viewing) setPosts(p); })
+          .then((p) => {
+            if (alive && viewingRef.current === viewing) {
+              const localShares = readCommunityShares();
+              const ids = new Set(p.map((post) => post.id));
+              setPosts([...localShares.filter((post) => !ids.has(post.id)), ...p]);
+            }
+          })
           .catch(() => {});
         api.markRead(viewing).catch(() => {});
       }
@@ -560,11 +597,30 @@ export default function Community() {
           : c.type === typeFilter);
       const matchSearch =
         !q || [c.name, c.purpose, c.city, c.type, ...c.tags].some((s) => s.toLowerCase().includes(q));
-      return matchType && matchSearch;
+      const matchCity = !cityFilter || c.city === cityFilter;
+      return matchType && matchSearch && matchCity;
     });
-  }, [communities, search, typeFilter, membership, isMine]);
+  }, [communities, search, cityFilter, typeFilter, membership, isMine]);
+
+  const filteredEvents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return events.filter((ev) => {
+      const matchSearch =
+        !q ||
+        [ev.title, ev.location, ev.organizer, ev.community].some((value) =>
+          String(value ?? "").toLowerCase().includes(q)
+        );
+      const matchCity =
+        !cityFilter || ev.location.toLowerCase().includes(cityFilter.toLowerCase());
+      return matchSearch && matchCity;
+    });
+  }, [events, search, cityFilter]);
 
   const totalMembers = communities.reduce((s, c) => s + c.members, 0);
+  const cityOptions = useMemo(
+    () => Array.from(new Set(communities.map((c) => c.city).filter(Boolean))),
+    [communities]
+  );
   const joinedCommunities = communities.filter((c) => membership[c.id] === "joined");
   const totalUnread = joinedCommunities.reduce((sum, c) => sum + (unread[c.id] ?? 0), 0);
   const joinedNames = new Set(joinedCommunities.map((c) => c.name));
@@ -583,6 +639,7 @@ const upcomingEvents = useMemo(
   () => [...events].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3),
   [events]
 );
+const nextEvent = upcomingEvents[0];
 
   useEffect(() => {
     if (slug && !feedCommunity && !loading) navigate("/community", { replace: true });
@@ -593,7 +650,13 @@ const upcomingEvents = useMemo(
     let alive = true;
     api
       .listPosts(feedCommunity?.id)
-      .then((p) => { if (alive) setPosts(p); })
+      .then((p) => {
+        if (alive) {
+          const localShares = readCommunityShares();
+          const ids = new Set(p.map((post) => post.id));
+          setPosts([...localShares.filter((post) => !ids.has(post.id)), ...p]);
+        }
+      })
       .catch((e) => toast(e?.message || "Couldn't load posts"));
     return () => { alive = false; };
   }, [feedCommunity?.id, user?.id, toast]);
@@ -677,8 +740,19 @@ const upcomingEvents = useMemo(
   const handleBrowseAll = () => {
     setActiveTab("communities");
     setSearch("");
+    setCityFilter("");
     setTypeFilter("All");
     setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  };
+
+  const handleBrowseEvents = () => {
+    setActiveTab("events");
+    setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  };
+
+  const handleCreateEvent = () => {
+    if (!requireLogin()) return;
+    toast("Create Event coming soon");
   };
 
   const handleCreateCommunity = async (e: FormEvent) => {
@@ -940,6 +1014,65 @@ const publishPost = async () => {
     }
   };
 
+  const openShare = (p: Post) => {
+    const origin = communities.find((c) => c.name === (p.shared?.community ?? p.community));
+    if (origin?.isPrivate) return toast("Posts from private communities can't be shared");
+    setShareTarget(p);
+    setShareNote("");
+    setShareDest([]);
+  };
+
+  const confirmShare = () => {
+    if (!shareTarget || shareDest.length === 0) return;
+    const src = shareTarget;
+    const snapshot: SharedPost = src.shared ?? {
+      author: src.author,
+      avatar: src.avatar,
+      gradient: src.gradient,
+      community: src.community,
+      time: src.time,
+      content: src.content,
+      media: src.media ? { path: src.media.path, type: src.media.type } : undefined,
+      hasPoll: !!src.poll,
+    };
+    const note = shareNote.trim();
+    const stamp = Date.now();
+    const newPosts: Post[] = shareDest.map((dest, i) => ({
+      id: `local-share-${stamp}-${i}`,
+      author: String(user?.user_metadata?.full_name ?? user?.email ?? "You"),
+      avatar: myInitials,
+      gradient: "linear-gradient(135deg,#8B1E3F,#c2416a)",
+      community: dest,
+      time: "Just now",
+      content: note,
+      likes: 0,
+      liked: false,
+      comments: [],
+      commentCount: 0,
+      tags: [],
+      shared: snapshot,
+      shares: 0,
+    } as Post));
+
+    const updatedPosts = [
+      ...newPosts,
+      ...posts.map((post) => post.id === src.id
+        ? { ...post, shares: (post.shares ?? 0) + shareDest.length }
+        : post),
+    ];
+    const allLocalShares = [
+      ...readCommunityShares().filter((post) => !newPosts.some((added) => added.id === post.id)),
+      ...newPosts,
+    ];
+    saveCommunityShares(allLocalShares);
+    setPosts(updatedPosts);
+    setCommunities((cs) => cs.map((c) =>
+      shareDest.includes(c.name) ? { ...c, posts: c.posts + 1 } : c
+    ));
+    setShareTarget(null);
+    toast(shareDest.length === 1 ? `Shared to ${shareDest[0]}` : `Shared to ${shareDest.length} communities`);
+  };
+
   /* --------------------------------- Render -------------------------------- */
 
   return (
@@ -955,28 +1088,104 @@ const publishPost = async () => {
           .cm-pulse { animation: cm-pulse 1.8s ease-in-out infinite; }
         `}</style>
 
+        {!feedCommunity && (
+          <>
         {/* Hero */}
-        <section className="pt-28 pb-6">
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="container mx-auto px-4 text-center">
-            <p className="text-[#8B1E3F] text-xs font-bold uppercase tracking-[0.22em] mb-4">
-              From Venue Scouting to Stage Lights
-            </p>
-            <h1 className="cm-serif text-4xl md:text-6xl font-bold leading-[1.1] mb-5 text-[#1A1818]">
-              Join India's <span className="text-[#8B1E3F] italic">Event Community</span>
-            </h1>
-<p className="text-[#4A4442] text-lg max-w-2xl mx-auto mb-3 leading-relaxed">
-  Connect with event professionals and enthusiasts across city communities. Attend events, share knowledge, build your network.
-</p>
-<p className="text-sm text-[#5E5754] mb-7">
-  Join <b className="text-[#8B1E3F]">{memberLabel}</b> professionals across{" "}
-  <b className="text-[#1A1818]">{communities.length}</b> active communities and{" "}
-  <b className="text-[#1A1818]">{events.length}</b> upcoming offline meetups.
-</p>
-<div className="flex gap-3 justify-center flex-wrap">
-  <Btn onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /> Create Community</Btn>
-  <Btn variant="outline" onClick={handleBrowseAll}>Browse All Communities</Btn>
-</div>
-          </motion.div>
+        <section className="pt-28 pb-14 bg-gradient-to-br from-[#FFF6E0] via-[#FDEEC4] to-[#FBE6B0]">
+          <div className="container mx-auto px-4 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-10 items-center">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
+              <p className="text-[#8B1E3F] text-xs font-bold uppercase tracking-[0.22em] mb-4">
+                From Venue Scouting to Stage Lights
+              </p>
+              <h1 className="cm-serif text-4xl md:text-6xl font-bold leading-[1.1] mb-5 text-[#1A1818]">
+                Join India's <span className="text-[#8B1E3F] italic">Event Community</span>
+              </h1>
+              <p className="text-[#4A4442] text-lg max-w-xl mb-3 leading-relaxed">
+                Connect with event professionals and enthusiasts across city communities. Attend events, share knowledge, build your network.
+              </p>
+              <p className="text-sm text-[#5E5754] mb-6">
+                Join <b className="text-[#8B1E3F]">{memberLabel}</b> professionals across{" "}
+                <b className="text-[#1A1818]">{communities.length}</b> active communities and{" "}
+                <b className="text-[#1A1818]">{events.length}</b> upcoming offline meetups.
+              </p>
+
+              <div className="flex gap-3 flex-wrap mb-7">
+                {activeTab === "events" ? (
+                  <>
+                    <Btn onClick={handleCreateEvent}>
+                      <Plus className="w-4 h-4" /> Create Event
+                    </Btn>
+                    <Btn variant="outline" onClick={handleBrowseEvents}>
+                      Browse All Events
+                    </Btn>
+                  </>
+                ) : (
+                  <>
+                    <Btn onClick={() => setCreateOpen(true)}>
+                      <Plus className="w-4 h-4" /> Create Community
+                    </Btn>
+                    <Btn variant="outline" onClick={handleBrowseAll}>
+                      Browse All Communities
+                    </Btn>
+                  </>
+                )}
+              </div>
+
+              {/* Search card */}
+              <div className="flex items-center gap-2 bg-white rounded-2xl p-2 pl-4 max-w-2xl shadow-[0_10px_28px_-8px_rgba(139,30,63,0.18)] ring-1 ring-black/[0.04]">
+                <Search className="w-4 h-4 text-[#8A827E] shrink-0" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={activeTab === "events" ? "Search events, venues, organizers…" : "Search communities, cities, tags…"}
+                  className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-[#8A827E]"
+                />
+                <select
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  className="hidden sm:block border-l border-[#E9E1D5] bg-transparent text-sm px-3 py-2 outline-none"
+                >
+                  <option value="">Select City</option>
+                  {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <Btn
+                  size="sm"
+                  className="!h-10 !px-6 !rounded-xl"
+                  onClick={() => {
+                    setActiveTab("communities");
+                    window.setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+                  }}
+                >
+                  Search
+                </Btn>
+              </div>
+            </motion.div>
+
+            {/* Right side: next meetup */}
+            <div className="flex flex-col items-start lg:items-end gap-4">
+              {nextEvent && (
+                <div className={`w-full max-w-sm bg-white rounded-2xl p-5 ${cardShadow}`}>
+                  <h4 className="font-bold text-sm text-[#1A1818]">Next Offline Meetup: {nextEvent.title}</h4>
+                  <p className="text-sm text-[#3D3735] mt-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-[#8B1E3F]" /> {dateFull(nextEvent.date)}
+                  </p>
+                  <p className="text-sm text-[#3D3735] mt-1.5 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#8B1E3F]" /> {nextEvent.location}
+                  </p>
+                  <button
+                    onClick={() => openBooking(nextEvent)}
+                    className="w-full mt-4 h-10 rounded-xl border-[1.5px] border-[#D4AF37] text-[#8B1E3F] font-bold text-sm hover:bg-[#FFF6E0] transition-colors"
+                  >
+                    RSVP Now
+                  </button>
+                  <div className="flex items-center gap-2 mt-4">
+                    <Facepile seed={nextEvent.id} total={nextEvent.filled} max={3} size={26} />
+                    <span className="text-xs font-medium">+{nextEvent.filled} attending</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </section>
 
         {/* Tabs */}
@@ -1000,32 +1209,21 @@ const publishPost = async () => {
             ))}
           </div>
         </div>
+          </>
+        )}
 
-        <div className={`container mx-auto px-4 ${activeTab === "feed" ? "pb-16" : "pb-24"}`} ref={listRef}>
+        <div
+          className={`container mx-auto px-4 ${
+            feedCommunity ? "pt-28 pb-16" : activeTab === "feed" ? "pb-16" : "pb-24"
+          }`}
+          ref={listRef}
+        >
           <AnimatePresence mode="wait">
             {/* ------------------------- Communities ------------------------- */}
             {activeTab === "communities" && (
               <motion.div key="communities" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div className="max-w-3xl mx-auto mb-8 space-y-4">
-                  <div className="relative">
-                    <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#8A827E]" />
-                    <input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search communities, cities, tags…"
-                      className={`${inputCls} pl-10 !rounded-full !py-3 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)]`}
-                    />
-                    {search && (
-                      <button
-                        onClick={() => setSearch("")}
-                        aria-label="Clear search"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8A827E] hover:text-[#1A1818]"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 justify-center">
+                <div className="max-w-none mx-auto mb-8 space-y-4">
+                  <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
                     {["All", "My Communities", "Joined", ...COMMUNITY_TYPES].map((t) => (
                       <button key={t} onClick={() => setTypeFilter(t)} className={pill(typeFilter === t)}>
                         {t}
@@ -1043,7 +1241,7 @@ const publishPost = async () => {
                         ? "No communities yet. Be the first to create one!"
                         : "No communities match your search."}
                     </p>
-                    <Btn variant="outline" onClick={() => { setSearch(""); setTypeFilter("All"); }}>
+                    <Btn variant="outline" onClick={() => { setSearch(""); setCityFilter(""); setTypeFilter("All"); }}>
                       Clear filters
                     </Btn>
                   </div>
@@ -1081,12 +1279,7 @@ const publishPost = async () => {
       </Cover>
 
       <div className="relative px-5 pb-5 flex-1 flex flex-col">
-        <div className="relative z-10 -mt-7 w-14 h-14">
-          <LogoAvatar src={c.avatar} icon={c.icon} className="w-14 h-14 text-3xl" />
-          <UnreadBadge count={membership[c.id] === "joined" ? unread[c.id] ?? 0 : 0} className="-top-1 -right-2" />
-        </div>
-
-        <h3 className="mt-3 font-bold text-base text-[#1A1818] flex items-center gap-1.5 min-w-0">
+        <h3 className="mt-4 font-bold text-base text-[#1A1818] flex items-center gap-1.5 min-w-0">
           <span className="truncate">{c.name}</span>
           {c.isVerified && <CheckCircle2 className="w-4 h-4 text-[#8B1E3F] shrink-0" aria-label="Verified" />}
         </h3>
@@ -1134,7 +1327,7 @@ const publishPost = async () => {
 
             {/* ---------------------------- Events ---------------------------- */}
             {activeTab === "events" && (
-              <motion.div key="events" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-5xl mx-auto">
+              <motion.div key="events" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-none mx-auto">
                 <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 bg-[#F5EFE6] rounded-2xl px-5 py-4 mb-8">
                   <EscrowBadge label="Verified Protection" />
                   <p className="text-sm text-[#3D3735] text-center sm:text-left">
@@ -1142,13 +1335,13 @@ const publishPost = async () => {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {events.length === 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredEvents.length === 0 && (
                     <p className="col-span-full text-center text-sm text-[#5E5754] py-10">
                       {loading ? "Loading events…" : "No upcoming events yet."}
                     </p>
                   )}
-                  {events.map((ev, i) => {
+                  {filteredEvents.map((ev, i) => {
                     const full = ev.filled >= ev.capacity;
                     const remaining = ev.capacity - ev.filled;
                     const booked = ev.myBooking;
@@ -1157,38 +1350,37 @@ const publishPost = async () => {
                         key={ev.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.08 }}
-                        className={`flex flex-col bg-white rounded-2xl overflow-hidden ${cardShadow} ${cardHover}`}
+                        transition={{ delay: i * 0.04 }}
+                        className={`flex flex-col h-full bg-white rounded-2xl overflow-hidden ${cardShadow} ${cardHover}`}
                       >
-                        <Cover src={ev.image} bg={ev.banner} className="aspect-video" fallback={<span className="absolute inset-0 flex items-center justify-center text-7xl opacity-30 select-none">{ev.icon}</span>}>
-                          
-                          <div className="absolute top-3 left-3 bg-white rounded-xl px-3 py-1.5 text-center shadow-md min-w-[52px]">
+                        <Cover src={ev.image} bg={ev.banner} className="h-[120px] shrink-0" fallback={<span className="absolute inset-0 flex items-center justify-center text-6xl opacity-40 select-none">{ev.icon}</span>}>
+                          <div className="absolute top-3 left-3 bg-white rounded-xl px-2.5 py-2 text-center shadow-md min-w-[48px]">
                             <p className="text-[10px] font-bold tracking-wider text-[#8B1E3F] leading-none">{monthShort(ev.date)}</p>
-                            <p className="text-2xl font-extrabold text-[#1A1818] leading-none mt-1">{dayNum(ev.date)}</p>
+                            <p className="text-xl font-extrabold text-[#1A1818] leading-none mt-1">{dayNum(ev.date)}</p>
                           </div>
-                          {full ? (
-                            <span className="absolute top-3 right-3 bg-[#1A1818] text-white text-[11px] font-bold px-2.5 py-1 rounded-full">Sold out</span>
-                          ) : remaining <= 10 ? (
-                            <span className="absolute top-3 right-3 bg-[#D4AF37] text-[#1A1818] text-[11px] font-bold px-2.5 py-1 rounded-full">Only {remaining} left</span>
-                          ) : null}
+                          <span className="absolute top-3 right-3 bg-white/90 backdrop-blur rounded-full px-2.5 py-1 text-[11px] font-bold text-[#1A1818]">
+                            {full ? "Sold out" : remaining <= 10 ? `${remaining} spots left` : `${ev.capacity} spots`}
+                          </span>
                         </Cover>
 
-                        <div className="p-5 pb-4 flex-1 flex flex-col">
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-[#8B1E3F] mb-1.5">{ev.community}</p>
-                          <h3 className="cm-serif font-bold text-lg leading-snug text-[#1A1818]">{ev.title}</h3>
+                        <div className="relative px-5 pb-5 flex-1 flex flex-col">
+                          <p className="mt-4 text-[11px] font-bold uppercase tracking-wider text-[#8B1E3F] line-clamp-1">{ev.community}</p>
+                          <h3 className="mt-1 cm-serif font-bold text-base leading-snug text-[#1A1818] line-clamp-2">{ev.title}</h3>
                           <p className="text-sm text-[#5E5754] mt-1">by {ev.organizer}</p>
 
-                          <div className="mt-4 space-y-1.5 text-sm text-[#3D3735]">
-                            <p className="flex items-center gap-2"><Calendar className="w-4 h-4 text-[#8B1E3F] shrink-0" />{dateFull(ev.date)} · {ev.time}</p>
-                            <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-[#8B1E3F] shrink-0" />{ev.location}</p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2 min-w-0">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#1A1818] bg-[#F5EFE6] px-2.5 py-1 rounded-full">
+                              <MapPin className="w-3 h-3 text-[#8B1E3F]" /> {ev.location}
+                            </span>
+                            <span className="text-xs text-[#5E5754]">{dateFull(ev.date)} · {ev.time}</span>
                           </div>
 
-                          <div className="mt-4 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <Facepile seed={ev.id} total={ev.filled} max={3} size={24} />
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Facepile seed={ev.id} total={ev.filled} max={3} size={26} />
                               <span className="text-xs text-[#5E5754]"><b className="text-[#1A1818]">+{ev.filled}</b> attending</span>
                             </div>
-                            <span className="text-xs font-semibold text-[#1A1818]">{ev.filled}/{ev.capacity}</span>
+                            <span className="text-xs font-semibold text-[#1A1818] shrink-0">{ev.filled}/{ev.capacity}</span>
                           </div>
                           <div className="w-full bg-[#F5EFE6] rounded-full h-1.5 mt-2">
                             <div
@@ -1196,34 +1388,18 @@ const publishPost = async () => {
                               style={{ width: `${Math.min(100, (ev.filled / ev.capacity) * 100)}%` }}
                             />
                           </div>
-                        </div>
 
-                        {/* ticket perforation */}
-                        <div className="relative">
-                          <div className="border-t-2 border-dashed border-[#E9E1D5] mx-5" />
-                          <span className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-[#FAF8F5]" />
-                          <span className="absolute -right-2 -top-2 w-4 h-4 rounded-full bg-[#FAF8F5]" />
-                        </div>
-
-                        <div className="px-5 py-4 flex items-center justify-between gap-3">
-                          <div className="flex flex-col gap-1.5">
-                            {ev.price === 0 ? (
-                              <span className="text-xl font-extrabold text-[#1F6B45] leading-none">Free</span>
-                            ) : (
-                              <span className="leading-none">
-                                <b className="text-xl font-extrabold text-[#8B1E3F]">₹{ev.price.toLocaleString("en-IN")}</b>
-                                <span className="text-xs text-[#5E5754]"> /person</span>
-                              </span>
-                            )}
-                            {ev.price > 0 && <EscrowBadge />}
-                          </div>
-
-                          <div className="flex items-center gap-2">
+                          <div className="mt-auto pt-4 flex items-center gap-2">
+                            <div className="min-w-0 flex-1">
+                              {ev.price === 0 ? (
+                                <span className="text-lg font-extrabold text-[#1F6B45]">Free</span>
+                              ) : (
+                                <span className="whitespace-nowrap"><b className="text-lg font-extrabold text-[#8B1E3F]">₹{ev.price.toLocaleString("en-IN")}</b><span className="text-xs text-[#5E5754]"> /person</span></span>
+                              )}
+                            </div>
                             {booked ? (
                               <>
-                                <span className="text-xs font-semibold text-[#1F6B45] inline-flex items-center gap-1">
-                                  <Check className="w-3.5 h-3.5" /> {booked} seat{booked > 1 ? "s" : ""}
-                                </span>
+                                <span className="text-xs font-semibold text-[#1F6B45] inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> {booked} seat{booked > 1 ? "s" : ""}</span>
                                 <Btn size="sm" variant="ghost" onClick={() => cancelBooking(ev)}>Cancel</Btn>
                               </>
                             ) : full ? (
@@ -1236,6 +1412,7 @@ const publishPost = async () => {
                               </Btn>
                             )}
                           </div>
+                          {ev.price > 0 && <div className="mt-2"><EscrowBadge /></div>}
                         </div>
                       </motion.article>
                     );
@@ -1300,10 +1477,10 @@ const publishPost = async () => {
       <div className={`bg-white rounded-2xl overflow-hidden ${cardShadow}`}>
         <Cover src={feedCommunity.cover} bg={feedCommunity.banner} className="h-24">
           <button
-            onClick={() => setFeedCommunityId(null)}
+            onClick={() => setActiveTab("communities")}
             className="absolute top-3 left-3 bg-white/90 backdrop-blur text-[#1A1818] text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-white"
           >
-            ← All posts
+            ← Communities
           </button>
         </Cover>
         <div className="relative px-4 pb-4">
@@ -1571,7 +1748,10 @@ const publishPost = async () => {
                         {post.avatar}
                       </span>
                       <div>
-                        <p className="font-bold text-sm text-[#1A1818]">{post.author}</p>
+                        <p className="font-bold text-sm text-[#1A1818]">
+                          {post.author}
+                          {post.shared && <span className="font-normal text-[#5E5754]"> shared a post</span>}
+                        </p>
                         <p className="text-xs text-[#5E5754]">
                           <span className="font-semibold text-[#8B1E3F]">{post.community}</span> · {post.time}
                         </p>
@@ -1579,6 +1759,40 @@ const publishPost = async () => {
                     </div>
 
                     {post.content && <p className="text-sm text-[#1A1818] leading-relaxed mb-4">{post.content}</p>}
+
+                    {post.shared && (
+                      <div className="mb-4 rounded-xl border border-[#E9E1D5] bg-[#FAF8F5] p-4">
+                        <div className="flex items-center gap-2.5 mb-2">
+                          <span
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                            style={{ background: post.shared.gradient }}
+                          >
+                            {post.shared.avatar}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold truncate">{post.shared.author}</p>
+                            <p className="text-[11px] text-[#5E5754] truncate">
+                              <button
+                                onClick={() => {
+                                  const c = communities.find((x) => x.name === post.shared!.community);
+                                  if (c) openCommunity(c);
+                                }}
+                                className="font-semibold text-[#8B1E3F] hover:underline"
+                              >
+                                {post.shared.community}
+                              </button>{" "}· {post.shared.time}
+                            </p>
+                          </div>
+                        </div>
+                        {post.shared.content && (
+                          <p className="text-sm text-[#1A1818] leading-relaxed mb-2">{post.shared.content}</p>
+                        )}
+                        {post.shared.media && <PostMediaView media={post.shared.media} />}
+                        {post.shared.hasPoll && (
+                          <p className="text-xs italic text-[#5E5754]">Includes a poll. Open the original to vote.</p>
+                        )}
+                      </div>
+                    )}
 
                     {post.media && <PostMediaView media={post.media} />}
                     {post.poll && (
@@ -1627,8 +1841,11 @@ const publishPost = async () => {
                       >
                         <MessageSquare className="w-4 h-4" /> {post.commentCount}
                       </button>
-                      <button onClick={() => sharePost(post)} className="ml-auto text-xs font-semibold hover:text-[#1A1818] transition-colors">
-                        Share
+                      <button
+                        onClick={() => openShare(post)}
+                        className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold hover:text-[#1A1818] transition-colors"
+                      >
+                        <Share2 className="w-4 h-4" /> Share{post.shares ? ` · ${post.shares}` : ""}
                       </button>
                     </div>
 
@@ -1685,7 +1902,7 @@ const publishPost = async () => {
             >
               <p className="text-xs font-semibold text-[#8B1E3F] truncate">{p.community}</p>
               <p className="text-sm text-[#1A1818] line-clamp-2 mt-0.5">
-                {p.content || (p.poll ? "New poll" : "Shared an attachment")}
+                {p.content || (p.shared ? "Shared a post" : p.poll ? "New poll" : "Shared an attachment")}
               </p>
               <p className="text-[11px] text-[#5E5754] mt-1">{p.likes} likes · {p.commentCount} comments</p>
             </button>
@@ -1724,6 +1941,66 @@ const publishPost = async () => {
         </div>
 
         {/* Create community modal */}
+        {/* Share to community modal */}
+        <Modal open={!!shareTarget} onClose={() => setShareTarget(null)} title="Share to community">
+          {shareTarget && (() => {
+            const options = joinedCommunities.filter((c) => c.name !== shareTarget.community);
+            const origin = shareTarget.shared ?? shareTarget;
+            const preview = origin.content || (shareTarget.poll ? "Poll" : "Attachment");
+            return (
+              <div className="space-y-4">
+                <div className="rounded-xl bg-[#FAF8F5] p-3 text-sm">
+                  <p className="text-xs font-semibold text-[#8B1E3F] mb-1">
+                    {origin.author} · {origin.community}
+                  </p>
+                  <p className="line-clamp-3 text-[#3D3735]">{preview}</p>
+                </div>
+
+                <textarea
+                  value={shareNote}
+                  onChange={(e) => setShareNote(e.target.value)}
+                  rows={2}
+                  maxLength={300}
+                  placeholder="Add a message (optional)"
+                  className={`${inputCls} resize-none`}
+                />
+
+                {options.length === 0 ? (
+                  <p className="text-sm text-[#5E5754]">Join another community to share this post there.</p>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto space-y-1">
+                    {options.map((c) => (
+                      <label key={c.id} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-[#F5EFE6] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="accent-[#8B1E3F]"
+                          checked={shareDest.includes(c.name)}
+                          onChange={() => setShareDest((d) =>
+                            d.includes(c.name) ? d.filter((x) => x !== c.name) : [...d, c.name]
+                          )}
+                        />
+                        <LogoAvatar src={c.avatar} icon={c.icon} className="w-8 h-8 text-base" />
+                        <span className="text-sm font-semibold truncate">{c.name}</span>
+                        {c.isPrivate && <Lock className="w-3.5 h-3.5 text-[#5E5754] shrink-0" />}
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <Btn variant="ghost" size="sm" onClick={() => sharePost(shareTarget)}>Copy text</Btn>
+                  <div className="flex gap-2">
+                    <Btn variant="ghost" onClick={() => setShareTarget(null)}>Cancel</Btn>
+                    <Btn onClick={confirmShare} disabled={shareDest.length === 0}>
+                      Share{shareDest.length > 1 ? ` to ${shareDest.length}` : ""}
+                    </Btn>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </Modal>
+
         <Modal open={createOpen} onClose={() => { setCreateOpen(false); setFormError(""); discardImages(); }} title="Create a Community">
           <form onSubmit={handleCreateCommunity} className="space-y-4">
             <div>
