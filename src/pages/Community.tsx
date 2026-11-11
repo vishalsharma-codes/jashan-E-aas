@@ -991,21 +991,45 @@ const nextEvent = useMemo(() => {
     setBookingEventId(ev.id);
   };
 
+  const openEventChat = async (ev: EventItem) => {
+    const c = communities.find((x) => x.name === ev.community);
+    if (!c) return;
+
+    // Join public communities so the user can post as soon as the feed opens.
+    if (!membership[c.id] && !c.isPrivate && !isMine(c)) {
+      try {
+        const st = await api.joinCommunity(c);
+        setMembership((m) => ({ ...m, [c.id]: st }));
+        if (st === "joined") adjustMembers(c.id, 1);
+      } catch {
+        // The feed still opens and shows the community's Join button.
+      }
+    }
+
+    setFeedFilter("all");
+    setComposerCommunity(c.name);
+    setComposerEvent(ev.title);
+    goTab("feed", c);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const confirmBooking = async () => {
     if (!bookingEvent) return;
+    const ev = bookingEvent;
     try {
-      await api.bookEventApi(bookingEvent.id, seats);
+      await api.bookEventApi(ev.id, seats);
       setEvents((es) =>
         es.map((e) =>
-          e.id === bookingEvent.id ? { ...e, filled: e.filled + seats, myBooking: seats, onWaitlist: false } : e
+          e.id === ev.id ? { ...e, filled: e.filled + seats, myBooking: seats, onWaitlist: false } : e
         )
       );
       toast(
-        bookingEvent.price === 0
-          ? `Registered for ${bookingEvent.title}`
-          : `Booked ${seats} seat${seats > 1 ? "s" : ""} — ₹${(seats * bookingEvent.price).toLocaleString("en-IN")}`
+        ev.price === 0
+          ? `Registered for ${ev.title}`
+          : `Booked ${seats} seat${seats > 1 ? "s" : ""} — ₹${(seats * ev.price).toLocaleString("en-IN")}`
       );
       setBookingEventId(null);
+      void openEventChat(ev);
     } catch (err: any) {
       toast(err?.message || "Booking failed");
       refreshAll();
@@ -1253,6 +1277,30 @@ const publishPost = async () => {
 
   /* --------------------------------- Render -------------------------------- */
 
+  const meetupCard = nextEvent && (
+    <div className="w-full rounded-2xl bg-white/90 backdrop-blur-sm p-3.5 shadow-[0_10px_28px_-10px_rgba(139,30,63,0.35)] ring-1 ring-[#EADFD6]">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-[#8B1E3F]">Next offline meetup</p>
+      <h4 className="font-bold text-[13px] leading-snug text-[#1A1818] mt-1 line-clamp-2">{nextEvent.title}</h4>
+      <p className="text-[11px] text-[#3D3735] mt-2 flex items-center gap-1.5">
+        <Calendar className="w-3 h-3 text-[#8B1E3F] shrink-0" /> {dateFull(nextEvent.date)}
+      </p>
+      <p className="text-[11px] text-[#3D3735] mt-1 flex items-center gap-1.5 min-w-0">
+        <MapPin className="w-3 h-3 text-[#8B1E3F] shrink-0" />
+        <span className="truncate">{nextEvent.location}</span>
+      </p>
+      <button
+        onClick={() => openBooking(nextEvent)}
+        className="w-full mt-3 h-8 rounded-lg border-[1.5px] border-[#D4AF37] text-[#8B1E3F] font-bold text-xs hover:bg-[#FFF6E0] transition-colors"
+      >
+        RSVP Now
+      </button>
+      <div className="flex items-center gap-1.5 mt-2.5">
+        <Facepile seed={nextEvent.id} total={nextEvent.filled} max={3} size={20} />
+        <span className="text-[11px] font-medium">+{nextEvent.filled} attending</span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1A1818]">
       <Navbar />
@@ -1269,8 +1317,33 @@ const publishPost = async () => {
         {!feedCommunity && (
           <>
         {/* Hero */}
-        <section className="pt-28 pb-14 bg-gradient-to-br from-[#FFF6E0] via-[#FDEEC4] to-[#FBE6B0]">
-          <div className="container mx-auto px-4 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-10 items-center">
+        <section className="relative overflow-hidden pt-28 pb-14 xl:min-h-[540px] bg-gradient-to-r from-[#F8D9CE] via-[#FBE9DC] to-[#FCF3E6]">
+          {/* Arch artwork: sized by height, so it never zooms. Card sits in the gate. */}
+          <div
+            className="hidden xl:block absolute right-0 top-0 h-full pointer-events-none select-none"
+            style={{ aspectRatio: "1024 / 434" }}
+          >
+            <img
+              src="/community-hero.png"
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full"
+              style={{
+                WebkitMaskImage: "linear-gradient(to right, transparent, #000 22%)",
+                maskImage: "linear-gradient(to right, transparent, #000 22%)",
+              }}
+            />
+            {nextEvent && (
+              <div
+                className="pointer-events-auto absolute w-[21%]"
+                style={{ left: "75.2%", bottom: "4%", transform: "translateX(-50%)" }}
+              >
+                {meetupCard}
+              </div>
+            )}
+          </div>
+
+          <div className="relative container mx-auto px-4 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] xl:grid-cols-1 gap-10 items-center">
             <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
               <p className="text-[#8B1E3F] text-xs font-bold uppercase tracking-[0.22em] mb-4">
                 From Venue Scouting to Stage Lights
@@ -1339,29 +1412,9 @@ const publishPost = async () => {
               </div>
             </motion.div>
 
-            {/* Right side: next meetup */}
-            <div className="flex flex-col items-start lg:items-end gap-4">
-              {nextEvent && (
-                <div className={`w-full max-w-sm bg-white rounded-2xl p-5 ${cardShadow}`}>
-                  <h4 className="font-bold text-sm text-[#1A1818]">Next Offline Meetup: {nextEvent.title}</h4>
-                  <p className="text-sm text-[#3D3735] mt-3 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-[#8B1E3F]" /> {dateFull(nextEvent.date)}
-                  </p>
-                  <p className="text-sm text-[#3D3735] mt-1.5 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-[#8B1E3F]" /> {nextEvent.location}
-                  </p>
-                  <button
-                    onClick={() => openBooking(nextEvent)}
-                    className="w-full mt-4 h-10 rounded-xl border-[1.5px] border-[#D4AF37] text-[#8B1E3F] font-bold text-sm hover:bg-[#FFF6E0] transition-colors"
-                  >
-                    RSVP Now
-                  </button>
-                  <div className="flex items-center gap-2 mt-4">
-                    <Facepile seed={nextEvent.id} total={nextEvent.filled} max={3} size={26} />
-                    <span className="text-xs font-medium">+{nextEvent.filled} attending</span>
-                  </div>
-                </div>
-              )}
+            {/* Below xl the artwork is hidden, so show the card normally */}
+            <div className="xl:hidden w-full max-w-sm lg:justify-self-end">
+              {meetupCard}
             </div>
           </div>
         </section>
@@ -1529,7 +1582,8 @@ const publishPost = async () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.04 }}
-                        className={`flex flex-col h-full bg-white rounded-2xl overflow-hidden ${cardShadow} ${cardHover}`}
+                        onClick={() => { if (booked) void openEventChat(ev); }}
+                        className={`flex flex-col h-full bg-white rounded-2xl overflow-hidden ${cardShadow} ${cardHover} ${booked ? "cursor-pointer" : ""}`}
                       >
                         <Cover src={ev.image} bg={ev.banner} className="h-[120px] shrink-0">
                           <div className="absolute top-3 left-3 bg-white rounded-xl px-2.5 py-2 text-center shadow-md min-w-[48px]">
@@ -1578,18 +1632,19 @@ const publishPost = async () => {
                             {booked ? (
                               <>
                                 <span className="text-xs font-semibold text-[#1F6B45] inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> {booked} seat{booked > 1 ? "s" : ""}</span>
-                                <Btn size="sm" variant="ghost" onClick={() => cancelBooking(ev)}>Cancel</Btn>
+                                <Btn size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); void cancelBooking(ev); }}>Cancel</Btn>
                               </>
                             ) : full ? (
-                              <Btn size="sm" variant={ev.onWaitlist ? "ghost" : "outline"} onClick={() => openBooking(ev)}>
+                              <Btn size="sm" variant={ev.onWaitlist ? "ghost" : "outline"} onClick={(e) => { e.stopPropagation(); void openBooking(ev); }}>
                                 {ev.onWaitlist ? "On waitlist ✓" : "Join Waitlist"}
                               </Btn>
                             ) : (
-                              <Btn size="sm" onClick={() => openBooking(ev)}>
+                              <Btn size="sm" onClick={(e) => { e.stopPropagation(); void openBooking(ev); }}>
                                 {ev.price === 0 ? "Register Free" : "Book Now"}
                               </Btn>
                             )}
                           </div>
+                          {booked && <p className="mt-1 text-[11px] text-[#5E5754]">Tap the card to open the event chat</p>}
                           {ev.price > 0 && <div className="mt-2"><EscrowBadge /></div>}
                         </div>
                       </motion.article>
@@ -1688,6 +1743,15 @@ const publishPost = async () => {
       </div>
     )}
 
+    {feedCommunity && composerEvent && (
+      <div className={`bg-[#E8F3EC] rounded-2xl px-4 py-3 flex items-center justify-between gap-3 ${cardShadow}`}>
+        <p className="text-sm text-[#1F6B45]"><b>{composerEvent}</b>: you're registered. Say hi to the other attendees!</p>
+        <button onClick={() => setComposerEvent("")} aria-label="Dismiss" className="text-[#1F6B45]">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    )}
+
     {feedCommunity && searchParams.get("invite") && membership[feedCommunity.id] === undefined && (
       <div className={`bg-[#F5EFE6] rounded-2xl px-4 py-3 flex items-center justify-between gap-3 ${cardShadow}`}>
         <p className="text-sm text-[#3D3735]">
@@ -1735,6 +1799,12 @@ const publishPost = async () => {
             <textarea
               value={composerText}
               onChange={(e) => setComposerText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  if (!posting) publishPost();
+                }
+              }}
               rows={composerText || composerMedia || pollOpen ? 3 : 2}
               placeholder="Share an insight, vendor review, or event update…"
               className="flex-1 resize-none bg-[#FAF8F5] rounded-2xl px-4 py-2.5 text-sm text-[#1A1818] placeholder:text-[#8A827E] focus:outline-none focus:ring-2 focus:ring-[#8B1E3F]/25"
