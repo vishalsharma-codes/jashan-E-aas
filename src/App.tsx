@@ -47,6 +47,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/choose-role" element={<ChooseRole />} />
               <Route path="/vendors" element={<Vendors />} />
+              <Route path="/vendors/browse" element={<Vendors />} />
               <Route path="/vendors/:slug" element={<Vendors />} />
               <Route path="/for-partners" element={<ForPartners />} />
               <Route path="/category/:categoryId" element={<CategoryPage />} />

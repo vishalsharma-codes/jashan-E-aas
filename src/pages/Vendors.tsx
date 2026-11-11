@@ -2,7 +2,7 @@ import { useCallback,useEffect, useMemo, useState, useRef } from "react";
 
 import { AnimatePresence, motion } from "framer-motion";
 
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import {
 
@@ -750,8 +750,12 @@ const vendorSlug = (vendor: Vendor) => `${slugifyVendorName(vendor.name)}-${vend
 const Vendors = () => {
 
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { slug } = useParams<{ slug?: string }>();
   const [searchParams] = useSearchParams();
+  const isBrowse = pathname === "/vendors/browse";
+
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
 
   const { vendors, loading: vendorsLoading, error: vendorsError } = useLiveVendors();
 
@@ -798,6 +802,7 @@ const Vendors = () => {
   };
 
   const closeProfile = () => {
+    if (window.history.state?.idx > 0) { navigate(-1); return; }
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("vendor");
     const query = nextParams.toString();
@@ -983,45 +988,18 @@ const Vendors = () => {
 
     const q = searchParams.get("q");
 
-    if (c) setCity(c);
+    setCity(c ?? "All Cities");
 
-    if (t) setActiveEvent(EVENT_TYPES.find((e) => e.label.toLowerCase() === t.toLowerCase())?.label ?? t);
+    setActiveCategory(searchParams.get("category") ?? "All");
+    setActiveEvent(t ? (EVENT_TYPES.find((e) => e.label.toLowerCase() === t.toLowerCase())?.label ?? t) : "All Events");
 
-    if (g) setGuests(findOpt(GUEST_OPTIONS, g) ?? "any");
+    setGuests(g ? (findOpt(GUEST_OPTIONS, g) ?? "any") : "any");
 
-    if (b) setBudget(findOpt(BUDGET_OPTIONS, b) ?? "any");
+    setBudget(b ? (findOpt(BUDGET_OPTIONS, b) ?? "any") : "any");
 
-    if (q !== null) setSearchQuery(q);
+    setSearchQuery(q ?? "");
 
   }, [searchParams]);
-
-
-
-  const didScroll = useRef(false);
-
-  useEffect(() => {
-
-    const fromSearch = ["city", "type", "event", "guests", "budget", "q", "browse"].some((k) => searchParams.get(k));
-
-    if (!fromSearch || vendorsLoading || didScroll.current) return;
-
-    didScroll.current = true;
-
-    setFilterOpen(true);
-
-    const jump = () => {
-
-      const el = document.getElementById("all-vendors");
-
-      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 88, behavior: "auto" });
-
-    };
-
-    requestAnimationFrame(jump);
-
-    setTimeout(jump, 350); // re-align after images and carousels finish laying out
-
-  }, [searchParams, vendorsLoading]);
 
 
 
@@ -1093,20 +1071,22 @@ const Vendors = () => {
 
   );
 
-  const openAllVendors = () => {
-
-    document.getElementById("all-vendors")?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-  };
-
-  const showEverything = () => {
-
-    setActiveCategory("All");
-
-    setActiveEvent("All Events");
-
-    openAllVendors();
-
+  const goBrowse = (o: { category?: string; event?: string; q?: string; city?: string } = {}) => {
+    const p = new URLSearchParams();
+    const category = o.category ?? activeCategory;
+    const event = o.event ?? activeEvent;
+    const q = (o.q ?? searchQuery).trim();
+    const c = o.city ?? city;
+    if (category !== "All") p.set("category", category);
+    if (event !== "All Events") p.set("event", event);
+    if (q) p.set("q", q);
+    if (c !== "All Cities") p.set("city", c);
+    const g = GUEST_OPTIONS.find((x) => x.value === guests);
+    if (g && g.value !== "any") p.set("guests", g.label);
+    const b = BUDGET_OPTIONS.find((x) => x.value === budget);
+    if (b && b.value !== "any") p.set("budget", b.label);
+    const qs = p.toString();
+    navigate(`/vendors/browse${qs ? `?${qs}` : ""}`);
   };
 
   return (
@@ -1121,6 +1101,8 @@ const Vendors = () => {
 
         <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
 
+          {!isBrowse && (
+            <>
           {/* Hero */}
 
           <section className="relative mb-4 overflow-hidden rounded-3xl border border-[#C44A68]/20 bg-[#FFF1EC]">
@@ -1145,7 +1127,7 @@ const Vendors = () => {
 
                 </p>
 
-                <form onSubmit={(event) => { event.preventDefault(); openAllVendors(); }} className="mt-5 flex max-w-2xl items-center gap-2 rounded-full border border-[#C44A68]/30 bg-white/70 p-1.5 pl-4 backdrop-blur">
+                <form onSubmit={(event) => { event.preventDefault(); goBrowse(); }} className="mt-5 flex max-w-2xl items-center gap-2 rounded-full border border-[#C44A68]/30 bg-white/70 p-1.5 pl-4 backdrop-blur">
 
                   <Search className="h-4 w-4 shrink-0 text-[#4A3440]/70" />
 
@@ -1191,6 +1173,11 @@ const Vendors = () => {
 
           </section>
 
+            </>
+          )}
+
+          {!isBrowse && (
+            <>
           {/* Event type selector */}
 
           <section className="mb-7 border-b border-[#C44A68]/15 pb-4">
@@ -1199,7 +1186,7 @@ const Vendors = () => {
 
               {EVENT_TYPES.map(({ label, icon: Icon }) => (
 
-                <button key={label} type="button" onClick={() => { setActiveEvent(label); openAllVendors(); }} className={`flex min-w-[76px] shrink-0 flex-col items-center gap-2 rounded-2xl border px-4 py-3 transition-all ${activeEvent === label ? "border-[#E0708A] bg-gradient-to-br from-[#E0708A] to-[#C44A68] text-white shadow-[0_8px_25px_rgba(196,74,104,.25)]" : "border-[#C44A68]/10 bg-[#FFF1EC] text-[#4A3440] hover:border-[#C44A68]/50 hover:text-[#C44A68]"}`}>
+                <button key={label} type="button" onClick={() => isBrowse ? setActiveEvent(label) : goBrowse({ event: label })} className={`flex min-w-[76px] shrink-0 flex-col items-center gap-2 rounded-2xl border px-4 py-3 transition-all ${activeEvent === label ? "border-[#E0708A] bg-gradient-to-br from-[#E0708A] to-[#C44A68] text-white shadow-[0_8px_25px_rgba(196,74,104,.25)]" : "border-[#C44A68]/10 bg-[#FFF1EC] text-[#4A3440] hover:border-[#C44A68]/50 hover:text-[#C44A68]"}`}>
 
                   <Icon className="h-5 w-5" />
 
@@ -1214,7 +1201,11 @@ const Vendors = () => {
             </div>
 
           </section>
+            </>
+          )}
 
+          {!isBrowse && (
+            <>
           {/* All Vendors carousel (follows the filters above) */}
 
           <CarouselSection
@@ -1235,7 +1226,7 @@ const Vendors = () => {
 
             onToggleSaved={toggleSaved}
 
-            onViewAll={showEverything}
+            onViewAll={() => goBrowse({ category: "All", event: "All Events" })}
 
             direction="right-to-left"
 
@@ -1263,7 +1254,7 @@ const Vendors = () => {
 
             onToggleSaved={toggleSaved}
 
-            onViewAll={showEverything}
+            onViewAll={() => goBrowse({ category: "All", event: "All Events" })}
 
             direction="left-to-right"
 
@@ -1357,18 +1348,30 @@ const Vendors = () => {
 
           </section>
 
+            </>
+          )}
+
           {/* Full directory: EVERY vendor always appears here */}
 
-          <section id="all-vendors" className="scroll-mt-24 border-t border-[#C44A68]/20 pt-7">
+          {isBrowse && (
+          <section className="scroll-mt-24 pt-2">
 
-            <div className="sticky top-20 z-20 -mx-4 mb-4 flex flex-col gap-4 border-b border-[#C44A68]/20 bg-[#FFF6F2]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:-mx-8 lg:px-8">
+            <div className="sticky top-20 z-20 -mx-4 mb-4 flex flex-col gap-4 border-b border-[#C44A68]/20 bg-[#FFF6F2]/95 px-4 pb-3 pt-0 backdrop-blur sm:-mx-6 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:-mx-8 lg:px-8">
 
               <div>
 
                 <p className="text-[10px] font-bold tracking-[.25em] text-[#C44A68]">FIND YOUR PERFECT MATCH</p>
 
                 <h2 className="mt-1 font-serif text-2xl font-semibold text-[#4A1230] sm:text-3xl">Browse All Vendors</h2>
-
+                <div className="relative mt-3 max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A3440]/60" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search vendors, cities, tags..."
+                    className="border-[#C44A68]/20 bg-[#FFFBF8] pl-10 text-[#4A1230]"
+                  />
+                </div>
                 <p className="mt-1 text-sm text-[#4A3440]/70">Showing <span className="font-semibold text-[#C44A68]">{filtered.length}</span> of {vendors.length} vendors</p>
 
               </div>
@@ -1512,6 +1515,7 @@ const Vendors = () => {
             )}
 
           </section>
+          )}
 
         </div>
 
@@ -1541,7 +1545,7 @@ const Vendors = () => {
 
                 {categoryItems.map(({ label, icon: Icon, match }) => (
 
-                  <button type="button" key={label} onClick={() => { setActiveCategory(match); setCategoryOpen(false); setCategorySearch(""); document.getElementById("all-vendors")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`flex min-h-[76px] items-center gap-3 rounded-xl border p-3 text-left transition ${activeCategory === match ? "border-[#C44A68]/70 bg-[#C44A68]/10" : "border-[#C44A68]/15 bg-white/50 hover:border-[#C44A68]/50 hover:bg-[#C44A68]/[.06]"}`}>
+                  <button type="button" key={label} onClick={() => { isBrowse ? setActiveCategory(match) : goBrowse({ category: match }); setCategoryOpen(false); setCategorySearch(""); }} className={`flex min-h-[76px] items-center gap-3 rounded-xl border p-3 text-left transition ${activeCategory === match ? "border-[#C44A68]/70 bg-[#C44A68]/10" : "border-[#C44A68]/15 bg-white/50 hover:border-[#C44A68]/50 hover:bg-[#C44A68]/[.06]"}`}>
 
                     <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${activeCategory === match ? "bg-[#C44A68] text-white" : "bg-[#F9DDE3] text-[#C44A68]"}`}><Icon className="h-5 w-5" /></span>
 
@@ -1553,7 +1557,7 @@ const Vendors = () => {
 
               </div>
 
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#C44A68]/20 pt-4"><p className="text-xs text-[#4A3440]/60">{categoryItems.length} categories available</p><Button type="button" onClick={() => { setActiveCategory("All"); setActiveEvent("All Events"); setCategoryOpen(false); setCategorySearch(""); }} className="bg-gradient-to-r from-[#E0708A] to-[#C44A68] font-bold text-white hover:brightness-105">Show All Vendors</Button></div>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#C44A68]/20 pt-4"><p className="text-xs text-[#4A3440]/60">{categoryItems.length} categories available</p><Button type="button" onClick={() => { goBrowse({ category: "All", event: "All Events" }); setCategoryOpen(false); setCategorySearch(""); }} className="bg-gradient-to-r from-[#E0708A] to-[#C44A68] font-bold text-white hover:brightness-105">Show All Vendors</Button></div>
 
             </motion.div>
 

@@ -65,10 +65,12 @@ export interface ApiEvent {
   capacity: number;
   filled: number;
   location: string;
-  icon: string;
   image?: string;
+  category?: string;
   myBooking?: number;
   onWaitlist: boolean;
+  showOnHero?: boolean;
+  heroRank?: number;
 }
 
 /* ------------------------------ Helpers ------------------------------ */
@@ -376,28 +378,39 @@ export async function listEvents(): Promise<ApiEvent[]> {
     capacity: r.capacity,
     filled: r.filled,
     location: r.location,
-    icon: r.icon,
     image: r.image_url ?? undefined,
+    category: r.category ?? undefined,
     myBooking: bookings[r.id],
     onWaitlist: waitlist.has(r.id),
+    showOnHero: r.show_on_hero ?? false,
+    heroRank: r.hero_rank ?? 999,
   }));
 }
 
 export async function createEvent(input: {
-  communityId: string; title: string; date: string; time: string;
-  price: number; capacity: number; location: string; icon?: string;
-}) {
+  communityId: string;
+  title: string;
+  category?: string;
+  location: string;
+  date: string;
+  time: string;
+  capacity: number;
+  price: number;
+  imageDataUrl?: string;
+}): Promise<void> {
   const user = await requireUser();
   const { error } = await db.from("cm_events").insert({
     community_id: input.communityId,
     organizer_id: user.id,
     title: input.title,
+    category: input.category || null,
+    location: input.location,
+    // Keep the existing cm_events column names used by listEvents().
     starts_on: input.date,
     starts_at_label: input.time,
-    price: input.price,
     capacity: input.capacity,
-    location: input.location,
-    icon: input.icon ?? "🎉",
+    price: input.price,
+    image_url: input.imageDataUrl || null,
   });
   fail(error);
 }

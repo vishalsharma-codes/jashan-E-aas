@@ -259,6 +259,95 @@ function Modal({ open, onClose, title, children }: {
 
 const inputCls =
   "w-full bg-white border border-[#E9E1D5] rounded-xl px-3.5 py-2.5 text-sm text-[#1A1818] placeholder:text-[#8A827E] focus:outline-none focus:ring-2 focus:ring-[#8B1E3F]/25 focus:border-[#8B1E3F]/50";
+type Opt = { value: string; label: string; hint?: string };
+
+const EVENT_TYPE_OPTIONS: Opt[] = [
+  "Photography Events", "Corporate Events", "Wedding Events", "Exhibitions",
+  "Music & Concerts", "Workshops", "Networking Meetups", "Decor & Design",
+  "Food & Catering", "Eco-Friendly Events", "Dance & Choreography",
+  "Tech Conferences", "Birthday Parties", "Trade Shows", "Fashion Shows",
+].map((label) => ({ value: label, label }));
+
+function Combobox({ options, value, onChange, placeholder, allowCustom = false, maxResults = 50 }: {
+  options: Opt[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  allowCustom?: boolean;
+  maxResults?: number;
+}) {
+  const selected = options.find((o) => o.value === value);
+  const [query, setQuery] = useState(selected?.label ?? (allowCustom ? value : ""));
+  const [open, setOpen] = useState(false);
+  const [filtering, setFiltering] = useState(false);
+  const [hi, setHi] = useState(0);
+
+  useEffect(() => {
+    setQuery(selected?.label ?? (allowCustom ? value : ""));
+  }, [value, selected?.label, allowCustom]);
+
+  const q = query.trim().toLowerCase();
+  const matches = (filtering && q
+    ? options.filter((o) => o.label.toLowerCase().includes(q) || (o.hint ?? "").toLowerCase().includes(q))
+    : options
+  ).slice(0, maxResults);
+
+  const pick = (o: Opt) => {
+    onChange(o.value);
+    setQuery(o.label);
+    setFiltering(false);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        value={query}
+        placeholder={placeholder}
+        className={inputCls}
+        autoComplete="off"
+        onFocus={() => { setOpen(true); setFiltering(false); setHi(0); }}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setFiltering(true);
+          setOpen(true);
+          setHi(0);
+          if (allowCustom) onChange(e.target.value);
+        }}
+        onBlur={() => {
+          setOpen(false);
+          if (!allowCustom) setQuery(options.find((o) => o.value === value)?.label ?? "");
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); setHi((h) => Math.min(h + 1, matches.length - 1)); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+          else if (e.key === "Enter" && open && matches[hi]) { e.preventDefault(); pick(matches[hi]); }
+          else if (e.key === "Escape" && open) { e.stopPropagation(); setOpen(false); }
+        }}
+      />
+      {open && (
+        <ul className="absolute z-20 left-0 right-0 mt-1 max-h-72 overflow-y-auto bg-white border border-[#E9E1D5] rounded-xl shadow-lg py-1">
+          {matches.length === 0 ? (
+            <li className="px-3.5 py-2 text-sm text-[#5E5754]">
+              {allowCustom ? "No match. Your text will be used." : "No matching community."}
+            </li>
+          ) : matches.map((o, i) => (
+            <li
+              key={`${o.value}-${i}`}
+              onMouseDown={(e) => { e.preventDefault(); pick(o); }}
+              onMouseEnter={() => setHi(i)}
+              className={`px-3.5 py-2 text-sm cursor-pointer flex items-center justify-between gap-3 ${i === hi ? "bg-[#F5EFE6]" : ""}`}
+            >
+              <span className="truncate">{o.label}</span>
+              {o.hint && <span className="text-[11px] text-[#8A827E] shrink-0">{o.hint}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const cardShadow =
   "shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06)] ring-1 ring-[#EADFD6]";
 const cardHover =
@@ -337,6 +426,11 @@ function PostMediaView({ media }: { media: { path: string; type: "image" | "vide
 
 const compact = (n: number) =>
   n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n);
+
+const to12h = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+};
 
 const COMMUNITY_SHARES_KEY = "jea.community.shared-posts.v1";
 const readCommunityShares = (): Post[] => {
@@ -442,6 +536,16 @@ export default function Community() {
   const [feedFilter, setFeedFilter] = useState<"all" | "mine">("all");
 
   const [createOpen, setCreateOpen] = useState(false);
+  const emptyEventForm = {
+    communityId: "", title: "", category: "", location: "", date: "", time: "",
+    capacity: "50", price: "0",
+  };
+  const [eventOpen, setEventOpen] = useState(false);
+  const [eventForm, setEventForm] = useState(emptyEventForm);
+  const [eventError, setEventError] = useState("");
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  const [eventImage, setEventImage] = useState<string | null>(null);
+  const eventImageRef = useRef<HTMLInputElement>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [bookingEventId, setBookingEventId] = useState<string | null>(null);
   const [seats, setSeats] = useState(1);
@@ -466,6 +570,20 @@ export default function Community() {
       kind === "banner" ? setBannerPreview(url) : setAvatarPreview(url);
     } catch {
       setFormError("Couldn't read that image. Try another one.");
+    }
+  };
+
+  const pickEventImage = async (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return setEventError("Please choose an image file.");
+    if (f.size > 5 * 1024 * 1024) return setEventError("Image must be under 5 MB.");
+    setEventError("");
+    try {
+      setEventImage(await fileToDataUrl(f, 900));
+    } catch {
+      setEventError("Couldn't read that image. Try another one.");
     }
   };
 
@@ -607,7 +725,7 @@ export default function Community() {
     return events.filter((ev) => {
       const matchSearch =
         !q ||
-        [ev.title, ev.location, ev.organizer, ev.community].some((value) =>
+        [ev.title, ev.category, ev.location, ev.organizer, ev.community].some((value) =>
           String(value ?? "").toLowerCase().includes(q)
         );
       const matchCity =
@@ -639,7 +757,12 @@ const upcomingEvents = useMemo(
   () => [...events].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3),
   [events]
 );
-const nextEvent = upcomingEvents[0];
+const nextEvent = useMemo(() => {
+  const picked = events
+    .filter((e) => e.showOnHero)
+    .sort((a, b) => (a.heroRank ?? 999) - (b.heroRank ?? 999) || a.date.localeCompare(b.date));
+  return picked[0] ?? null;
+}, [events]);
 
   useEffect(() => {
     if (slug && !feedCommunity && !loading) navigate("/community", { replace: true });
@@ -752,7 +875,62 @@ const nextEvent = upcomingEvents[0];
 
   const handleCreateEvent = () => {
     if (!requireLogin()) return;
-    toast("Create Event coming soon");
+    if (joinedCommunities.length === 0) {
+      toast("Join or create a community first to host an event");
+      return;
+    }
+    const defaultCommunity =
+      feedCommunity && membership[feedCommunity.id] === "joined"
+        ? feedCommunity
+        : joinedCommunities[0];
+    setEventForm({ ...emptyEventForm, communityId: defaultCommunity.id });
+    setEventError("");
+    setEventImage(null);
+    setEventOpen(true);
+  };
+
+  const submitEvent = async (e: FormEvent) => {
+    e.preventDefault();
+    const f = eventForm;
+    const capacity = Number(f.capacity);
+    const price = Number(f.price);
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (!f.communityId) return setEventError("Join or create a community first.");
+    if (!f.category.trim()) return setEventError("Choose an event type.");
+    if (f.title.trim().length < 3) return setEventError("Event title must be at least 3 characters.");
+    if (!f.location.trim()) return setEventError("Please add the venue / location.");
+    if (!f.date) return setEventError("Choose a date.");
+    if (f.date < today) return setEventError("Date can't be in the past.");
+    if (!f.time) return setEventError("Choose a start time.");
+    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 10000)
+      return setEventError("Spots must be a whole number between 1 and 10,000.");
+    if (!Number.isFinite(price) || price < 0) return setEventError("Price can't be negative.");
+
+    setCreatingEvent(true);
+    try {
+      await api.createEvent({
+        communityId: f.communityId,
+        title: f.title.trim(),
+        category: f.category.trim() || undefined,
+        location: f.location.trim(),
+        date: f.date,
+        time: to12h(f.time),
+        capacity,
+        price,
+        imageDataUrl: eventImage ?? undefined,
+      });
+      await refreshAll();
+      setEventOpen(false);
+      setEventError("");
+      setEventImage(null);
+      setActiveTab("events");
+      toast(`"${f.title.trim()}" created 🎉`);
+    } catch (err: any) {
+      setEventError(err?.message || "Couldn't create the event. Try again.");
+    } finally {
+      setCreatingEvent(false);
+    }
   };
 
   const handleCreateCommunity = async (e: FormEvent) => {
@@ -1353,7 +1531,7 @@ const publishPost = async () => {
                         transition={{ delay: i * 0.04 }}
                         className={`flex flex-col h-full bg-white rounded-2xl overflow-hidden ${cardShadow} ${cardHover}`}
                       >
-                        <Cover src={ev.image} bg={ev.banner} className="h-[120px] shrink-0" fallback={<span className="absolute inset-0 flex items-center justify-center text-6xl opacity-40 select-none">{ev.icon}</span>}>
+                        <Cover src={ev.image} bg={ev.banner} className="h-[120px] shrink-0">
                           <div className="absolute top-3 left-3 bg-white rounded-xl px-2.5 py-2 text-center shadow-md min-w-[48px]">
                             <p className="text-[10px] font-bold tracking-wider text-[#8B1E3F] leading-none">{monthShort(ev.date)}</p>
                             <p className="text-xl font-extrabold text-[#1A1818] leading-none mt-1">{dayNum(ev.date)}</p>
@@ -2151,6 +2329,94 @@ const publishPost = async () => {
               </div>
             </div>
           )}
+        </Modal>
+
+        {/* Create event modal */}
+        <Modal open={eventOpen} onClose={() => { setEventOpen(false); setEventError(""); setEventImage(null); }} title="Create an Event">
+          <form onSubmit={submitEvent} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Event type *</label>
+              <Combobox
+                allowCustom
+                value={eventForm.category}
+                onChange={(v) => setEventForm({ ...eventForm, category: v })}
+                options={EVENT_TYPE_OPTIONS}
+                placeholder="e.g. Photography Events, Corporate Events…"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Event title *</label>
+              <input value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} className={inputCls} maxLength={80} placeholder="e.g. Photography Workshop — Golden Hour Portraits" />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Venue & city *</label>
+              <input value={eventForm.location} onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })} className={inputCls} maxLength={80} placeholder="e.g. Lodhi Garden, Delhi" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Date *</label>
+                <input type="date" min={new Date().toISOString().slice(0, 10)} value={eventForm.date} onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Start time *</label>
+                <input type="time" value={eventForm.time} onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })} className={inputCls} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Total spots *</label>
+                <input type="number" min={1} max={10000} value={eventForm.capacity} onChange={(e) => setEventForm({ ...eventForm, capacity: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Price per person (₹)</label>
+                <input type="number" min={0} step="any" value={eventForm.price} onChange={(e) => setEventForm({ ...eventForm, price: e.target.value })} className={inputCls} />
+                <p className="text-[11px] text-[#5E5754] mt-1">0 = free event</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[#5E5754] mb-1 block">Cover photo</label>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => eventImageRef.current?.click()}
+                onKeyDown={(e) => e.key === "Enter" && eventImageRef.current?.click()}
+                className={`relative h-32 rounded-xl overflow-hidden cursor-pointer border-2 border-dashed border-[#D98AA5] bg-[#FFF7FA] hover:bg-[#FFF0F5] transition-colors ${eventImage ? "border-solid" : ""}`}
+                aria-label="Upload event cover photo"
+              >
+                {eventImage ? (
+                  <img src={eventImage} alt="Cover preview" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[#A52A55]">
+                    <Plus className="w-7 h-7" strokeWidth={2.2} />
+                    <span className="text-xs font-semibold">Upload cover photo</span>
+                  </div>
+                )}
+                {eventImage && (
+                  <button
+                    type="button"
+                    aria-label="Remove cover photo"
+                    onClick={(e) => { e.stopPropagation(); setEventImage(null); }}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#1A1818]/75 text-white flex items-center justify-center hover:bg-[#1A1818]"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <input ref={eventImageRef} type="file" accept="image/*" className="hidden" onChange={pickEventImage} />
+            </div>
+
+            <p className="text-xs text-[#5E5754]">Your account will be shown as the organizer.</p>
+            {eventError && <p className="text-sm text-red-600">{eventError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <Btn variant="ghost" onClick={() => { setEventOpen(false); setEventError(""); setEventImage(null); }}>Cancel</Btn>
+              <Btn type="submit" disabled={creatingEvent}>{creatingEvent ? "Creating…" : "Create Event"}</Btn>
+            </div>
+          </form>
         </Modal>
 
         {/* Booking modal */}
