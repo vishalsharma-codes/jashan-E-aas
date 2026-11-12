@@ -118,10 +118,10 @@ export const Navbar = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
                 onClick={() => setIsCategoryOpen(true)}
-                className="w-10 h-10 rounded-full border-2 border-gold/50 flex items-center justify-center hover:border-gold hover:bg-gold/10 transition-all group"
+                className="font-display text-base font-bold tracking-tight text-[#4A1230] hover:text-[#C44A68] transition-colors"
                 aria-label="Browse Categories"
               >
-                <Grid3X3 className="w-5 h-5 text-gold group-hover:scale-110 transition-transform" />
+                Categories
               </motion.button>
 
               {/* Account: dropdown when logged in, Sign In when logged out */}
