@@ -261,7 +261,7 @@ export const UpiPaymentModal = ({ isOpen, amount, description, vendorName, phase
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+          className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm"
           onClick={onClose}
         />
         <motion.div
@@ -269,7 +269,7 @@ export const UpiPaymentModal = ({ isOpen, amount, description, vendorName, phase
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 40, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 300, damping: 28 }}
-          className="fixed bottom-0 left-0 right-0 md:inset-0 md:flex md:items-center md:justify-center z-50 pointer-events-none"
+          className="fixed bottom-0 left-0 right-0 z-[120] pointer-events-none md:inset-0 md:flex md:items-center md:justify-center"
         >
           <div className="pointer-events-auto bg-card border border-border rounded-t-3xl md:rounded-3xl shadow-2xl p-6 w-full md:max-w-md max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">

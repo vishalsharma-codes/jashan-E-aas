@@ -463,6 +463,20 @@ function VendorCard({
   return (
 
     <motion.article
+      role="link"
+      tabIndex={0}
+      aria-label={`View ${vendor.name} profile`}
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest("button")) return;
+        onProfile(vendor);
+      }}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onProfile(vendor);
+        }
+      }}
 
       initial={{ opacity: 0, y: 16 }}
 
@@ -470,7 +484,7 @@ function VendorCard({
 
       transition={{ delay: Math.min(index * 0.025, 0.18) }}
 
-      className="group flex h-full w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#C44A68]/20 bg-[#FFFBF8] transition-all duration-300 hover:-translate-y-1 hover:border-[#C44A68]/50 hover:shadow-[0_18px_45px_rgba(196,74,104,.22)]"
+      className="group flex h-full w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#C44A68]/20 bg-[#FFFBF8] transition-all duration-300 hover:-translate-y-1 hover:border-[#C44A68]/50 hover:shadow-[0_18px_45px_rgba(196,74,104,.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C44A68]"
 
     >
 
@@ -486,7 +500,7 @@ function VendorCard({
 
           aria-label={saved ? "Remove saved vendor" : "Save vendor"}
 
-          onClick={() => onToggleSaved(vendor.id)}
+          onClick={(event) => { event.stopPropagation(); onToggleSaved(vendor.id); }}
 
           className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/30 bg-black/45 text-white backdrop-blur hover:border-[#F4A6B8] hover:text-[#F4A6B8]"
 
@@ -602,7 +616,7 @@ function VendorCard({
 
             <Button type="button" size="sm" variant="outline" onClick={() => onProfile(vendor)} className="h-8 border-[#C44A68]/30 bg-transparent px-2.5 text-[11px] text-[#C44A68] hover:bg-[#C44A68]/10 hover:text-[#A8385A]">View Profile</Button>
 
-            <Button type="button" size="sm" onClick={() => onBook(vendor)} className="h-8 bg-gradient-to-r from-[#E0708A] to-[#C44A68] px-3 text-[11px] font-bold text-white hover:brightness-105"><Zap className="mr-1 h-3 w-3" />Book</Button>
+            <Button type="button" size="sm" onClick={(event) => { event.stopPropagation(); onBook(vendor); }} className="h-8 bg-gradient-to-r from-[#E0708A] to-[#C44A68] px-3 text-[11px] font-bold text-white hover:brightness-105"><Zap className="mr-1 h-3 w-3" />Book</Button>
 
           </div>
 
@@ -810,9 +824,7 @@ const Vendors = () => {
   };
 
   const handleBook = (vendor: Vendor) => {
-
-    closeProfile();
-
+    // Keep the selected vendor's current page mounted behind the payment modal.
     setBookingVendor(vendor);
 
     setPaymentOpen(true);
@@ -1369,8 +1381,18 @@ const Vendors = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search vendors, cities, tags..."
-                    className="border-[#C44A68]/20 bg-[#FFFBF8] pl-10 text-[#4A1230]"
+                    className="border-[#C44A68]/20 bg-[#FFFBF8] pl-10 pr-10 text-[#4A1230]"
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      aria-label="Clear search"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#4A3440]/60 hover:bg-[#C44A68]/10 hover:text-[#4A1230]"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
                 <p className="mt-1 text-sm text-[#4A3440]/70">Showing <span className="font-semibold text-[#C44A68]">{filtered.length}</span> of {vendors.length} vendors</p>
 

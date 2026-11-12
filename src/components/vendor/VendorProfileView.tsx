@@ -6,7 +6,7 @@ import {
 
   ArrowUp,Film,Play, BadgeCheck, Briefcase, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight,
 
-  Clock, Heart, Images, MapPin, MessageCircle, Plane, Share2, ShieldCheck, Sparkles, Star, Users, X,
+  Clock, Heart, Images, MapPin, MessageCircle, Plane, Share2, ShieldCheck, Sparkles, Star, Users, X, Zap,
 
 } from "lucide-react";
 
@@ -929,6 +929,14 @@ export function VendorProfileView({ profile: p, reviews: reviewsProp = [], onBoo
         </AnimatePresence>
 
 
+
+        <button
+          type="button"
+          onClick={() => onBook(selection)}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#E0708A] to-[#C44A68] px-4 py-3 text-sm font-bold text-white shadow-[0_10px_30px_rgba(196,74,104,.3)] transition hover:brightness-105"
+        >
+          <Zap className="h-4 w-4" />Book Now
+        </button>
 
         <ContactVendorButton
 
