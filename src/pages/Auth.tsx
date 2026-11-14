@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { VerifyEmailCode } from "./VerifyEmailCode";
+import { GoogleSignIn } from "@/components/GoogleSignIn";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -150,7 +151,14 @@ const Auth = () => {
               onChangeEmail={() => setPendingEmail(null)}
             />
           ) : (
-            <form onSubmit={handleAuth} className="space-y-4">
+            <>
+              <GoogleSignIn text={isLogin ? "signin_with" : "signup_with"} />
+              <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or {isLogin ? "sign in" : "sign up"} with email
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <form onSubmit={handleAuth} className="space-y-4">
               {!isLogin && (
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -209,7 +217,8 @@ const Auth = () => {
                   </span>
                 )}
               </Button>
-            </form>
+              </form>
+            </>
           )}
 
           {!pendingEmail && (

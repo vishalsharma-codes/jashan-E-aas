@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { GoogleSignIn } from "@/components/GoogleSignIn";
 
 interface VelvetRopeLoginProps {
   onClose: () => void;
@@ -372,7 +373,14 @@ export const VelvetRopeLogin = ({ onClose }: VelvetRopeLoginProps) => {
                       </button>
                     </div>
                   )}
-                  
+
+                  <GoogleSignIn text={isLogin ? "signin_with" : "signup_with"} />
+                  <div className="my-3 flex items-center gap-3 text-[10px] text-muted-foreground">
+                    <span className="h-px flex-1 bg-white/15" />
+                    or {isLogin ? "sign in" : "sign up"} with email
+                    <span className="h-px flex-1 bg-white/15" />
+                  </div>
+
                   <form onSubmit={handleAuth} className="space-y-3">
                     {!isLogin && (
                       <div className="relative">
