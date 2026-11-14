@@ -89,10 +89,12 @@ const Auth = () => {
       >
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center">
-              <span className="font-bold text-xl text-background">ج</span>
-            </div>
-            <span className="text-xl font-bold">
+            <img
+              src="/logo-mark.webp"
+              alt="Jashan-E-Aas logo"
+              className="h-12 w-12 object-contain"
+            />
+            <span className="font-display text-xl text-foreground">
               Jashan<span className="text-gold">-E-Aas</span>
             </span>
           </Link>
