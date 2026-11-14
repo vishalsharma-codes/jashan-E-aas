@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" fill="none">
+  <g stroke="#8B1E3F" stroke-width="2">
+    <circle cx="450" cy="450" r="90"/><circle cx="450" cy="450" r="170"/><circle cx="450" cy="450" r="250"/><circle cx="450" cy="450" r="330"/><circle cx="450" cy="450" r="410"/>
+    <g id="petal"><path d="M450 40C510 135 510 225 450 290C390 225 390 135 450 40Z"/><path d="M450 120C485 170 485 220 450 260C415 220 415 170 450 120Z"/></g>
+    <use href="#petal" transform="rotate(22.5 450 450)"/><use href="#petal" transform="rotate(45 450 450)"/><use href="#petal" transform="rotate(67.5 450 450)"/><use href="#petal" transform="rotate(90 450 450)"/><use href="#petal" transform="rotate(112.5 450 450)"/><use href="#petal" transform="rotate(135 450 450)"/><use href="#petal" transform="rotate(157.5 450 450)"/><use href="#petal" transform="rotate(180 450 450)"/><use href="#petal" transform="rotate(202.5 450 450)"/><use href="#petal" transform="rotate(225 450 450)"/><use href="#petal" transform="rotate(247.5 450 450)"/><use href="#petal" transform="rotate(270 450 450)"/><use href="#petal" transform="rotate(292.5 450 450)"/><use href="#petal" transform="rotate(315 450 450)"/><use href="#petal" transform="rotate(337.5 450 450)"/>
+    <path d="M450 300L600 450 450 600 300 450Z"/><path d="M450 350L550 450 450 550 350 450Z"/>
+  </g>
+</svg>

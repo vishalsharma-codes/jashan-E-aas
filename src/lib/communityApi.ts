@@ -397,9 +397,9 @@ export async function createEvent(input: {
   capacity: number;
   price: number;
   imageDataUrl?: string;
-}): Promise<void> {
+}): Promise<string> {
   const user = await requireUser();
-  const { error } = await db.from("cm_events").insert({
+  const { data, error } = await db.from("cm_events").insert({
     community_id: input.communityId,
     organizer_id: user.id,
     title: input.title,
@@ -411,8 +411,66 @@ export async function createEvent(input: {
     capacity: input.capacity,
     price: input.price,
     image_url: input.imageDataUrl || null,
-  });
+  }).select("id").single();
   fail(error);
+  return data!.id;
+}
+
+/* --------------------- Event extras, quotes and escrow --------------------- */
+export interface EventExtras { inclusions: string[]; pastPhotos: string[] }
+
+export async function listEventExtras(): Promise<Record<string, EventExtras>> {
+  const { data, error } = await db.from("cm_events").select("id, inclusions, past_photos");
+  if (error) throw error;
+  const out: Record<string, EventExtras> = {};
+  (data ?? []).forEach((r: any) => { out[r.id] = { inclusions: r.inclusions ?? [], pastPhotos: r.past_photos ?? [] }; });
+  return out;
+}
+
+export async function uploadEventPhoto(dataUrl: string): Promise<string> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("Please sign in first");
+  const blob = await (await fetch(dataUrl)).blob();
+  const path = `${auth.user.id}/${crypto.randomUUID()}.jpg`;
+  const { error } = await supabase.storage.from("event-photos").upload(path, blob, { contentType: "image/jpeg" });
+  if (error) throw error;
+  return supabase.storage.from("event-photos").getPublicUrl(path).data.publicUrl;
+}
+
+export async function setEventExtras(eventId: string, inclusions: string[], photoUrls: string[]): Promise<void> {
+  const { error } = await db.rpc("set_event_extras", {
+    p_event: eventId, p_inclusions: inclusions, p_photos: photoUrls,
+  });
+  if (error) throw error;
+}
+
+export async function recordBookingQuote(
+  eventId: string,
+  q: { total: number; addons: string[]; discountPct: number; method?: string },
+  eventDate: string
+): Promise<void> {
+  const { error } = await db.rpc("record_booking_quote", {
+    p_event: eventId, p_total: q.total, p_addons: q.addons,
+    p_discount: q.discountPct, p_method: q.method ?? null, p_start: eventDate,
+  });
+  if (error) throw error;
+}
+
+export interface ApiTranche {
+  eventId: string; n: number; label: string; amount: number;
+  status: "held" | "released"; releaseAt: string; releasedAt: string | null; ref: string;
+}
+
+export async function listEscrow(eventIds: string[]): Promise<ApiTranche[]> {
+  if (eventIds.length === 0) return [];
+  await db.rpc("release_due_tranches");
+  const { data, error } = await db
+    .from("cm_escrow_tranches").select("*").in("event_id", eventIds).order("n", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    eventId: r.event_id, n: r.n, label: r.label, amount: Number(r.amount), status: r.status,
+    releaseAt: r.release_at, releasedAt: r.released_at, ref: r.ref,
+  }));
 }
 
 export async function bookEventApi(eventId: string, seats: number) {
