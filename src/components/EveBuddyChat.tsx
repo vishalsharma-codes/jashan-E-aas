@@ -15,6 +15,7 @@ import {
 
 import { eventCategories } from "../lib/categoryData";
 import eveAvatar from "@/assets/eveBuddy/eve-avatar-new.png";
+import VendorCards, { type ChatVendor } from "@/components/VendorCards";
 
 /* ------------------------------------------------------------------
    Blush Peach palette used in this file
@@ -48,6 +49,7 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  vendors?: ChatVendor[];
 };
 
 const eventTypes = eventCategories.map((category) => ({
@@ -76,7 +78,6 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
   const [date, setDate] = useState("");
   const [budget, setBudget] = useState("");
   const [message, setMessage] = useState("");
-  const [aiReply, setAiReply] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
   const [showAllEvents, setShowAllEvents] = useState(false);
@@ -97,7 +98,6 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
     setDate("");
     setBudget("");
     setMessage("");
-    setAiReply("");
     setAiError("");
     setIsAiLoading(false);
     setMessages([]);
@@ -178,7 +178,6 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
 
     setMessage("");
     setAiError("");
-    setAiReply("");
     setIsAiLoading(true);
 
     try {
@@ -211,43 +210,18 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
         );
       }
 
-      if (!response.body) {
-        throw new Error("Your browser could not read the response stream.");
-      }
+      const payload = (await response.json()) as {
+        reply?: unknown;
+        text?: unknown;
+        vendors?: ChatVendor[];
+      };
+      const reply = String(payload.reply ?? payload.text ?? "").trim();
+      if (!reply) throw new Error("Eve returned an empty response.");
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let reply = "";
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          reply += decoder.decode(value, { stream: true });
-          setAiReply(reply);
-          setMessages((prev) =>
-            prev.map((item) =>
-              item.id === assistantMessageId
-                ? { ...item, content: reply }
-                : item
-            )
-          );
-        }
-        reply += decoder.decode();
-      } finally {
-        reader.releaseLock();
-      }
-
-      if (!reply.trim()) {
-        throw new Error("Gemini returned an empty response.");
-      }
-
-      setAiReply(reply);
       setMessages((prev) =>
         prev.map((item) =>
           item.id === assistantMessageId
-            ? { ...item, content: reply }
+            ? { ...item, content: reply, vendors: Array.isArray(payload.vendors) ? payload.vendors : [] }
             : item
         )
       );
@@ -764,6 +738,9 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
                         <p className="mb-2 text-xs font-bold text-[#C44A68]">✨ EveBuddy AI</p>
                       )}
                       <p className="whitespace-pre-wrap text-base leading-relaxed">{chatMessage.content || (chatMessage.id.endsWith("-assistant") && isAiLoading ? "Eve is thinking..." : "")}</p>
+                      {chatMessage.role === "assistant" && chatMessage.vendors?.length ? (
+                        <VendorCards vendors={chatMessage.vendors} onNavigate={onClose} />
+                      ) : null}
                     </div>
                   </div>
                 ))}
