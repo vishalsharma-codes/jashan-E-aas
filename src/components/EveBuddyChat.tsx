@@ -15,7 +15,7 @@ import {
 
 import { eventCategories } from "../lib/categoryData";
 import eveAvatar from "@/assets/eveBuddy/eve-avatar-new.png";
-import VendorCards, { type ChatVendor } from "@/components/VendorCards";
+import VendorCards, { type ChatVendorCard } from "@/components/VendorCards";
 
 /* ------------------------------------------------------------------
    Blush Peach palette used in this file
@@ -49,7 +49,7 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  vendors?: ChatVendor[];
+  cards?: ChatVendorCard[];
 };
 
 const eventTypes = eventCategories.map((category) => ({
@@ -213,7 +213,7 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
       const payload = (await response.json()) as {
         reply?: unknown;
         text?: unknown;
-        vendors?: ChatVendor[];
+        cards?: ChatVendorCard[];
       };
       const reply = String(payload.reply ?? payload.text ?? "").trim();
       if (!reply) throw new Error("Eve returned an empty response.");
@@ -221,7 +221,7 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
       setMessages((prev) =>
         prev.map((item) =>
           item.id === assistantMessageId
-            ? { ...item, content: reply, vendors: Array.isArray(payload.vendors) ? payload.vendors : [] }
+            ? { ...item, content: reply, cards: Array.isArray(payload.cards) ? payload.cards : [] }
             : item
         )
       );
@@ -738,8 +738,8 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
                         <p className="mb-2 text-xs font-bold text-[#C44A68]">✨ EveBuddy AI</p>
                       )}
                       <p className="whitespace-pre-wrap text-base leading-relaxed">{chatMessage.content || (chatMessage.id.endsWith("-assistant") && isAiLoading ? "Eve is thinking..." : "")}</p>
-                      {chatMessage.role === "assistant" && chatMessage.vendors?.length ? (
-                        <VendorCards vendors={chatMessage.vendors} onNavigate={onClose} />
+                      {chatMessage.role === "assistant" && chatMessage.cards?.length ? (
+                        <VendorCards cards={chatMessage.cards} onNavigate={onClose} />
                       ) : null}
                     </div>
                   </div>

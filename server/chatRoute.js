@@ -1,7 +1,7 @@
 // =====================================================================
 // server/chatRoute.js
 // Replaces the old POST /api/chat and adds POST /api/portfolio/tag.
-// Reply shape: { reply, text, vendors: [...] }
+// Reply shape: { reply, text, cards: [...] }
 // =====================================================================
 import { Type } from '@google/genai';
 import { getAI, generate, toolDeclarations, executeTool, collectCards, tagPortfolioRow } from './aiTools.js';
@@ -92,7 +92,7 @@ export function registerAiRoutes(app) {
         if (!calls || !calls.length) {
           if (!usedTools) {
             const reply = response.text || 'Sorry, I could not think of an answer. Please try again.';
-            return res.json({ reply, text: reply, vendors: [] });
+            return res.json({ reply, text: reply, cards: [] });
           }
           break;
         }
@@ -145,8 +145,30 @@ export function registerAiRoutes(app) {
         parsed = { reply: final.text || 'Sorry, something went wrong. Please try again.', recommendations: [] };
       }
 
-      const vendorsToShow = Array.from(cards.values());
-      return res.json({ reply: parsed.reply, text: parsed.reply, vendors: vendorsToShow });
+      const vendorsById = new Map();
+      for (const vendor of cards.values()) {
+        let card = vendorsById.get(vendor.vendor_id);
+        if (!card) {
+          card = {
+            id: vendor.vendor_id,
+            name: vendor.business_name,
+            category: vendor.category,
+            images: vendor.portfolio_image_urls,
+            packages: [],
+          };
+          vendorsById.set(vendor.vendor_id, card);
+        }
+        if (vendor.package_id) {
+          card.packages.push({
+            id: vendor.package_id,
+            name: vendor.package_name,
+            price: vendor.package_price,
+            inclusions: vendor.inclusions,
+          });
+        }
+      }
+
+      return res.json({ reply: parsed.reply, text: parsed.reply, cards: Array.from(vendorsById.values()) });
     } catch (e) {
       console.error('[/api/chat]', e);
       const busy = e?.status === 503 || e?.status === 429;

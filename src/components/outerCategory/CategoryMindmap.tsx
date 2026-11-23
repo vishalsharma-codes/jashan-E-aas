@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ArrowLeft, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { eventCategories, EventCategory, SubCategory } from "@/lib/categoryData";
+import { TAXONOMY } from "@/lib/categoryTaxonomy";
 import { useNavigate } from "react-router-dom";
 import NetworkBackground from "./NetworkBackground";
 import WeddingSubcategoryCards from "./subCategory";
@@ -133,6 +134,7 @@ const CategoryImage = ({
 // ─────────────────────────────────────────────────────────────
 interface CategoryCardProps {
   category: EventCategory;
+  title: string;
   index: number;
   big: boolean;
   query: string;
@@ -140,7 +142,7 @@ interface CategoryCardProps {
   onOpenSub: (category: EventCategory, sub: SubCategory) => void;
 }
 
-const CategoryCard = ({ category, index, big, query, onOpen, onOpenSub }: CategoryCardProps) => {
+const CategoryCard = ({ category, title, index, big, query, onOpen, onOpenSub }: CategoryCardProps) => {
   const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const q = query.trim().toLowerCase();
@@ -168,7 +170,7 @@ const CategoryCard = ({ category, index, big, query, onOpen, onOpenSub }: Catego
         ref={ref}
         role="button"
         tabIndex={0}
-        aria-label={`Open ${category.name}`}
+        aria-label={`Open ${title}`}
         onMouseEnter={() => !isTouch() && setHovered(true)}
         onMouseLeave={() => !isTouch() && setHovered(false)}
         onFocus={() => setHovered(true)}
@@ -232,7 +234,7 @@ const CategoryCard = ({ category, index, big, query, onOpen, onOpenSub }: Catego
                     big ? "text-3xl sm:text-4xl" : "text-base sm:text-lg"
                   }`}
                 >
-                  {category.name}
+                  {title}
                 </h3>
                 <span className="text-lg leading-none text-gold">→</span>
               </div>
@@ -282,7 +284,7 @@ const CategoryCard = ({ category, index, big, query, onOpen, onOpenSub }: Catego
               <div className="mb-2 flex items-center gap-2">
                 <span className="text-xl">{category.icon}</span>
                 <h3 className="truncate font-serif text-base text-gold sm:text-lg">
-                  {category.name}
+                  {title}
                 </h3>
               </div>
 
@@ -358,11 +360,17 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
   // Search: matches category names, sub-type names and services
   const q = query.trim().toLowerCase();
   const items = useMemo(() => {
-    if (!q) return eventCategories;
-    return eventCategories.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.subCategories.some(
+    const entries = TAXONOMY.flatMap((taxonomy, index) => {
+      const category = eventCategories[index];
+      return category ? [{ taxonomy, category }] : [];
+    });
+    if (!q) return entries;
+    return entries.filter(
+      ({ taxonomy, category }) =>
+        taxonomy.name.toLowerCase().includes(q) ||
+        taxonomy.shortName.toLowerCase().includes(q) ||
+        category.name.toLowerCase().includes(q) ||
+        category.subCategories.some(
           (s) =>
             s.name.toLowerCase().includes(q) ||
             s.services.some((sv) => sv.toLowerCase().includes(q))
@@ -805,12 +813,13 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
                     
 <div className="mx-auto grid w-full max-w-none grid-cols-2 auto-rows-[180px] grid-flow-dense gap-3 sm:auto-rows-[210px] sm:gap-4 lg:grid-cols-4 xl:grid-cols-4">
 
-                      {items.map((c, i) => (
+                      {items.map(({ taxonomy, category }, i) => (
                         <CategoryCard
-                          key={c.id}
-                          category={c}
+                          key={taxonomy.id}
+                          category={category}
+                          title={taxonomy.shortName}
                           index={i}
-                          big={!!CARD_SPANS[c.name]}
+                          big={!!CARD_SPANS[category.name]}
                           query={query}
                           onOpen={handleCategoryClick}
                           onOpenSub={enterSubCategory}
