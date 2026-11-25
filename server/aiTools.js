@@ -6,8 +6,8 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 
-export const MODEL = 'gemini-3.5-flash-lite';
-export const FALLBACK_MODEL = 'gemini-3.8-flash';
+export const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+export const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.8-flash';
 
 // Clients are created lazily so dotenv has already loaded server/.env
 let _supabase;
@@ -34,17 +34,17 @@ export function getAI() {
   return _ai;
 }
 
-export async function generate(ai, params, tries = 3) {
+export async function generate(ai, params, tries = 4) {
   for (let i = 0; i < tries; i++) {
     try {
       return await ai.models.generateContent({
         ...params,
-        model: i === tries - 1 ? FALLBACK_MODEL : MODEL,
+        model: i >= 2 ? FALLBACK_MODEL : MODEL,
       });
     } catch (e) {
       const retryable = e?.status === 503 || e?.status === 429;
       if (!retryable || i === tries - 1) throw e;
-      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** i));
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
     }
   }
 }
