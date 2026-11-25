@@ -65,24 +65,14 @@ export default async function handler(req, res) {
       },
     });
 
-    res.status(200);
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("X-Accel-Buffering", "no");
-    res.flushHeaders?.();
-
-    try {
-      for await (const chunk of stream) {
-        if (chunk.text) res.write(chunk.text);
-        const reason = chunk.candidates?.[0]?.finishReason;
-        if (reason) console.log("finishReason:", reason);
-      }
-      return res.end();
-    } catch (streamError) {
-      console.error("Gemini streaming failed:", streamError);
-      // Headers/body may already be sent, so a JSON status response is no longer possible.
-      if (!res.writableEnded) res.end("\n\nEve encountered a streaming error. Please try again.");
+    let reply = "";
+    for await (const chunk of stream) {
+      if (chunk.text) reply += chunk.text;
+      const reason = chunk.candidates?.[0]?.finishReason;
+      if (reason) console.log("finishReason:", reason);
     }
+
+    return res.status(200).json({ reply, text: reply, cards: [] });
   } catch (error) {
     console.error("Gemini request failed:", error);
     return res.status(500).json({

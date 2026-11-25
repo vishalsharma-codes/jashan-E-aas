@@ -193,29 +193,32 @@ export const EveBuddyChat = ({ isOpen, onClose }: EveBuddyChatProps) => {
         }),
       });
 
+      const raw = await response.text();
+      let payload: {
+        reply?: unknown;
+        text?: unknown;
+        message?: unknown;
+        error?: string;
+        detail?: string;
+        cards?: ChatVendorCard[];
+      };
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        payload = { reply: raw };
+      }
+
       if (!response.ok) {
-        const responseText = await response.text();
-        let errorData: { error?: string; detail?: string } = {};
-        try {
-          errorData = responseText ? JSON.parse(responseText) : {};
-        } catch {
-          // The server may return a plain-text or HTML error page.
-        }
         throw new Error(
-          errorData.detail ||
-            errorData.error ||
-            (responseText.trim()
-              ? `Server error ${response.status}: ${responseText.slice(0, 200)}`
+          payload.detail ||
+            payload.error ||
+            (raw.trim()
+              ? `Server error ${response.status}: ${raw.slice(0, 200)}`
               : `Server error ${response.status}`)
         );
       }
 
-      const payload = (await response.json()) as {
-        reply?: unknown;
-        text?: unknown;
-        cards?: ChatVendorCard[];
-      };
-      const reply = String(payload.reply ?? payload.text ?? "").trim();
+      const reply = String(payload.reply ?? payload.text ?? payload.message ?? raw).trim();
       if (!reply) throw new Error("Eve returned an empty response.");
 
       setMessages((prev) =>
