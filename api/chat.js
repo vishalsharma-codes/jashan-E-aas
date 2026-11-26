@@ -67,14 +67,28 @@ export default async function handler(req, res) {
     const cardStore = new Map();
     let reply = "";
 
+    const t0 = Date.now();
+    const withTimeout = (p, ms, label) => {
+      let timer;
+      return Promise.race([
+        p,
+        new Promise((_, rej) => {
+          timer = setTimeout(() => rej(new Error(`${label} timed out after ${ms}ms`)), ms);
+        }),
+      ]).finally(() => clearTimeout(timer));
+    };
+
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+      if (Date.now() - t0 > 45000) throw new Error(`Gave up after ${Date.now() - t0}ms at round ${round}`);
+      console.log(`round ${round}: calling Gemini at ${Date.now() - t0}ms`);
       const response = await generate(ai, {
         contents,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
           tools: [{ functionDeclarations: toolDeclarations }],
-          maxOutputTokens: 2048,
+          maxOutputTokens: 1024,
           temperature: 0.4,
+          httpOptions: { timeout: 20000 }, // fail fast instead of hanging for 60s
         },
       });
 
@@ -91,15 +105,25 @@ export default async function handler(req, res) {
       for (const call of calls) {
         let result;
         try {
-          result = await executeTool(call.name, call.args || {});
+          console.log(`tool ${call.name} start`, JSON.stringify(call.args || {}));
+          result = await withTimeout(executeTool(call.name, call.args || {}), 15000, `tool ${call.name}`);
           collectCards(call.name, result, cardStore);
-          console.log(`tool ${call.name} ok`);
+          console.log(`tool ${call.name} ok at ${Date.now() - t0}ms`);
         } catch (err) {
           console.error(`tool ${call.name} failed:`, err);
           result = { error: String(err?.message || err).slice(0, 300) };
         }
+        // Cards come from the DB; the model only needs a slim copy (no image URLs).
+        const slim =
+          result == null
+            ? result
+            : JSON.parse(
+                JSON.stringify(result, (k, v) =>
+                  k === "portfolio_image_urls" || k === "image_url" ? undefined : v
+                )
+              );
         responseParts.push({
-          functionResponse: { name: call.name, response: { result } },
+          functionResponse: { name: call.name, response: { result: slim } },
         });
       }
       contents.push({ role: "user", parts: responseParts });
