@@ -68,15 +68,11 @@ export default async function handler(req, res) {
     let reply = "";
 
     const t0 = Date.now();
-    const withTimeout = (p, ms, label) => {
-      let timer;
-      return Promise.race([
+    const withTimeout = (p, ms, label) =>
+      Promise.race([
         p,
-        new Promise((_, rej) => {
-          timer = setTimeout(() => rej(new Error(`${label} timed out after ${ms}ms`)), ms);
-        }),
-      ]).finally(() => clearTimeout(timer));
-    };
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timed out after ${ms}ms`)), ms)),
+      ]);
 
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
       if (Date.now() - t0 > 45000) throw new Error(`Gave up after ${Date.now() - t0}ms at round ${round}`);
@@ -88,7 +84,8 @@ export default async function handler(req, res) {
           tools: [{ functionDeclarations: toolDeclarations }],
           maxOutputTokens: 1024,
           temperature: 0.4,
-          httpOptions: { timeout: 20000 }, // fail fast instead of hanging for 60s
+          thinkingConfig: { thinkingLevel: "low" }, // keep replies fast (was in your original file)
+          httpOptions: { timeout: 25000 }, // fail fast instead of hanging for 60s
         },
       });
 
