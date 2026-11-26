@@ -1,6 +1,7 @@
 // =====================================================================
 // server/chatRoute.js
-// Replaces the old POST /api/chat and adds POST /api/portfolio/tag.
+// Shared chat logic used by BOTH the local Express server and the
+// Vercel function (api/chat.js).
 // Reply shape: { reply, text, cards: [...] }
 // =====================================================================
 import { Type } from '@google/genai';
@@ -61,122 +62,143 @@ const finalSchema = {
   required: ['reply', 'recommendations'],
 };
 
+// Core logic. Returns { reply, text, cards }. Throws { status: 400 } for bad input.
+export async function chatHandler(body) {
+  const contents = toContents(body);
+  if (!contents.length) {
+    const err = new Error('No message provided');
+    err.status = 400;
+    throw err;
+  }
+
+  const ai = getAI();
+  const today = new Date().toISOString().slice(0, 10);
+  const transcript = contents
+    .slice(-6)
+    .map((c) => `${c.role === 'user' ? 'Customer' : 'Eve'}: ${c.parts[0].text}`)
+    .join('\n');
+
+  const cards = new Map();
+  const toolLog = [];
+  let usedTools = false;
+
+  for (let step = 0; step < MAX_TOOL_STEPS; step++) {
+    const response = await generate(ai, {
+      contents,
+      config: {
+        systemInstruction: systemPrompt(today),
+        tools: [{ functionDeclarations: toolDeclarations }],
+        temperature: 0.3,
+      },
+    });
+
+    const calls = response.functionCalls;
+    if (!calls || !calls.length) {
+      if (!usedTools) {
+        const reply = response.text || 'Sorry, I could not think of an answer. Please try again.';
+        return { reply, text: reply, cards: [] };
+      }
+      break;
+    }
+
+    usedTools = true;
+    contents.push(response.candidates[0].content);
+
+    const parts = [];
+    for (const call of calls) {
+      let result;
+      try {
+        result = await executeTool(call.name, call.args || {});
+        collectCards(call.name, result, cards);
+        console.log(`[tool ${call.name}] ok`);
+      } catch (e) {
+        console.error(`[tool ${call.name}]`, e.message);
+        result = { error: e.message };
+      }
+      toolLog.push({ tool: call.name, args: call.args || {}, result });
+      parts.push({
+        functionResponse: { name: call.name, ...(call.id ? { id: call.id } : {}), response: { result } },
+      });
+    }
+    contents.push({ role: 'user', parts });
+  }
+
+  const facts = JSON.stringify(toolLog).slice(0, 24000);
+  const final = await generate(ai, {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: `Conversation so far:\n${transcript}\n\nVERIFIED DATABASE RESULTS (the only facts you may use):\n${facts}\n\nWrite Eve's final answer for the customer. Return JSON with:\n- "reply": your friendly answer (3-6 sentences). Mention only vendors, packages, prices and inclusions that appear in the verified results. If the results are empty or contain an error, say nothing matched and suggest changing budget, keywords or date.\n- "recommendations": up to 3 items, each with the exact vendor_id and package_id copied from the verified results (empty array if none).`,
+          },
+        ],
+      },
+    ],
+    config: {
+      systemInstruction: systemPrompt(today),
+      responseMimeType: 'application/json',
+      responseSchema: finalSchema,
+      temperature: 0.3,
+    },
+  });
+
+  let parsed;
+  try {
+    parsed = JSON.parse(final.text);
+  } catch {
+    parsed = { reply: final.text || 'Sorry, something went wrong. Please try again.', recommendations: [] };
+  }
+
+  const vendorsById = new Map();
+  for (const vendor of cards.values()) {
+    let card = vendorsById.get(vendor.vendor_id);
+    if (!card) {
+      card = {
+        id: vendor.vendor_id,
+        name: vendor.business_name,
+        category: vendor.category,
+        images: vendor.portfolio_image_urls,
+        packages: [],
+      };
+      vendorsById.set(vendor.vendor_id, card);
+    }
+    if (vendor.package_id) {
+      card.packages.push({
+        id: vendor.package_id,
+        name: vendor.package_name,
+        price: vendor.package_price,
+        inclusions: vendor.inclusions,
+      });
+    }
+  }
+
+  return { reply: parsed.reply, text: parsed.reply, cards: Array.from(vendorsById.values()) };
+}
+
+// Maps an error to an HTTP status + message (shared by Express and Vercel).
+export function chatErrorResponse(e) {
+  if (e?.status === 400) return { status: 400, body: { error: e.message } };
+  const busy = e?.status === 503 || e?.status === 429;
+  return {
+    status: busy ? 503 : 500,
+    body: {
+      error: busy
+        ? 'Eve is busy right now. Please try again in a minute.'
+        : 'Eve is unavailable right now. Please try again.',
+      detail: String(e?.message || e).slice(0, 300),
+    },
+  };
+}
+
 export function registerAiRoutes(app) {
   app.post('/api/chat', async (req, res) => {
     try {
-      const contents = toContents(req.body);
-      if (!contents.length) return res.status(400).json({ error: 'No message provided' });
-
-      const ai = getAI();
-      const today = new Date().toISOString().slice(0, 10);
-      const transcript = contents
-        .slice(-6)
-        .map((c) => `${c.role === 'user' ? 'Customer' : 'Eve'}: ${c.parts[0].text}`)
-        .join('\n');
-
-      const cards = new Map();
-      const toolLog = [];
-      let usedTools = false;
-
-      for (let step = 0; step < MAX_TOOL_STEPS; step++) {
-        const response = await generate(ai, {
-          contents,
-          config: {
-            systemInstruction: systemPrompt(today),
-            tools: [{ functionDeclarations: toolDeclarations }],
-            temperature: 0.3,
-          },
-        });
-
-        const calls = response.functionCalls;
-        if (!calls || !calls.length) {
-          if (!usedTools) {
-            const reply = response.text || 'Sorry, I could not think of an answer. Please try again.';
-            return res.json({ reply, text: reply, cards: [] });
-          }
-          break;
-        }
-
-        usedTools = true;
-        contents.push(response.candidates[0].content);
-
-        const parts = [];
-        for (const call of calls) {
-          let result;
-          try {
-            result = await executeTool(call.name, call.args || {});
-            collectCards(call.name, result, cards);
-          } catch (e) {
-            console.error(`[tool ${call.name}]`, e.message);
-            result = { error: e.message };
-          }
-          toolLog.push({ tool: call.name, args: call.args || {}, result });
-          parts.push({
-            functionResponse: { name: call.name, ...(call.id ? { id: call.id } : {}), response: { result } },
-          });
-        }
-        contents.push({ role: 'user', parts });
-      }
-
-      const facts = JSON.stringify(toolLog).slice(0, 24000);
-      const final = await generate(ai, {
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `Conversation so far:\n${transcript}\n\nVERIFIED DATABASE RESULTS (the only facts you may use):\n${facts}\n\nWrite Eve's final answer for the customer. Return JSON with:\n- "reply": your friendly answer (3-6 sentences). Mention only vendors, packages, prices and inclusions that appear in the verified results. If the results are empty or contain an error, say nothing matched and suggest changing budget, keywords or date.\n- "recommendations": up to 3 items, each with the exact vendor_id and package_id copied from the verified results (empty array if none).`,
-              },
-            ],
-          },
-        ],
-        config: {
-          systemInstruction: systemPrompt(today),
-          responseMimeType: 'application/json',
-          responseSchema: finalSchema,
-          temperature: 0.3,
-        },
-      });
-
-      let parsed;
-      try {
-        parsed = JSON.parse(final.text);
-      } catch {
-        parsed = { reply: final.text || 'Sorry, something went wrong. Please try again.', recommendations: [] };
-      }
-
-      const vendorsById = new Map();
-      for (const vendor of cards.values()) {
-        let card = vendorsById.get(vendor.vendor_id);
-        if (!card) {
-          card = {
-            id: vendor.vendor_id,
-            name: vendor.business_name,
-            category: vendor.category,
-            images: vendor.portfolio_image_urls,
-            packages: [],
-          };
-          vendorsById.set(vendor.vendor_id, card);
-        }
-        if (vendor.package_id) {
-          card.packages.push({
-            id: vendor.package_id,
-            name: vendor.package_name,
-            price: vendor.package_price,
-            inclusions: vendor.inclusions,
-          });
-        }
-      }
-
-      return res.json({ reply: parsed.reply, text: parsed.reply, cards: Array.from(vendorsById.values()) });
+      return res.json(await chatHandler(req.body));
     } catch (e) {
       console.error('[/api/chat]', e);
-      const busy = e?.status === 503 || e?.status === 429;
-      return res.status(busy ? 503 : 500).json({
-        error: busy
-          ? 'Eve is busy right now. Please try again in a minute.'
-          : 'Eve is unavailable right now. Please try again.',
-      });
+      const { status, body } = chatErrorResponse(e);
+      return res.status(status).json(body);
     }
   });
 
