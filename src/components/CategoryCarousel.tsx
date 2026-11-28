@@ -313,9 +313,8 @@ export default function CategoryCarousel({
       return goTo(g);
     }
 
-    onSelect
-      ? onSelect(c)
-      : (window.location.href = `/category/${c.slug}`);
+    const go = (category: Category) => category.slug === "weddings" ? "/weddings" : `/category/${category.slug}`;
+    onSelect ? onSelect(c) : (window.location.href = go(c));
   };
 
   /* UI */

@@ -1,5 +1,6 @@
 import type { ElementType } from "react";
 import type { SubCategory } from "@/lib/categoryData";
+import { useNavigate } from "react-router-dom";
 
 import {
   Umbrella,
@@ -90,6 +91,7 @@ export default function WeddingSubcategoryCards({
   subcategories,
   onSelect,
 }: SubCategoryProps) {
+  const navigate = useNavigate();
   return (
     <div className="relative min-h-screen w-full overflow-y-auto px-6 pb-16">
 
@@ -455,6 +457,7 @@ export default function WeddingSubcategoryCards({
 
         <button
           type="button"
+          onClick={() => navigate("/weddings")}
           className="
             group
             flex

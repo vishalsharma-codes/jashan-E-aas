@@ -6,8 +6,8 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 
-export const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-export const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.8-flash';
+export const MODEL = process.env.GEMINI_MODEL || 'models/gemini-3.8-flash'.replace('models/', '');
+export const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.6-flash';
 
 // Clients are created lazily so dotenv has already loaded server/.env
 let _supabase;

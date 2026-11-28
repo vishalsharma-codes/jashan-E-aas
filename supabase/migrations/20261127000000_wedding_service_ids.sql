@@ -1,0 +1,136 @@
+-- Wedding flow: link vendors to the 33 taxonomy services + "Notify me" requests.
+
+alter table public.vendor_profiles
+  add column if not exists service_ids int[] not null default '{}';
+
+create index if not exists vendor_profiles_service_ids_gin on public.vendor_profiles using gin (service_ids);
+
+-- Backfill from category text where service_ids is empty (vendors can refine later).
+with kw(service_id, pattern) as (values
+    (1, 'planner'),
+    (1, 'coordinator'),
+    (1, 'planning'),
+    (2, 'venue'),
+    (2, 'banquet'),
+    (2, 'hotel'),
+    (2, 'resort'),
+    (2, 'farmhouse'),
+    (3, 'decor'),
+    (3, 'decorator'),
+    (3, 'floral'),
+    (3, 'florist'),
+    (3, 'flower'),
+    (3, 'mandap'),
+    (4, 'cater'),
+    (4, 'food'),
+    (4, 'cuisine'),
+    (4, 'chaat'),
+    (5, 'photograph'),
+    (5, 'videograph'),
+    (5, 'photo'),
+    (5, 'video'),
+    (5, 'candid'),
+    (5, 'cinematic'),
+    (6, 'makeup'),
+    (6, 'bridal makeup'),
+    (6, 'hair'),
+    (7, 'groom'),
+    (7, 'sherwani'),
+    (8, 'mehandi'),
+    (8, 'mehendi'),
+    (8, 'mehndi'),
+    (8, 'henna'),
+    (9, 'bridal wear'),
+    (9, 'boutique'),
+    (9, 'lehenga'),
+    (9, 'designer'),
+    (10, 'jewel'),
+    (10, 'jewellery'),
+    (10, 'jewelry'),
+    (11, 'invitation'),
+    (11, 'invite'),
+    (11, 'card'),
+    (12, 'choreograph'),
+    (12, 'dance trainer'),
+    (13, 'dj'),
+    (13, 'music system'),
+    (14, 'band'),
+    (14, 'musician'),
+    (14, 'live music'),
+    (15, 'sound'),
+    (15, 'lighting'),
+    (15, 'technician'),
+    (16, 'anchor'),
+    (16, 'emcee'),
+    (16, 'mc'),
+    (17, 'singer'),
+    (17, 'dancer'),
+    (17, 'artist'),
+    (17, 'entertain'),
+    (18, 'favor'),
+    (18, 'favour'),
+    (18, 'gift'),
+    (18, 'hamper'),
+    (19, 'trousseau'),
+    (20, 'cake'),
+    (21, 'bartend'),
+    (21, 'beverage'),
+    (21, 'mocktail'),
+    (21, 'cocktail'),
+    (22, 'tent'),
+    (22, 'canopy'),
+    (23, 'furniture'),
+    (23, 'seating'),
+    (24, 'stage'),
+    (24, 'backdrop'),
+    (25, 'transport'),
+    (25, 'car rental'),
+    (25, 'vintage car'),
+    (25, 'luxury car'),
+    (25, 'baggi'),
+    (25, 'horse'),
+    (26, 'valet'),
+    (26, 'parking'),
+    (27, 'pandit'),
+    (27, 'priest'),
+    (27, 'qazi'),
+    (27, 'maulvi'),
+    (27, 'pastor'),
+    (27, 'granthi'),
+    (27, 'officiant'),
+    (28, 'stationery'),
+    (28, 'signage'),
+    (28, 'menu'),
+    (29, 'firework'),
+    (29, 'pyro'),
+    (29, 'special effect'),
+    (29, 'spark'),
+    (29, 'confetti'),
+    (29, 'fog'),
+    (30, 'drone'),
+    (31, 'photo booth'),
+    (32, 'henna bar'),
+    (33, 'astrolog'),
+    (33, 'muhurat')
+)
+update public.vendor_profiles v
+set service_ids = coalesce(
+  (select array_agg(distinct k.service_id order by k.service_id)
+   from kw k where v.category ilike '%' || k.pattern || '%'),
+  '{}')
+where cardinality(v.service_ids) = 0;
+
+create table if not exists public.vendor_notify_requests (
+  id uuid primary key default gen_random_uuid(),
+  service_id int not null check (service_id between 1 and 33),
+  email text not null,
+  format text,
+  variant text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.vendor_notify_requests enable row level security;
+
+create policy "anyone can request a notification"
+  on public.vendor_notify_requests for insert
+  to anon, authenticated with check (true);

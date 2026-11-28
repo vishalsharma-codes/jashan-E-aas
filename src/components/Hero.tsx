@@ -4,7 +4,7 @@ import heroBg from "@/assets/homepage/hero-bg.jpg";
 import { Star, Calendar, Search, MapPin, ChevronDown, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HeroVendorMatches } from "@/components/HeroVendorMatches";
-import { hasActiveFilters } from "@/lib/vendorMatch";
+import { hasActiveFilters } from "@/lib/marketplaceVendorMatch";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 

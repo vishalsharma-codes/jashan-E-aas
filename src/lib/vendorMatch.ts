@@ -1,100 +1,82 @@
-import type { LiveVendor as Vendor } from "@/lib/vendorOptions";
-import { estimate, guestsFromLabel as guestsFromHeroLabel } from "@/lib/guestPricing";
+import { SERVICES } from "./weddingTaxonomy";
 
-export type HeroFilters = { query?: string; city?: string; event?: string; guests?: string; budget?: string };
+/** Normalised vendor shape used by the wedding flow. Maps both static and Supabase rows. */
+export type FlowVendor = {
+  id: string;
+  name: string;
+  category: string;
+  city: string;
+  rating: number;
+  priceFrom: number | null;
+  packages: string[];
+  availability: string;
+  image: string;
+  serviceIds: number[];
+  raw: any;
+};
 
-const norm = (s: string) => s.replace(/[\s–—-]/g, "").toLowerCase();
+const num = (x: unknown): number | null => {
+  if (typeof x === "number" && !Number.isNaN(x)) return x;
+  if (typeof x === "string") {
+    const n = parseInt(x.replace(/[^\d]/g, ""), 10);
+    return Number.isNaN(n) ? null : n;
+  }
+  return null;
+};
 
-const UNIT = (u?: string) => (/cr/i.test(u ?? "") ? 1e7 : /^(l|lakh|lac)$/i.test(u ?? "") ? 1e5 : /^k$/i.test(u ?? "") ? 1e3 : 1);
-
-// Reads labels such as "Under ₹1 Lakh", "₹1 – 5 Lakh", "₹50 Lakh – 1 Crore", and "₹1 Crore+".
-export function parseBudget(label?: string): [number, number] | null {
-  if (!label) return null;
-  const s = label.replace(/,/g, "");
-  const re = /(\d+(?:\.\d+)?)\s*(crore|cr|lakh|lac|l|k)?/gi;
-  const nums: { v: number; u?: string }[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(s))) nums.push({ v: Number(m[1]), u: m[2] });
-  if (!nums.length) return null;
-  const lastUnit = [...nums].reverse().find((n) => n.u)?.u;
-  const val = (n: { v: number; u?: string }) => n.v * UNIT(n.u ?? lastUnit);
-  const first = val(nums[0]);
-  if (nums.length >= 2) return [first, val(nums[1])];
-  if (/under|below|up\s?to/i.test(s)) return [0, first];
-  if (/above|over|more|\+/.test(s)) return [first, Infinity];
-  return [first, first];
-}
-
-// Target point: midpoint of a range, cap for "Under X", floor for "X+".
-const budgetTarget = ([lo, hi]: [number, number]) =>
-  hi === Infinity ? lo : lo === 0 ? hi : (lo + hi) / 2;
-
-export function sortByBudget<T extends Vendor>(list: T[], label?: string, guests = 0): T[] {
-  const range = parseBudget(label);
-  if (!range) return list;
-  const target = budgetTarget(range);
-  const gap = (v: T) => {
-    const e = estimate(v, guests);
-    if (!e.min) return Infinity;
-    return Math.abs((e.min + e.max) / 2 - target);
+export function normalizeVendor(r: any): FlowVendor {
+  const packages = r.packages ?? r.package_names ?? r.plans ?? [];
+  return {
+    id: String(r.id ?? r.slug ?? r.name),
+    name: r.name ?? r.business_name ?? r.title ?? "Vendor",
+    category: r.category ?? r.category_name ?? r.type ?? "",
+    city: r.city ?? r.location ?? "",
+    rating: Number(r.rating ?? r.avg_rating ?? 0) || 0,
+    priceFrom: num(r.price_from ?? r.priceFrom ?? r.starting_price ?? r.price ?? r.price_min),
+    packages: Array.isArray(packages)
+      ? packages.map((p: any) => (typeof p === "string" ? p : p?.name ?? p?.title ?? "")).filter(Boolean)
+      : [],
+    availability: r.availability ?? (r.available === false ? "Unavailable" : "Available"),
+    image: r.image ?? r.image_url ?? r.cover_image ?? r.avatar ?? "",
+    serviceIds: Array.isArray(r.service_ids) ? r.service_ids.map(Number) : [],
+    raw: r,
   };
-  return [...list].sort((a, b) => gap(a) - gap(b));
 }
 
-const GUESTS: Record<string, [number, number]> = {
-  [norm("Under 50")]: [0, 49], [norm("50 – 100")]: [50, 100], [norm("100 – 200")]: [100, 200],
-  [norm("200 – 300")]: [200, 300], [norm("300 – 500")]: [300, 500],
-  [norm("500 – 1000")]: [500, 1000], [norm("1000+")]: [1000, Infinity],
-};
-const EVENT_RX: Record<string, RegExp> = {
-  wedding: /wedding|bridal|mehendi|decor|flor|venue|photograph/,
-  engagement: /wedding|bridal|event|photograph/,
-  haldi: /wedding|bridal|decor|flor|makeup/,
-  mehendi: /mehendi|bridal|wedding/,
-  anniversary: /wedding|event|photograph|decor/,
-  babyshower: /event|decor|cater|photograph/,
-  fashionshow: /makeup|photograph|lighting|production|event/,
-  exhibition: /corporate|event|production|lighting/,
-  collegefest: /college|fest|concert|dj|band|lighting|production|entertain|event/,
-  religious: /religious|puja|pooja|catering|decor|flor|event|priest/,
-};
+const clean = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
-const isSet = (v?: string, placeholder?: RegExp) => !!v && !placeholder?.test(v);
-const cityOn = (c?: string) => isSet(c, /^(select city|all cities)$/i);
-const eventOn = (e?: string) => isSet(e, /^(event type|all events)$/i);
-const guestsOn = (g?: string) => !!g && !!GUESTS[norm(g)];
-const budgetOn = (b?: string) => !!b && !!parseBudget(b);
+function kwHit(text: string, kw: string): boolean {
+  if (kw.includes(" ")) return text.includes(kw);
+  return text.split(" ").some((w) => w === kw || (kw.length > 3 && w.startsWith(kw)));
+}
 
-export const hasActiveFilters = (f: HeroFilters) =>
-  !!f.query?.trim() || cityOn(f.city) || eventOn(f.event) || guestsOn(f.guests) || budgetOn(f.budget);
+/** service ids a vendor serves: explicit service_ids first, keyword fallback on category (+ tags) */
+export function vendorServiceIds(v: FlowVendor): number[] {
+  if (v.serviceIds.length) return v.serviceIds;
+  const tags = Array.isArray(v.raw?.tags) ? v.raw.tags.join(" ") : "";
+  const text = clean(`${v.category} ${tags}`);
+  if (!text) return [];
+  return SERVICES.filter((s) => s.keywords.some((k) => kwHit(text, k))).map((s) => s.id);
+}
 
-export function vendorMatches(v: Vendor, f: HeroFilters): boolean {
-  const raw = (v as any).raw ?? {};
-  const text = `${v.category} ${v.description} ${v.tags.join(" ")}`.toLowerCase();
+export function vendorMatchesServices(v: FlowVendor, serviceIds: number[]): boolean {
+  if (!serviceIds.length) return true;
+  const own = vendorServiceIds(v);
+  return serviceIds.some((id) => own.includes(id));
+}
 
-  const q = f.query?.trim().toLowerCase();
-  if (q && ![v.name, v.category, v.location, v.description, ...v.tags].join(" ").toLowerCase().includes(q)) return false;
+/** Booking handoff. Adjust BOOKING_PATH to your existing route. */
+export const BOOKING_PATH = (vendorId: string) => `/book/${vendorId}`;
 
-  if (cityOn(f.city)) {
-    const k = f.city!.toLowerCase();
-    if (!v.location.toLowerCase().includes(k) && !(v.cities ?? []).some((c: string) => c.toLowerCase().includes(k))) return false;
-  }
-  if (eventOn(f.event)) {
-    const k = f.event!.toLowerCase();
-    const rx = EVENT_RX[norm(f.event!)];
-    if (!text.includes(k) && !(rx && rx.test(text))) return false;
-  }
-  if (guestsOn(f.guests)) {
-    const [gMin, gMax] = GUESTS[norm(f.guests!)];
-    const lo = Number(raw.guests_min ?? raw.min_guests ?? raw.capacity_min) || 0;
-    const hi = Number(raw.guests_max ?? raw.max_guests ?? raw.capacity_max ?? raw.capacity) || Infinity;
-    const hasRange = lo > 0 || hi !== Infinity;
-    if (hasRange && !(lo <= gMax && hi >= gMin)) return false;
-  }
-  if (budgetOn(f.budget)) {
-    const [bMin, bMax] = parseBudget(f.budget)!;
-    const e = estimate(v, guestsFromHeroLabel(f.guests));
-    if (e.min !== 0 && !(e.min <= bMax && e.max >= bMin)) return false;
-  }
-  return true;
+export function bookingUrl(
+  vendorId: string,
+  meta: { format?: string; variant?: string; functions: number[]; services: number[] },
+) {
+  const q = new URLSearchParams();
+  if (meta.format) q.set("format", meta.format);
+  if (meta.variant) q.set("variant", meta.variant);
+  if (meta.functions.length) q.set("functions", meta.functions.join(","));
+  if (meta.services.length) q.set("service", meta.services.join(","));
+  return `${BOOKING_PATH(vendorId)}?${q.toString()}`;
 }

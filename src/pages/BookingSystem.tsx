@@ -14,6 +14,7 @@ import {
   ArrowRight, ArrowLeft, Sparkles, Lock, Zap, CheckSquare, CalendarX, Trophy
 } from "lucide-react";
 import { useLiveVendors } from "@/lib/liveVedors";
+import { useParams, useSearchParams } from "react-router-dom";
 
 const bookingTimelines = [
   { type: "Royal/Luxury Wedding", min: "6 months", rec: "12–18 months", urgency: "high" },
@@ -98,11 +99,23 @@ const GUEST_OPTIONS = ["< 50", "50–100", "100–200", "200–500", "500–1000
 const inr = (n: number) => new Intl.NumberFormat("en-IN").format(n);
 
 export default function BookingSystem() {
+  const { vendorId: routeVendorId } = useParams();
+  const [searchParams] = useSearchParams();
   const { vendors, loading: vendorsLoading } = useLiveVendors();
   const [expandedTimeline, setExpandedTimeline] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"guide" | "wizard">("wizard");
   const [step, setStep] = useState<BookingStep>(0);
-  const [booking, setBooking] = useState<BookingState>(EMPTY_BOOKING);
+  const [booking, setBooking] = useState<BookingState>(() => {
+    const details = [
+      searchParams.get("format") && `Wedding format: ${searchParams.get("format")}`,
+      searchParams.get("variant") && `Variant: ${searchParams.get("variant")}`,
+      searchParams.get("functions") && `Functions: ${searchParams.get("functions")}`,
+      searchParams.get("service") && `Services: ${searchParams.get("service")}`,
+    ].filter(Boolean).join("; ");
+    return routeVendorId
+      ? { ...EMPTY_BOOKING, eventType: "wedding", vendorId: routeVendorId, requirements: details }
+      : EMPTY_BOOKING;
+  });
   const [availTab, setAvailTab] = useState<AvailTab>("full");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [bookingDone, setBookingDone] = useState(false);

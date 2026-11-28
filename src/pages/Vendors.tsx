@@ -35,7 +35,7 @@ import { DynamicBackground } from "@/components/DynamicBackground";
 import { emptyProfile, type LiveVendor as Vendor, type VendorProfileRow } from "@/lib/vendorOptions";
 
 import { capacityOk, estimate, guestsFromLabel, inr } from "@/lib/guestPricing";
-import { sortByBudget } from "@/lib/vendorMatch";
+import { sortByBudget } from "@/lib/marketplaceVendorMatch";
 
 import { useLiveVendors } from "@/lib/liveVedors";
 
@@ -769,6 +769,16 @@ const Vendors = () => {
   const [searchParams] = useSearchParams();
   const isBrowse = pathname === "/vendors/browse";
 
+  useEffect(() => {
+    if ((pathname === "/vendors" || pathname === "/vendors/browse") && searchParams.get("category")?.toLowerCase() === "wedding") {
+      const services = (searchParams.get("service") ?? "").split(",").filter((id) => /^\d+$/.test(id));
+      const target = services.length
+        ? "/weddings?service=" + encodeURIComponent(services.join(","))
+        : "/weddings";
+      navigate(target, { replace: true });
+    }
+  }, [navigate, pathname, searchParams]);
+
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
 
   const { vendors, loading: vendorsLoading, error: vendorsError } = useLiveVendors();
@@ -1198,7 +1208,7 @@ const Vendors = () => {
 
               {EVENT_TYPES.map(({ label, icon: Icon }) => (
 
-                <button key={label} type="button" onClick={() => isBrowse ? setActiveEvent(label) : goBrowse({ event: label })} className={`flex min-w-[76px] shrink-0 flex-col items-center gap-2 rounded-2xl border px-4 py-3 transition-all ${activeEvent === label ? "border-[#E0708A] bg-gradient-to-br from-[#E0708A] to-[#C44A68] text-white shadow-[0_8px_25px_rgba(196,74,104,.25)]" : "border-[#C44A68]/10 bg-[#FFF1EC] text-[#4A3440] hover:border-[#C44A68]/50 hover:text-[#C44A68]"}`}>
+                <button key={label} type="button" onClick={() => { if (label === "Wedding") { navigate("/weddings"); return; } isBrowse ? setActiveEvent(label) : goBrowse({ event: label }); }} className={`flex min-w-[76px] shrink-0 flex-col items-center gap-2 rounded-2xl border px-4 py-3 transition-all ${activeEvent === label ? "border-[#E0708A] bg-gradient-to-br from-[#E0708A] to-[#C44A68] text-white shadow-[0_8px_25px_rgba(196,74,104,.25)]" : "border-[#C44A68]/10 bg-[#FFF1EC] text-[#4A3440] hover:border-[#C44A68]/50 hover:text-[#C44A68]"}`}>
 
                   <Icon className="h-5 w-5" />
 

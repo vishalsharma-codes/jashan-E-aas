@@ -28,6 +28,8 @@ import { ChatProvider } from "@/components/chat/ChatProvider";
 // import { SmoothScroll } from "@/components/SmoothScroll";
 import { ModerationToasts, AdminModeration } from "@/components/chat/moderation";
 import MyReels from "./pages/MyReels";
+import CategoryFlow from "./pages/CategoryFlow";
+import { weddingRoutes } from "@/routes/weddingRoutes";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +52,13 @@ const App = () => (
               <Route path="/vendors/browse" element={<Vendors />} />
               <Route path="/vendors/:slug" element={<Vendors />} />
               <Route path="/for-partners" element={<ForPartners />} />
+              {weddingRoutes}
+              <Route path="/book/:vendorId" element={<BookingSystem />} />
+              <Route path="/category/:slug/:formatId/events" element={<CategoryFlow step="events" />} />
+              <Route path="/category/:slug/:formatId/services" element={<CategoryFlow step="services" />} />
+              <Route path="/category/:slug/:formatId/vendors" element={<CategoryFlow step="vendors" />} />
+              <Route path="/category/:slug/:formatId" element={<CategoryFlow step="variants" />} />
+              <Route path="/category/:slug" element={<CategoryFlow step="formats" />} />
               <Route path="/category/:categoryId" element={<CategoryPage />} />
               <Route path="/subcategory/:subcategoryName" element={<SubCategoryPage />} />
               <Route path="/vendor-dashboard" element={<VendorDashboard />} />

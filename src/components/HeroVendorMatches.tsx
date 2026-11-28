@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Star, CheckCircle, ArrowUpRight } from "lucide-react";
 import { useLiveVendors } from "@/lib/liveVedors";
-import { vendorMatches, sortByBudget, type HeroFilters } from "@/lib/vendorMatch";
+import { vendorMatches, sortByBudget, type HeroFilters } from "@/lib/marketplaceVendorMatch";
 import { guestsFromLabel } from "@/lib/guestPricing";
 
 export function HeroVendorMatches({ filters, onSeeAll }: { filters: HeroFilters; onSeeAll: () => void }) {
