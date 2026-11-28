@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import { eventCategories } from "@/lib/categoryData";
 import { subCategorydata, pageColors } from "@/lib/weddingSubCategoryData";
 import {corporateSubCategoryData, corporatePageColors} from "@/lib/corporateSubCategoryData";
@@ -23,12 +23,17 @@ import {  automotiveSubCategoryData,automotivePageColors } from "@/lib/automotiv
 
 const SubCategoryPage = () => {
   const { subcategoryName } = useParams();
+  const decodedName = decodeURIComponent(subcategoryName || "");
+  const weddingCategory = eventCategories.find((category) => category.id === "wedding");
+  if (weddingCategory?.subCategories.some((sub) => sub.name === decodedName || sub.services.includes(decodedName))) {
+    return <Navigate to="/weddings" replace />;
+  }
 
   const subCategory = eventCategories
     .flatMap((category) => category.subCategories)
     .find(
       (sub) =>
-        sub.name === decodeURIComponent(subcategoryName || "")
+        sub.name === decodedName
     );
 
   if (!subCategory) {

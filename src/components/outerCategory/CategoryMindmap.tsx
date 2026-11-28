@@ -6,8 +6,6 @@ import { eventCategories, EventCategory, SubCategory } from "@/lib/categoryData"
 import { TAXONOMY } from "@/lib/categoryTaxonomy";
 import { useNavigate } from "react-router-dom";
 import NetworkBackground from "./NetworkBackground";
-import WeddingSubcategoryCards from "./subCategory";
-import WeddingStyleCards from "./subCategory/wedding";
 import DynamicSubcategoryCards from "./subCategory/DynamicSubcategoryCards";
 import CategorySubcategoryCards from "./categoryDesign/CategorySubcategoryCards";
 
@@ -143,6 +141,7 @@ interface CategoryCardProps {
 }
 
 const CategoryCard = ({ category, title, index, big, query, onOpen, onOpenSub }: CategoryCardProps) => {
+  const isWedding = category.id === "wedding";
   const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const q = query.trim().toLowerCase();
@@ -168,17 +167,17 @@ const CategoryCard = ({ category, title, index, big, query, onOpen, onOpenSub }:
     >
       <div
         ref={ref}
-        role="button"
+        role={isWedding ? "link" : "button"}
         tabIndex={0}
-        aria-label={`Open ${title}`}
-        onMouseEnter={() => !isTouch() && setHovered(true)}
-        onMouseLeave={() => !isTouch() && setHovered(false)}
-        onFocus={() => setHovered(true)}
+        aria-label={`${isWedding ? "Go to" : "Open"} ${title}`}
+        onMouseEnter={() => !isWedding && !isTouch() && setHovered(true)}
+        onMouseLeave={() => !isWedding && !isTouch() && setHovered(false)}
+        onFocus={() => { if (!isWedding) setHovered(true); }}
         onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHovered(false);
+          if (!isWedding && !e.currentTarget.contains(e.relatedTarget as Node | null)) setHovered(false);
         }}
         onClick={() => {
-          if (isTouch() && !hovered) {
+          if (!isWedding && isTouch() && !hovered) {
             setHovered(true);
             return;
           }
@@ -202,7 +201,7 @@ const CategoryCard = ({ category, title, index, big, query, onOpen, onOpenSub }:
             className="absolute inset-0"
             style={{ transformOrigin: "50% 0%", transformStyle: "preserve-3d" }}
             animate={
-              hovered
+              !isWedding && hovered
                 ? { rotateX: -80, y: -40, opacity: 0, scale: 0.94 }
                 : { rotateX: 0, y: 0, opacity: 1, scale: 1 }
             }
@@ -238,7 +237,7 @@ const CategoryCard = ({ category, title, index, big, query, onOpen, onOpenSub }:
                 </h3>
                 <span className="text-lg leading-none text-gold">→</span>
               </div>
-              <div className="mt-2 flex min-w-0 gap-1.5 overflow-hidden">
+              <div className={`mt-2 flex min-w-0 gap-1.5 overflow-hidden ${isWedding ? "pointer-events-none" : ""}`}>
                 {previewNames.slice(0, big ? 3 : 2).map((name) => (
                   <span
                     key={name}
@@ -257,7 +256,7 @@ const CategoryCard = ({ category, title, index, big, query, onOpen, onOpenSub }:
           </motion.div>
 
           {/* ───────── BACK FACE (rises from below on hover) ───────── */}
-          <motion.div
+          {!isWedding && <motion.div
             className="absolute inset-0 flex flex-col"
             style={{ transformOrigin: "50% 100%", transformStyle: "preserve-3d" }}
             initial={false}
@@ -326,7 +325,7 @@ const CategoryCard = ({ category, title, index, big, query, onOpen, onOpenSub }:
                 <span className="font-medium">Open all →</span>
               </div>
             </div>
-          </motion.div>
+          </motion.div>}
         </div>
       </div>
     </motion.div>
@@ -349,7 +348,7 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
   stageRef.current = stage;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-  const sentinelRef = useRef(false); // is our extra history entry active?
+  const sentinelRef = useRef(Boolean(window.history.state?.mindmap)); // is our extra history entry active?
   const ignorePopRef = useRef(false); // skip the popstate we cause ourselves
 
   const pushSentinel = () => {
@@ -464,6 +463,11 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
 
   // Opens the category panel (it grows out of the clicked card)
   const handleCategoryClick = (cat: EventCategory, rect: DOMRect) => {
+    if (cat.id === "wedding") {
+      onClose();
+      navigate("/weddings", { state: { fromEventTypeOverlay: true } });
+      return;
+    }
     setOriginRect(rect);
     setSelectedCategory(cat);
     setSelectedSubCategory(null);
@@ -858,24 +862,14 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
                       transition={{ duration: 0.35 }}
                       className="relative w-full"
                     >
-                      {selectedCategory?.name === "Weddings" ? (
-                        <WeddingStyleCards
-                          subcategories={selectedSubCategory.services.map((service) => ({
-                            name: service,
-                            services: [],
-                          }))}
-                          onSelect={(subcategory) => handleServiceClick(subcategory.name)}
-                        />
-                      ) : (
-                        <DynamicSubcategoryCards
-                          categoryName={selectedSubCategory.name}
-                          subcategories={selectedSubCategory.services.map((service) => ({
-                            name: service,
-                            services: [],
-                          }))}
-                          onSelect={(subcategory) => handleServiceClick(subcategory.name)}
-                        />
-                      )}
+                      <DynamicSubcategoryCards
+                        categoryName={selectedSubCategory.name}
+                        subcategories={selectedSubCategory.services.map((service) => ({
+                          name: service,
+                          services: [],
+                        }))}
+                        onSelect={(subcategory) => handleServiceClick(subcategory.name)}
+                      />
                     </motion.div>
                   )}
 
@@ -995,18 +989,11 @@ export const CategoryMindmap = ({ isOpen, onClose }: CategoryMindmapProps) => {
                       data-lenis-prevent
                       className="flex-1 overflow-y-auto overscroll-contain px-2 pb-4 pt-5 sm:px-4 [scrollbar-width:thin] [scrollbar-color:rgba(212,175,55,0.45)_transparent]"
                     >
-                      {selectedCategory.name === "Weddings" ? (
-                        <WeddingSubcategoryCards
-                          subcategories={selectedCategory.subCategories}
-                          onSelect={handleSubCategoryClick}
-                        />
-                      ) : (
-                        <CategorySubcategoryCards
-                          categoryName={selectedCategory.name}
-                          subcategories={selectedCategory.subCategories}
-                          onSelect={handleSubCategoryClick}
-                        />
-                      )}
+                      <CategorySubcategoryCards
+                        categoryName={selectedCategory.name}
+                        subcategories={selectedCategory.subCategories}
+                        onSelect={handleSubCategoryClick}
+                      />
                     </div>
                   </motion.div>
                 </motion.div>

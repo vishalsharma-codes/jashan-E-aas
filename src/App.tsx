@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -52,6 +52,9 @@ const App = () => (
               <Route path="/vendors/browse" element={<Vendors />} />
               <Route path="/vendors/:slug" element={<Vendors />} />
               <Route path="/for-partners" element={<ForPartners />} />
+              <Route path="/wedding/*" element={<Navigate to="/weddings" replace />} />
+              <Route path="/events/wedding/*" element={<Navigate to="/weddings" replace />} />
+              <Route path="/events/weddings/*" element={<Navigate to="/weddings" replace />} />
               {weddingRoutes}
               <Route path="/book/:vendorId" element={<BookingSystem />} />
               <Route path="/category/:slug/:formatId/events" element={<CategoryFlow step="events" />} />

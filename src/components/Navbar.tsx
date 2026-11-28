@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import { motion } from "framer-motion";
 import { Menu, X, Grid3X3 } from "lucide-react";
 import { CategoryMindmap } from "./outerCategory/CategoryMindmap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -23,8 +23,16 @@ const navLinks = [
 
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const location = useLocation();
+  const [isCategoryOpen, setIsCategoryOpen] = useState(() => Boolean(window.history.state?.mindmap));
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.state?.openEventTypeOverlay) {
+      setIsCategoryOpen(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const auth = useAuth() as { user: any; loading?: boolean; isLoading?: boolean };
   const user = auth.user;

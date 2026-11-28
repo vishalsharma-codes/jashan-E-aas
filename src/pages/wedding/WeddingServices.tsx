@@ -3,13 +3,32 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Check, Search } from "lucide-react";
 import { PageHeading, StickyAction, goldBtn } from "@/components/wedding/WeddingFlowLayout";
 import { useWeddingFlow } from "@/context/WeddingFlowContext";
-import { SERVICES, SERVICE_GROUPS, getService, hintedServiceIds, type WeddingService } from "@/lib/weddingTaxonomy";
+import { SERVICES, SERVICE_GROUPS, getService, hintedServiceIds, type GroupId, type WeddingService } from "@/lib/weddingTaxonomy";
+import { eventCategories } from "@/lib/categoryData";
 
 /** Tier 4 - 33 services, multi-select chips grouped into the legacy groups. Hints are suggestions only. */
+const LEGACY_FILTER_GROUPS: Record<string, GroupId[]> = {
+  "Theme-Based Weddings": ["decor", "venue"],
+  "Culture-Based Weddings": ["priest", "catering", "decor"],
+  "Pre-Wedding Ceremonies": ["planning", "photo", "entertainment"],
+  "Photography & Video": ["photo"],
+  "Decor & Florals": ["decor"],
+  "Catering & Food": ["catering"],
+  "Bridal & Grooming": ["bridal"],
+  "Entertainment & Artists": ["entertainment", "effects"],
+  "Venue & Logistics": ["venue"],
+  "Priest & Rituals": ["priest"],
+  "Invitations & Stationery": ["invites"],
+  "Special Effects": ["effects", "photo"],
+};
+
+const legacyWeddingFilters = eventCategories.find((category) => category.id === "wedding")?.subCategories ?? [];
+
 export default function WeddingServices() {
   const navigate = useNavigate();
   const { format, functionIds, serviceIds, setServiceIds, path } = useWeddingFlow();
   const [q, setQ] = useState("");
+  const [legacyFilter, setLegacyFilter] = useState("All services");
 
   const suggested = useMemo(
     () => hintedServiceIds(functionIds).map(getService).filter(Boolean) as WeddingService[],
@@ -22,8 +41,14 @@ export default function WeddingServices() {
     setServiceIds(serviceIds.includes(id) ? serviceIds.filter((x) => x !== id) : [...serviceIds, id]);
 
   const needle = q.trim().toLowerCase();
-  const matches = (s: WeddingService) =>
-    !needle || `${s.name} ${s.subtitle ?? ""}`.toLowerCase().includes(needle);
+  const legacyLabels = legacyWeddingFilters.map((group) =>
+    group.name.includes("Florals") && !group.name.startsWith("Decor") ? "Decor & Florals" : group.name
+  );
+  const matches = (s: WeddingService) => {
+    const matchesText = !needle || `${s.name} ${s.subtitle ?? ""}`.toLowerCase().includes(needle);
+    const groups = LEGACY_FILTER_GROUPS[legacyFilter];
+    return matchesText && (!groups || groups.includes(s.group));
+  };
 
   const Chip = ({ s }: { s: WeddingService }) => {
     const on = serviceIds.includes(s.id);
@@ -64,10 +89,35 @@ export default function WeddingServices() {
         <span className="whitespace-nowrap text-sm text-[#f0c94a]">{serviceIds.length} selected</span>
       </div>
 
-      {!needle && suggested.length > 0 && (
+      <div className="mx-auto mb-7 flex max-w-5xl flex-wrap justify-center gap-2">
+        <button
+          type="button"
+          aria-pressed={legacyFilter === "All services"}
+          onClick={() => setLegacyFilter("All services")}
+          className={`rounded-full border px-3 py-1.5 text-xs transition ${legacyFilter === "All services" ? "border-[#d4af37] bg-[#d4af37] text-black" : "border-white/20 text-white/70 hover:border-[#d4af37]"}`}
+        >
+          All services
+        </button>
+        {legacyWeddingFilters.map((group, index) => {
+          const label = legacyLabels[index];
+          return (
+            <button
+              key={group.name}
+              type="button"
+              aria-pressed={legacyFilter === label}
+              onClick={() => setLegacyFilter(legacyFilter === label ? "All services" : label)}
+              className={`rounded-full border px-3 py-1.5 text-xs transition ${legacyFilter === label ? "border-[#d4af37] bg-[#d4af37] text-black" : "border-white/20 text-white/70 hover:border-[#d4af37]"}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {!needle && suggested.filter(matches).length > 0 && (
         <section className="mb-8 rounded-2xl border border-[#d4af37]/30 bg-[#d4af37]/5 p-5">
           <h2 className="mb-3 font-serif text-lg text-[#d4af37]">Suggested for your functions</h2>
-          <div className="flex flex-wrap gap-2">{suggested.map((s) => <Chip key={s.id} s={s} />)}</div>
+          <div className="flex flex-wrap gap-2">{suggested.filter(matches).map((s) => <Chip key={s.id} s={s} />)}</div>
         </section>
       )}
 

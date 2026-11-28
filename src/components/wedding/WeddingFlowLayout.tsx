@@ -22,13 +22,19 @@ function currentStep(pathname: string): Step {
 }
 
 function Shell({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
   const navigate = useNavigate();
   const { format, variant, hasVariants, functionIds, serviceIds, vendorIds, path } = useWeddingFlow();
   const step = currentStep(pathname);
   const idx = STEPS.findIndex((s) => s.key === step);
 
   const back = () => {
+    if (step === "formats") {
+      if (location.state?.fromEventTypeOverlay) navigate(-1);
+      else navigate("/", { state: { openEventTypeOverlay: true } });
+      return;
+    }
     const prev: Record<Step, string> = {
       formats: "/",
       variants: path("formats"),

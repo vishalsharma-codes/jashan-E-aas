@@ -243,20 +243,6 @@ type CategoryConfigEntry = {
 };
 
 const categoryConfig: Record<string, CategoryConfigEntry> = {
-  Weddings: {
-    label: "WEDDINGS",
-    heading: "Plan Your Perfect Wedding",
-    description:
-      "Explore wedding services and trusted vendors for every part of your celebration.",
-    mainImageKeywords: [
-      "weddingMain",
-      "weddings-main",
-      "wedding-main",
-      "weddings",
-    ],
-    // browseText: "Browse All Wedding Vendors",
-  },
-
   "Corporate Events": {
     label: "CORPORATE EVENTS",
     heading: "Plan Your Perfect Corporate Event",
