@@ -1,5 +1,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { categoryRoute } from "@/flow/categoryRoutes";
 
 /* Auto-load category images */
 const found = import.meta.glob(
@@ -49,6 +51,7 @@ export default function CategoryCarousel({
   speed?: number;
   pauseOnHover?: boolean;
 }) {
+  const navigate = useNavigate();
   const n = categories.length;
   const loop = [...categories, ...categories, ...categories];
 
@@ -313,8 +316,8 @@ export default function CategoryCarousel({
       return goTo(g);
     }
 
-    const go = (category: Category) => category.slug === "weddings" ? "/weddings" : `/category/${category.slug}`;
-    onSelect ? onSelect(c) : (window.location.href = go(c));
+    if (onSelect) onSelect(c);
+    else navigate(categoryRoute(c.name) ?? "/events");
   };
 
   /* UI */

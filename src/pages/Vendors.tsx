@@ -773,8 +773,8 @@ const Vendors = () => {
     if ((pathname === "/vendors" || pathname === "/vendors/browse") && searchParams.get("category")?.toLowerCase() === "wedding") {
       const services = (searchParams.get("service") ?? "").split(",").filter((id) => /^\d+$/.test(id));
       const target = services.length
-        ? "/weddings?service=" + encodeURIComponent(services.join(","))
-        : "/weddings";
+        ? "/events/weddings-pre-wedding-ceremonies?s=" + encodeURIComponent(services.join(","))
+        : "/events/weddings-pre-wedding-ceremonies";
       navigate(target, { replace: true });
     }
   }, [navigate, pathname, searchParams]);

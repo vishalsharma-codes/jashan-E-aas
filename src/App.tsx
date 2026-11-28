@@ -1,4 +1,3 @@
-import SubCategoryPage from "./pages/SubCategoryPage";
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,7 +9,6 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Vendors from "./pages/Vendors";
 import ForPartners from "./pages/ForPartners";
-import CategoryPage from "./pages/CategoryPage";
 import VendorDashboard from "./pages/VendorDashboard";
 import HowItWorks from "./pages/HowItWorks";
 import UltraGold from "./pages/UltraGold";
@@ -28,8 +26,8 @@ import { ChatProvider } from "@/components/chat/ChatProvider";
 // import { SmoothScroll } from "@/components/SmoothScroll";
 import { ModerationToasts, AdminModeration } from "@/components/chat/moderation";
 import MyReels from "./pages/MyReels";
-import CategoryFlow from "./pages/CategoryFlow";
-import { weddingRoutes } from "@/routes/weddingRoutes";
+import EventFlow from "@/flow/EventFlow";
+import LegacyCategoryRedirect from "@/flow/LegacyCategoryRedirect";
 
 const queryClient = new QueryClient();
 
@@ -52,18 +50,14 @@ const App = () => (
               <Route path="/vendors/browse" element={<Vendors />} />
               <Route path="/vendors/:slug" element={<Vendors />} />
               <Route path="/for-partners" element={<ForPartners />} />
-              <Route path="/wedding/*" element={<Navigate to="/weddings" replace />} />
-              <Route path="/events/wedding/*" element={<Navigate to="/weddings" replace />} />
-              <Route path="/events/weddings/*" element={<Navigate to="/weddings" replace />} />
-              {weddingRoutes}
+              <Route path="/wedding/*" element={<Navigate to="/events/weddings-pre-wedding-ceremonies" replace />} />
+              <Route path="/events/wedding/*" element={<Navigate to="/events/weddings-pre-wedding-ceremonies" replace />} />
+              <Route path="/events/weddings/*" element={<Navigate to="/events/weddings-pre-wedding-ceremonies" replace />} />
+              <Route path="/weddings/*" element={<Navigate to="/events/weddings-pre-wedding-ceremonies" replace />} />
+              <Route path="/category/*" element={<LegacyCategoryRedirect />} />
+              <Route path="/subcategory/*" element={<LegacyCategoryRedirect />} />
+              <Route path="/events/*" element={<EventFlow />} />
               <Route path="/book/:vendorId" element={<BookingSystem />} />
-              <Route path="/category/:slug/:formatId/events" element={<CategoryFlow step="events" />} />
-              <Route path="/category/:slug/:formatId/services" element={<CategoryFlow step="services" />} />
-              <Route path="/category/:slug/:formatId/vendors" element={<CategoryFlow step="vendors" />} />
-              <Route path="/category/:slug/:formatId" element={<CategoryFlow step="variants" />} />
-              <Route path="/category/:slug" element={<CategoryFlow step="formats" />} />
-              <Route path="/category/:categoryId" element={<CategoryPage />} />
-              <Route path="/subcategory/:subcategoryName" element={<SubCategoryPage />} />
               <Route path="/vendor-dashboard" element={<VendorDashboard />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/ultra-gold" element={<UltraGold />} />

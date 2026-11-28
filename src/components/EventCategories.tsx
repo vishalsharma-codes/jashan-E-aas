@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { eventCategories } from "@/lib/categoryData";
 import { CategoryMindmap } from "./outerCategory/CategoryMindmap";
+import { categoryRoute } from "@/flow/categoryRoutes";
 
 import agriculturalImg from "./outerCategory/categoryImages/agricultural-rural-events.jpg";
 import automotiveImg from "./outerCategory/categoryImages/automotive-events.jpg";
@@ -175,7 +176,7 @@ export const EventCategories = () => {
             className="flex w-[220px] shrink-0 justify-center sm:w-[240px] lg:w-[260px]"
           >
             <Link
-              to={`/category/${category.id}`}
+              to={categoryRoute(category.name) ?? "/events"}
               tabIndex={isCopy ? -1 : undefined}
               draggable={false}
               className="group flex w-full flex-col items-center text-center"

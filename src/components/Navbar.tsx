@@ -34,6 +34,14 @@ export const Navbar = () => {
     }
   }, [location.pathname, location.state, navigate]);
 
+  useEffect(() => {
+    const syncOverlayWithHistory = (event: PopStateEvent) => {
+      if (event.state?.mindmap) setIsCategoryOpen(true);
+    };
+    window.addEventListener("popstate", syncOverlayWithHistory);
+    return () => window.removeEventListener("popstate", syncOverlayWithHistory);
+  }, []);
+
   const auth = useAuth() as { user: any; loading?: boolean; isLoading?: boolean };
   const user = auth.user;
   const loading = auth.loading ?? auth.isLoading ?? false;
